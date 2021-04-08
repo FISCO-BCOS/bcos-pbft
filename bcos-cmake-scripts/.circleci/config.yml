@@ -1,0 +1,20 @@
+version: 2.1
+jobs:
+  build:
+    working_directory: /bcos-cmake-scripts
+    docker:
+      - image: centos:7
+        environment:
+          PATH=$PATH:/usr/bin
+    steps:
+      - run:
+          name: Setup dependencies
+          command: |
+            yum install -y epel-release centos-release-scl
+            yum install -y git make gcc-c++ cmake3 devtoolset-7 lcov
+      - checkout
+      - run:
+          name: test_cmake
+          command: |
+            source /opt/rh/devtoolset-7/enable
+            cd test  && cmake3 .
