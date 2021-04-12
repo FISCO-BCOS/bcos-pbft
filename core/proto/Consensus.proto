@@ -1,0 +1,12 @@
+syntax = "proto3";
+package bcos.consensus;
+
+message PBProposal
+{
+  // the index of the proposal
+  int64 index = 1;
+  // the hash of the proposal
+  bytes hash = 2;
+  // the proposal data
+  bytes data = 3;
+};

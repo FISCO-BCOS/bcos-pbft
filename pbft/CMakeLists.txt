@@ -1,0 +1,16 @@
+file(GLOB SRC_LIST "*.cpp")
+file(GLOB HEADERS "*.h")
+set(MESSAGES_PROTOS PBFT.proto)
+set(PBFT_PROTO_SUB_DIR "pbft/protocol/proto")
+set(PBFT_PROTO_GENERATE_DIR ${PBFT_PROTO_GENERATE_BASE_DIR}/${PBFT_PROTO_SUB_DIR})
+
+include(GenerateSources)
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${MESSAGES_PROTOS} ${PROTO_PATH} "protocol/proto" ${PBFT_PROTO_GENERATE_BASE_DIR} ${PBFT_PROTO_GENERATE_DIR})
+
+aux_source_directory(./engine SRC_LIST)
+include_directories(./engine)
+add_library(${BCOS_PBFT_TARGET} ${SRC_LIST} ${PROTO_SRCS} ${HEADERS} ${PROTO_HDRS})
+
+target_compile_options(${BCOS_PBFT_TARGET} PRIVATE -Wno-error -Wno-unused-variable)
+find_package(Protobuf CONFIG REQUIRED)
+target_link_libraries(${BCOS_PBFT_TARGET} PUBLIC ${BCOS_CONSENSUS_CORE_TARGET} protobuf::libprotobuf)
