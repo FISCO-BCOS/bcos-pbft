@@ -1,0 +1,62 @@
+syntax = "proto3";
+import "core/proto/Consensus.proto";
+
+package bcos.consensus;
+
+message PBProposalWithProof
+{
+  PBProposal proposal = 1;
+  // the proof information
+  repeated int64 nodeIndex = 2;
+  // used to verify the proposal 
+  repeated bytes signatureData = 3;
+  repeated bytes consensusNodeList = 4;
+  repeated int64 weightList = 5;
+}
+
+message PBFTMessage
+{
+    int32 version = 1;
+    int64 view = 2;
+    // the index of the node that generated the request
+    int64 generatedFrom = 3;
+    // the hash of the proposals 
+    bytes hash = 4;
+    // proposals that expected to reach a consensus
+    repeated PBProposal proposals = 5;
+    // the start index of the proposal
+    int64 proposalStartIndex = 6;
+    // the end index of the proposal
+    int64 proposalEndIndex = 7;
+    // the signature list for the proposals
+    repeated bytes proposalSignatureList = 8;
+    // the signature for the request
+    bytes signatureData = 9;
+}
+
+message ViewChangeMessage
+{
+  int32 version = 1;
+  // view expected to be changed to
+  int64 toView = 2;  
+  // the index of the node that generated the request
+  int64 generatedFrom = 3;
+  // used to verify the validity of the latest committed proposal
+  PBProposalWithProof committedProposalProof = 4;
+  // prepared but not commit proposals
+  // (no need to include the proposalsData, can obtain the missed proposal from other nodes)
+  PBProposalWithProof preparedProposalProof = 5;
+  bytes signatureData = 6;
+}
+
+message NewViewMessage
+{
+  int32 version = 1;
+  int64 toView = 2;
+  int64 generatedFrom = 3;
+  // 2*f+1 view change message packets collected by the leader corresponding to toView
+  repeated ViewChangeMessage viewChangeBytes = 4;
+  // PRE-PREPARE messages converted into uncommittedBackupProposals
+  bytes generatedPrePrepare = 5;
+  bytes signatureData = 6;
+}
