@@ -19,7 +19,7 @@
  * @date 2021-04-12
  */
 #include "PBFTConfig.h"
-#include <bcos-pbft/core/ConsensusNode.h>
+#include "core/ConsensusNode.h"
 
 using namespace bcos;
 using namespace bcos::consensus;

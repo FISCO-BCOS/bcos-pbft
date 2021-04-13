@@ -38,6 +38,12 @@ public:
     virtual bcos::crypto::HashType const& hash() const = 0;
     // the data of the proposal
     virtual bcos::bytesConstRef data() const = 0;
+
+    // the signature to the proposal(optional)
+    virtual bytesConstRef signature() const = 0;
+    virtual void setSignature(bytes const& _signature) = 0;
 };
+using ProposalList = std::vector<ProposalInterface::Ptr>;
+using ProposalListPtr = std::shared_ptr<ProposalList>;
 }  // namespace consensus
 }  // namespace bcos

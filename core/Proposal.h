@@ -19,11 +19,9 @@
  * @date 2021-04-09
  */
 #pragma once
-#include "Common.h"
-#include "Exceptions.h"
+#include "core/proto/Consensus.pb.h"
+#include "framework/ProposalInterface.h"
 #include <bcos-framework/interfaces/protocol/BlockHeader.h>
-#include <bcos-pbft/core/proto/Consensus.pb.h>
-#include <bcos-pbft/framework/ProposalInterface.h>
 
 namespace bcos
 {
@@ -48,12 +46,13 @@ public:
         m_pbProposal->set_data(_data.data(), _data.size());
     }
 
-
     explicit Proposal(std::shared_ptr<PBProposal> _pbProposal) : m_pbProposal(_pbProposal)
     {
         m_hash = bcos::crypto::HashType(
             (byte*)_pbProposal->hash().c_str(), bcos::crypto::HashType::size);
     }
+
+    std::shared_ptr<PBProposal> pbProposal() { return m_pbProposal; }
 
     ~Proposal() override {}
 
@@ -69,11 +68,18 @@ public:
         return bcos::bytesConstRef((byte const*)data.c_str(), data.size());
     }
 
+    bytesConstRef signature() const override
+    {
+        auto const& signature = m_pbProposal->signature();
+        return bcos::bytesConstRef((byte const*)signature.c_str(), signature.size());
+    }
+    void setSignature(bytes const& _data) override
+    {
+        m_pbProposal->set_signature(_data.data(), _data.size());
+    }
 
 protected:
     Proposal() : m_pbProposal(std::make_shared<PBProposal>()) {}
-    std::shared_ptr<PBProposal> pbProposal() { return m_pbProposal; }
-
 
     std::shared_ptr<PBProposal> m_pbProposal;
     bcos::crypto::HashType m_hash;

@@ -19,9 +19,9 @@
  * @date 2021-04-09
  */
 #pragma once
+#include "framework/ConsensusNodeInterface.h"
+#include "framework/ProposalInterface.h"
 #include <bcos-framework/interfaces/consensus/ConsensusTypeDef.h>
-#include <bcos-pbft/framework/ConsensusNodeInterface.h>
-#include <bcos-pbft/framework/ProposalInterface.h>
 namespace bcos
 {
 namespace consensus

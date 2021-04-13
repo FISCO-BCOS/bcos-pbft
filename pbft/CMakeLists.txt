@@ -9,6 +9,13 @@ protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${MESSAGES_PROTOS} ${PROTO_PATH} "pr
 
 aux_source_directory(./engine SRC_LIST)
 include_directories(./engine)
+
+aux_source_directory(./protocol SRC_LIST)
+include_directories(./protocol)
+
+aux_source_directory(./protocol/PB SRC_LIST)
+include_directories(./protocol/PB)
+
 add_library(${BCOS_PBFT_TARGET} ${SRC_LIST} ${PROTO_SRCS} ${HEADERS} ${PROTO_HDRS})
 
 target_compile_options(${BCOS_PBFT_TARGET} PRIVATE -Wno-error -Wno-unused-variable)

@@ -21,11 +21,11 @@
 #include <bcos-framework/interfaces/consensus/ConsensusTypeDef.h>
 #include <bcos-framework/libutilities/Log.h>
 
-#define CONSENSUS_LOG(LEVEL) bcos::LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("Core")
+#define CONSENSUS_LOG(LEVEL) LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("Core")
 namespace bcos
 {
 namespace consensus
 {
 const IndexType NON_CONSENSUS_NODE = (IndexType)(-1);
-}
+}  // namespace consensus
 }  // namespace bcos

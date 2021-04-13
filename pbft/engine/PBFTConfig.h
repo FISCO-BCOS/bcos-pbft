@@ -19,8 +19,8 @@
  * @date 2021-04-12
  */
 #pragma once
-#include "Common.h"
-#include <bcos-pbft/core/ConsensusConfig.h>
+#include "core/ConsensusConfig.h"
+#include "pbft/utilities/Common.h"
 
 namespace bcos
 {

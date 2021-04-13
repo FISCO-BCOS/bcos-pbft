@@ -1,6 +1,5 @@
 syntax = "proto3";
 package bcos.consensus;
-
 message PBProposal
 {
   // the index of the proposal
@@ -9,4 +8,6 @@ message PBProposal
   bytes hash = 2;
   // the proposal data
   bytes data = 3;
+  // the proposal signature
+  bytes signature = 4;
 };

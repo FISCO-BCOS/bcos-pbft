@@ -13,16 +13,30 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file Common.h
+ * @brief interface for PBFTCodec
+ * @file PBFTCodecInterface.h
  * @author: yujiechen
- * @date 2021-04-12
+ * @date 2021-04-13
  */
 #pragma once
-#include <stdint.h>
+#include "pbft/protocol/interfaces/PBFTBaseMessageInterface.h"
+#include <bcos-framework/interfaces/crypto/KeyInterface.h>
+#include <bcos-framework/libutilities/Common.h>
 namespace bcos
 {
 namespace consensus
 {
-using ViewType = uint64_t;
-}
+class PBFTCodecInterface
+{
+public:
+    using Ptr = std::shared_ptr<PBFTCodecInterface>;
+    PBFTCodecInterface() = default;
+    virtual ~PBFTCodecInterface() {}
+
+    virtual bytesPointer encode(
+        PBFTBaseMessageInterface::Ptr _pbftMessage, int32_t _version = 0) const = 0;
+    virtual PBFTBaseMessageInterface::Ptr decode(
+        bcos::crypto::PublicPtr _pubKey, bytesConstRef _data) const = 0;
+};
+}  // namespace consensus
 }  // namespace bcos

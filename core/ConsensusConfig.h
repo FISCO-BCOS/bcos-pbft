@@ -20,9 +20,9 @@
  */
 #pragma once
 #include "Common.h"
+#include "framework/ConsensusConfigInterface.h"
 #include <bcos-framework/interfaces/crypto/KeyPairInterface.h>
 #include <bcos-framework/libutilities/Common.h>
-#include <bcos-pbft/framework/ConsensusConfigInterface.h>
 
 namespace bcos
 {
