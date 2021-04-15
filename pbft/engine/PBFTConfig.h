@@ -21,6 +21,7 @@
 #pragma once
 #include "core/ConsensusConfig.h"
 #include "pbft/utilities/Common.h"
+#include <bcos-framework/interfaces/crypto/CryptoSuite.h>
 
 namespace bcos
 {
@@ -29,7 +30,14 @@ namespace consensus
 class PBFTConfig : public ConsensusConfig
 {
 public:
-    explicit PBFTConfig(bcos::crypto::KeyPairInterface::Ptr _keyPair) : ConsensusConfig(_keyPair) {}
+    using Ptr = std::shared_ptr<PBFTConfig>;
+    PBFTConfig(
+        bcos::crypto::CryptoSuite::Ptr _cryptoSuite, bcos::crypto::KeyPairInterface::Ptr _keyPair)
+      : ConsensusConfig(_keyPair)
+    {
+        m_cryptoSuite = _cryptoSuite;
+    }
+
     ~PBFTConfig() override {}
 
     uint64_t minRequiredQuorum() const override;
@@ -47,11 +55,13 @@ public:
     {
         m_leaderSwitchPeriod.store(_leaderSwitchPeriod);
     }
+    bcos::crypto::CryptoSuite::Ptr cryptoSuite() { return m_cryptoSuite; }
 
 protected:
     void updateQuorum() override;
 
 private:
+    bcos::crypto::CryptoSuite::Ptr m_cryptoSuite;
     std::atomic<uint64_t> m_maxFaultyQuorum;
     std::atomic<uint64_t> m_totalQuorum;
     std::atomic<uint64_t> m_minRequiredQuorum;

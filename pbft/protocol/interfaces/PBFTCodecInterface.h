@@ -35,8 +35,9 @@ public:
 
     virtual bytesPointer encode(
         PBFTBaseMessageInterface::Ptr _pbftMessage, int32_t _version = 0) const = 0;
-    virtual PBFTBaseMessageInterface::Ptr decode(
-        bcos::crypto::PublicPtr _pubKey, bytesConstRef _data) const = 0;
+    // Taking into account the situation of future blocks, verify the signature if and only when
+    // processing the message packet
+    virtual PBFTBaseMessageInterface::Ptr decode(bytesConstRef _data) const = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

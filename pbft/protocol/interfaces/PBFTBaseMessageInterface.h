@@ -53,6 +53,16 @@ public:
     virtual bytesPointer encode(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
         bcos::crypto::KeyPairInterface::Ptr _keyPair) const = 0;
     virtual void decode(bytesConstRef _data) = 0;
+
+    virtual bytes const& signatureData() = 0;
+    virtual bcos::crypto::HashType const& signatureDataHash() = 0;
+
+    virtual void setSignatureData(bytes&& _signatureData) = 0;
+
+    virtual void setSignatureData(bytes const& _signatureData) = 0;
+    virtual void setSignatureDataHash(bcos::crypto::HashType const& _hash) = 0;
+    virtual bool verifySignature(
+        bcos::crypto::CryptoSuite::Ptr _cryptoSuite, bcos::crypto::PublicPtr _pubKey) = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

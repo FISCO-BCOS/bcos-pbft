@@ -30,9 +30,12 @@ class PBFTBaseMessage : public PBFTBaseMessageInterface
 {
 public:
     using Ptr = std::shared_ptr<PBFTBaseMessage>;
-    PBFTBaseMessage() : m_baseMessage(std::make_shared<BaseMessage>()) {}
+    PBFTBaseMessage()
+      : m_baseMessage(std::make_shared<BaseMessage>()), m_signatureData(std::make_shared<bytes>())
+    {}
+
     explicit PBFTBaseMessage(std::shared_ptr<BaseMessage> _baseMessage)
-      : m_baseMessage(_baseMessage)
+      : m_baseMessage(_baseMessage), m_signatureData(std::make_shared<bytes>())
     {}
 
     ~PBFTBaseMessage() override {}
@@ -73,10 +76,30 @@ public:
             bcos::crypto::HashType((byte const*)hashData.c_str(), bcos::crypto::HashType::size);
     }
 
+    bytes const& signatureData() override { return *m_signatureData; }
+    bcos::crypto::HashType const& signatureDataHash() override { return m_dataHash; }
+    void setSignatureData(bytes&& _signatureData) override
+    {
+        *m_signatureData = std::move(_signatureData);
+    }
+    void setSignatureData(bytes const& _signatureData) override
+    {
+        *m_signatureData = _signatureData;
+    }
+    void setSignatureDataHash(bcos::crypto::HashType const& _hash) override { m_dataHash = _hash; }
+    bool verifySignature(
+        bcos::crypto::CryptoSuite::Ptr _cryptoSuite, bcos::crypto::PublicPtr _pubKey) override
+    {
+        return _cryptoSuite->signatureImpl()->verify(_pubKey, m_dataHash, ref(*m_signatureData));
+    }
+
 private:
     std::shared_ptr<BaseMessage> m_baseMessage;
     bcos::crypto::HashType m_hash;
     PacketType m_packetType;
+
+    bcos::crypto::HashType m_dataHash;
+    bytesPointer m_signatureData;
 };
 }  // namespace consensus
 }  // namespace bcos

@@ -39,8 +39,7 @@ public:
     bytesPointer encode(
         PBFTBaseMessageInterface::Ptr _pbftMessage, int32_t _version = 0) const override;
 
-    PBFTBaseMessageInterface::Ptr decode(
-        bcos::crypto::PublicPtr _pubKey, bytesConstRef _data) const override;
+    PBFTBaseMessageInterface::Ptr decode(bytesConstRef _data) const override;
 
 protected:
     virtual bool shouldHandleSignature(PacketType _packetType) const

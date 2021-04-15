@@ -51,11 +51,15 @@ void PBFTMessage::decode(bytesConstRef _data)
     }
 }
 
-void PBFTMessage::decodeAndVerify(
-    CryptoSuite::Ptr _cryptoSuite, PublicPtr _pubKey, bytesConstRef _data)
+void PBFTMessage::decodeAndSetSignature(CryptoSuite::Ptr _cryptoSuite, bytesConstRef _data)
 {
     decode(_data);
-    verifySignature(_cryptoSuite, _pubKey);
+    auto dataHash = getHashFieldsDataHash(_cryptoSuite);
+    setSignatureDataHash(dataHash);
+
+    auto const& signatureData = m_pbPBFTMessage->signaturedata();
+    bytes signatureDataBytes(signatureData.begin(), signatureData.end());
+    setSignatureData(std::move(signatureDataBytes));
 }
 
 HashType PBFTMessage::getHashFieldsDataHash(CryptoSuite::Ptr _cryptoSuite) const
@@ -73,20 +77,6 @@ void PBFTMessage::generateAndSetSignatureData(
     auto signature = _cryptoSuite->signatureImpl()->sign(_keyPair, dataHash, false);
     // set the signature data
     m_pbPBFTMessage->set_signaturedata(signature->data(), signature->size());
-}
-
-void PBFTMessage::verifySignature(CryptoSuite::Ptr _cryptoSuite, bcos::crypto::PublicPtr _pubKey)
-{
-    auto dataHash = getHashFieldsDataHash(_cryptoSuite);
-    auto const& signatureData = m_pbPBFTMessage->signaturedata();
-    auto signatureDataRef = bytesConstRef((byte const*)signatureData.c_str(), signatureData.size());
-    if (!_cryptoSuite->signatureImpl()->verify(_pubKey, dataHash, signatureDataRef))
-    {
-        PBFT_LOG(WARNING) << LOG_DESC("decode PBFT Message failed for signature verify failed")
-                          << LOG_KV("dataHash", dataHash.abridged());
-        BOOST_THROW_EXCEPTION(VerifySignatureFailed() << errinfo_comment(
-                                  "PBFT message decode failed for invalid signature data"));
-    }
 }
 
 void PBFTMessage::setProposals(ProposalListPtr _proposals)

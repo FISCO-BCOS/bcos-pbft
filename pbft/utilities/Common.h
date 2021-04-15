@@ -28,7 +28,6 @@ namespace bcos
 namespace consensus
 {
 using ViewType = uint64_t;
-DERIVE_BCOS_EXCEPTION(VerifySignatureFailed);
 enum PacketType : uint32_t
 {
     PrePreparePacket = 0x00,

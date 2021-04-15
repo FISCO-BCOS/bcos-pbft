@@ -50,7 +50,7 @@ bytesPointer PBFTCodec::encode(PBFTBaseMessageInterface::Ptr _pbftMessage, int32
     return bcos::protocol::encodePBObject(pbMessage);
 }
 
-PBFTBaseMessageInterface::Ptr PBFTCodec::decode(PublicPtr _pubKey, bytesConstRef _data) const
+PBFTBaseMessageInterface::Ptr PBFTCodec::decode(bytesConstRef _data) const
 {
     auto pbMessage = std::make_shared<PBMessage>();
     bcos::protocol::decodePBObject(pbMessage, _data);
@@ -59,14 +59,6 @@ PBFTBaseMessageInterface::Ptr PBFTCodec::decode(PublicPtr _pubKey, bytesConstRef
     // get payLoad
     auto const& payLoad = pbMessage->payload();
     auto payLoadRefData = bytesConstRef((byte const*)payLoad.c_str(), payLoad.size());
-    // verify the signature
-    if (shouldHandleSignature(packetType))
-    {
-        auto const& signatureData = pbMessage->signaturedata();
-        auto signatureDataRef =
-            bytesConstRef((byte const*)signatureData.c_str(), signatureData.size());
-        verifySignature(_pubKey, payLoadRefData, signatureDataRef);
-    }
     // decode the packet according to the packetType
     PBFTBaseMessageInterface::Ptr decodedMsg = nullptr;
     switch (packetType)
@@ -74,12 +66,22 @@ PBFTBaseMessageInterface::Ptr PBFTCodec::decode(PublicPtr _pubKey, bytesConstRef
     case PacketType::PrePreparePacket:
     case PacketType::PreparePacket:
     case PacketType::CommitPacket:
-        decodedMsg = std::make_shared<PBFTMessage>(m_cryptoSuite, _pubKey, payLoadRefData);
+        decodedMsg = std::make_shared<PBFTMessage>(m_cryptoSuite, payLoadRefData);
         break;
     case ViewChangePacket:
     case NewViewPacket:
     default:
         break;
+    }
+    if (shouldHandleSignature(packetType))
+    {
+        // set signature data for the message
+        auto hash = m_cryptoSuite->hashImpl()->hash(payLoadRefData);
+        decodedMsg->setSignatureDataHash(hash);
+
+        auto const& signatureData = pbMessage->signaturedata();
+        bytes signatureBytes(signatureData.begin(), signatureData.end());
+        decodedMsg->setSignatureData(std::move(signatureBytes));
     }
     decodedMsg->setPacketType(packetType);
     return decodedMsg;
@@ -91,18 +93,4 @@ bytesPointer PBFTCodec::signPayLoad(bytesPointer _payLoadData) const
     auto hash = m_cryptoSuite->hashImpl()->hash(*_payLoadData);
     // sign for the payload
     return m_cryptoSuite->signatureImpl()->sign(m_keyPair, hash, false);
-}
-
-void PBFTCodec::verifySignature(
-    PublicPtr _pubKey, bytesConstRef _payLoad, bytesConstRef _signatureData) const
-{
-    auto hash = m_cryptoSuite->hashImpl()->hash(_payLoad);
-    auto ret = m_cryptoSuite->signatureImpl()->verify(_pubKey, hash, _signatureData);
-    if (!ret)
-    {
-        PBFT_LOG(WARNING) << LOG_DESC("decode PBFT Message failed for signature verify failed")
-                          << LOG_KV("dataHash", hash.abridged());
-        BOOST_THROW_EXCEPTION(VerifySignatureFailed() << errinfo_comment(
-                                  "PBFT message decode failed for invalid signature data"));
-    }
 }

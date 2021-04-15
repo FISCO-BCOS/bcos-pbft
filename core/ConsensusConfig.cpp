@@ -86,5 +86,9 @@ IndexType ConsensusConfig::getNodeIndexByNodeID(bcos::crypto::PublicPtr _nodeID)
 ConsensusNodeInterface::Ptr ConsensusConfig::getConsensusNodeByIndex(IndexType _nodeIndex)
 {
     ReadGuard l(x_consensusNodeList);
-    return (*m_consensusNodeList)[_nodeIndex];
+    if (_nodeIndex < m_consensusNodeList->size())
+    {
+        return (*m_consensusNodeList)[_nodeIndex];
+    }
+    return nullptr;
 }

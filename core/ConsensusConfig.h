@@ -66,13 +66,13 @@ public:
         ReadGuard l(x_committedProposal);
         return std::const_pointer_cast<ProposalInterface const>(m_committedProposal);
     }
+    bcos::crypto::KeyPairInterface::Ptr keyPair() { return m_keyPair; }
 
-protected:
     virtual void updateQuorum() = 0;
     IndexType getNodeIndexByNodeID(bcos::crypto::PublicPtr _nodeID);
     ConsensusNodeInterface::Ptr getConsensusNodeByIndex(IndexType _nodeIndex);
 
-
+protected:
     bcos::crypto::KeyPairInterface::Ptr m_keyPair;
     std::atomic<IndexType> m_nodeIndex;
     std::atomic<IndexType> m_consensusNodeNum;

@@ -20,6 +20,7 @@
  */
 #pragma once
 #include "PBFTBaseMessage.h"
+#include "pbft/engine/PBFTConfig.h"
 #include "pbft/protocol/interfaces/PBFTMessageInterface.h"
 #include "pbft/protocol/proto/PBFT.pb.h"
 
@@ -31,13 +32,12 @@ class PBFTMessage : public PBFTBaseMessage, public PBFTMessageInterface
 {
 public:
     using Ptr = std::shared_ptr<PBFTMessage>;
-    PBFTMessage(bcos::crypto::CryptoSuite::Ptr _cryptoSuite, bcos::crypto::PublicPtr _pubKey,
-        bytesConstRef _data)
+    PBFTMessage(bcos::crypto::CryptoSuite::Ptr _cryptoSuite, bytesConstRef _data)
       : PBFTBaseMessage()
     {
         m_proposals = std::make_shared<ProposalList>();
         m_pbPBFTMessage = std::make_shared<PBPBFTMessage>();
-        decodeAndVerify(_cryptoSuite, _pubKey, _data);
+        decodeAndSetSignature(_cryptoSuite, _data);
     }
 
     bytesPointer encode(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
@@ -47,17 +47,14 @@ public:
     void setProposals(ProposalListPtr _proposals) override;
     ProposalListPtr proposals() const override { return m_proposals; }
 
-    virtual void decodeAndVerify(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
-        bcos::crypto::PublicPtr _pubKey, bytesConstRef _data);
+    virtual void decodeAndSetSignature(
+        bcos::crypto::CryptoSuite::Ptr _pbftConfig, bytesConstRef _data);
 
 protected:
     virtual bcos::crypto::HashType getHashFieldsDataHash(
         bcos::crypto::CryptoSuite::Ptr _cryptoSuite) const;
     virtual void generateAndSetSignatureData(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
         bcos::crypto::KeyPairInterface::Ptr _keyPair) const;
-
-    virtual void verifySignature(
-        bcos::crypto::CryptoSuite::Ptr _cryptoSuite, bcos::crypto::PublicPtr _pubKey);
 
 private:
     std::shared_ptr<PBPBFTMessage> m_pbPBFTMessage;

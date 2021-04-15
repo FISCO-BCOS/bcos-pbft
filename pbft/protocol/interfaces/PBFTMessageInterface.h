@@ -19,7 +19,6 @@
  * @date 2021-04-13
  */
 #pragma once
-//#include <bcos-framework/interfaces/
 #include "framework/ProposalInterface.h"
 namespace bcos
 {
