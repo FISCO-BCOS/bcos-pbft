@@ -13,34 +13,31 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief interface for Consensus Engine
- * @file ConsensusEngineInterface.h
+ * @brief interface for PBFTCodec
+ * @file PBFTCodecInterface.h
  * @author: yujiechen
- * @date 2021-04-09
+ * @date 2021-04-13
  */
 #pragma once
-#include "framework/ConsensusConfigInterface.h"
-#include "framework/TimerInterface.h"
+#include "pbft/protocol/interfaces/PBFTBaseMessageInterface.h"
+#include <bcos-framework/interfaces/crypto/KeyInterface.h>
+#include <bcos-framework/libutilities/Common.h>
 namespace bcos
 {
 namespace consensus
 {
-class ConsensusEngineInterface
+class PBFTCodecInterface
 {
 public:
-    using Ptr = std::shared_ptr<ConsensusEngineInterface>;
-    ConsensusEngineInterface() = default;
-    virtual ~ConsensusEngineInterface() {}
+    using Ptr = std::shared_ptr<PBFTCodecInterface>;
+    PBFTCodecInterface() = default;
+    virtual ~PBFTCodecInterface() {}
 
-    // start the consensus engine
-    virtual void start() = 0;
-    // stop the consensus engine
-    virtual void stop() = 0;
-
-    // the consensus config
-    virtual ConsensusConfigInterface::Ptr consensusConfig() const = 0;
-    // the consensus Timer
-    virtual TimerInterface::Ptr timer() = 0;
+    virtual bytesPointer encode(
+        PBFTBaseMessageInterface::Ptr _pbftMessage, int32_t _version = 0) const = 0;
+    // Taking into account the situation of future blocks, verify the signature if and only when
+    // processing the message packet
+    virtual PBFTBaseMessageInterface::Ptr decode(bytesConstRef _data) const = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

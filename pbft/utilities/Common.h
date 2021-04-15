@@ -13,34 +13,28 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief interface for Consensus Engine
- * @file ConsensusEngineInterface.h
+ * @file Common.h
  * @author: yujiechen
- * @date 2021-04-09
+ * @date 2021-04-12
  */
 #pragma once
-#include "framework/ConsensusConfigInterface.h"
-#include "framework/TimerInterface.h"
+#include <bcos-framework/libutilities/Exceptions.h>
+#include <bcos-framework/libutilities/Log.h>
+#include <stdint.h>
+
+#define PBFT_LOG(LEVEL) LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("PBFT")
 namespace bcos
 {
 namespace consensus
 {
-class ConsensusEngineInterface
+using ViewType = uint64_t;
+enum PacketType : uint32_t
 {
-public:
-    using Ptr = std::shared_ptr<ConsensusEngineInterface>;
-    ConsensusEngineInterface() = default;
-    virtual ~ConsensusEngineInterface() {}
-
-    // start the consensus engine
-    virtual void start() = 0;
-    // stop the consensus engine
-    virtual void stop() = 0;
-
-    // the consensus config
-    virtual ConsensusConfigInterface::Ptr consensusConfig() const = 0;
-    // the consensus Timer
-    virtual TimerInterface::Ptr timer() = 0;
+    PrePreparePacket = 0x00,
+    PreparePacket = 0x01,
+    CommitPacket = 0x02,
+    ViewChangePacket = 0x03,
+    NewViewPacket = 0x04,
 };
 }  // namespace consensus
 }  // namespace bcos

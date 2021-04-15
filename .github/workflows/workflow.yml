@@ -28,9 +28,6 @@ jobs:
           fetch-depth: 5
       - name: Nightly default
         run: rustup default nightly
-      - name: check commit
-        if: ${{ runner.os == 'Linux' && github.base_ref != 'master' && github.event_name == 'pull_request' }}
-        run: bash bcos-cmake-scripts/shell/check-commit.sh 3000 "https://api.github.com/repos/FISCO-BCOS/bcos-pbft"
       - uses: actions/cache@v2
         id: cache
         with:
@@ -53,8 +50,10 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt install -y git curl build-essential clang cmake ccache
       - name: configure
-        run: |
-          CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake . -DTESTS=ON
+        run: CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake . -DTESTS=ON
+      - name: check commit
+        if: ${{ runner.os == 'Linux' && github.base_ref != 'master' && github.event_name == 'pull_request' }}
+        run: bash bcos-cmake-scripts/shell/check-commit.sh 3000 "https://api.github.com/repos/FISCO-BCOS/bcos-pbft"
       - name: compile
         run: make -j2
   build_with_gcc:
@@ -129,7 +128,7 @@ jobs:
         run: brew install ccache
       - name: configure
         run: |
-          CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake . -DTESTS=ON
+          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path) && CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake . -DTESTS=ON
       - name: compile
         run: make -j2
   ubuntu16_04_build_with_gcc:

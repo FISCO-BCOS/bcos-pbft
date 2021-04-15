@@ -1,62 +1,60 @@
 syntax = "proto3";
 import "core/proto/Consensus.proto";
-
 package bcos.consensus;
 
-message PBProposalWithProof
-{
-  PBProposal proposal = 1;
-  // the proof information
-  repeated int64 nodeIndex = 2;
-  // used to verify the proposal 
-  repeated bytes signatureData = 3;
-  repeated bytes consensusNodeList = 4;
-  repeated int64 weightList = 5;
-}
-
-message PBFTMessage
-{
-    int32 version = 1;
-    int64 view = 2;
-    // the index of the node that generated the request
-    int64 generatedFrom = 3;
-    // the hash of the proposals 
-    bytes hash = 4;
-    // proposals that expected to reach a consensus
-    repeated PBProposal proposals = 5;
-    // the start index of the proposal
-    int64 proposalStartIndex = 6;
-    // the end index of the proposal
-    int64 proposalEndIndex = 7;
-    // the signature list for the proposals
-    repeated bytes proposalSignatureList = 8;
-    // the signature for the request
-    bytes signatureData = 9;
-}
-
-message ViewChangeMessage
+message BaseMessage
 {
   int32 version = 1;
-  // view expected to be changed to
-  int64 toView = 2;  
+  // the hash of the proposals or the committed proposal
+  bytes hash = 2;
+  int64 view = 3;
+  int64 timestamp = 4;
   // the index of the node that generated the request
-  int64 generatedFrom = 3;
+  int64 generatedFrom = 5;
+}
+
+message PreparedProof
+{
+  int64 index = 1;
+  repeated int64 nodeList = 2;
+  repeated bytes signatureList = 3;
+}
+
+message PBViewChangeMessage
+{
+  BaseMessage message = 1;
   // used to verify the validity of the latest committed proposal
-  PBProposalWithProof committedProposalProof = 4;
+  PBProposal committedProposal = 2;
   // prepared but not commit proposals
   // (no need to include the proposalsData, can obtain the missed proposal from other nodes)
-  PBProposalWithProof preparedProposalProof = 5;
-  bytes signatureData = 6;
+  repeated PBProposal preparedProposals = 3;
+  // proof for the prepared proposal
+  repeated PreparedProof preparedProof = 4;
 }
 
-message NewViewMessage
+message PBNewViewMessage
+{
+  BaseMessage message = 1;
+  // 2*f+1 view change message packets collected by the leader corresponding to toView
+  repeated PBViewChangeMessage viewChangeMsgs = 2;
+  // PRE-PREPARE messages converted into uncommittedBackupProposals
+  bytes generatedPrePrepare = 3;
+}
+
+message PBPBFTMessage
+{
+  bytes hashFieldsData = 1;
+  // proposals that expected to reach a consensus
+  repeated PBProposal proposals = 2;
+  bytes signatureData = 3;
+}
+
+message PBMessage
 {
   int32 version = 1;
-  int64 toView = 2;
-  int64 generatedFrom = 3;
-  // 2*f+1 view change message packets collected by the leader corresponding to toView
-  repeated ViewChangeMessage viewChangeBytes = 4;
-  // PRE-PREPARE messages converted into uncommittedBackupProposals
-  bytes generatedPrePrepare = 5;
-  bytes signatureData = 6;
+  int32 type = 2;
+  // used to verify proposal-irrelevant request
+  // eg. ViewChange, NewView requests
+  bytes signatureData = 3;
+  bytes payLoad = 4;
 }

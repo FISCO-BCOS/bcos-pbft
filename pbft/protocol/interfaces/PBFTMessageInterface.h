@@ -13,16 +13,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file Common.h
+ * @brief interface for PBFT Message
+ * @file PBFTMessageInterface.h
  * @author: yujiechen
- * @date 2021-04-12
+ * @date 2021-04-13
  */
 #pragma once
-#include <stdint.h>
+#include "framework/ProposalInterface.h"
 namespace bcos
 {
 namespace consensus
 {
-using ViewType = uint64_t;
-}
+class PBFTMessageInterface
+{
+public:
+    using Ptr = std::shared_ptr<PBFTMessageInterface>;
+    PBFTMessageInterface() = default;
+    virtual ~PBFTMessageInterface() {}
+
+    virtual void setProposals(ProposalListPtr _proposals) = 0;
+    virtual ProposalListPtr proposals() const = 0;
+};
+}  // namespace consensus
 }  // namespace bcos

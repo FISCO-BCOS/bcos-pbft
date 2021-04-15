@@ -28,8 +28,8 @@ class TimerInterface
 {
 public:
     using Ptr = std::shared_ptr<TimerInterface>;
-    TickerInterface() = default;
-    virtual ~TickerInterface() {}
+    TimerInterface() = default;
+    virtual ~TimerInterface() {}
 
     virtual void init(uint64_t _timeout) = 0;
     // start the timer

@@ -19,16 +19,24 @@
 cmake_minimum_required(VERSION 3.10)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
 
-set(BCOS_CMAKE_SCRIPTS "bcos-cmake-scripts")
-set(BCOS_CMAKE_SCRIPTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${BCOS_CMAKE_SCRIPTS}" CACHE PATH "The path for the ${BCOS_CMAKE_SCRIPTS} subtree")
+include(FetchContent)
+set(FETCH_URL_BASE "github.com")
+set(BCOS_CMAKE_SCRIPTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/bcos-cmake-scripts)
+FetchContent_Declare(bcos-cmake-scripts
+    GIT_REPOSITORY https://${FETCH_URL_BASE}/FISCO-BCOS/bcos-cmake-scripts.git
+    GIT_TAG dev
+    SOURCE_DIR ${BCOS_CMAKE_SCRIPTS_DIR}
+)
+FetchContent_MakeAvailable(bcos-cmake-scripts)
+
 set(BCOS_PBFT_CMAKE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake" CACHE PATH "The cmake path for the library")
 list(APPEND CMAKE_MODULE_PATH ${BCOS_CMAKE_SCRIPTS_DIR})
 list(APPEND CMAKE_MODULE_PATH ${BCOS_PBFT_CMAKE_DIR})
 #init hunter
 include(HunterGate)
 HunterGate(
-    URL "https://github.com/FISCO-BCOS/hunter/archive/5a02ff6cd98a47538e077b3ae07e5142cf1c363a.tar.gz"
-    SHA1 "0013602ad7f8d50ec39e5066f06de61f4702c434"
+    URL "https://github.com/FISCO-BCOS/hunter/archive/4ba91e1dc10bd74cb757be4ea40d2b3657d808ac.tar.gz"
+    SHA1 "9d92a895063ce5f174593686c5f0b0f52377e39d"
 )
 project(bcos-pbft VERSION "3.0.0")
 set(VERSION_SUFFIX "")
@@ -37,24 +45,18 @@ set(VERSION_SUFFIX "")
 include(Options)
 configure_project()
 include(CompilerSettings)
-include(CopyInclude)
 
 include_directories(${CMAKE_INSTALL_INCLUDEDIR})
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
-
-set(INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/include)
-include_directories(${CMAKE_INSTALL_INCLUDEDIR})
-include_directories(${INCLUDE_DIR})
-include_directories(${INCLUDE_DIR}/${CMAKE_PROJECT_NAME})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(PROTO_PATH ${PROJECT_SOURCE_DIR})
 
 # install dependencies
 include(InstallBcosFrameworkDependencies)
 
-# set the targets
-set(PBFT_PROTO_GENERATE_BASE_DIR ${INCLUDE_DIR}/${CMAKE_PROJECT_NAME})
-set(CONSENSUS_PROTO_GENERATE_BASE_DIR ${INCLUDE_DIR}/${CMAKE_PROJECT_NAME})
+# for proto generation
+set(PBFT_PROTO_GENERATE_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(CONSENSUS_PROTO_GENERATE_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(BCOS_CONSENSUS_CORE_TARGET "bcos-consensus-core")
 set(BCOS_PBFT_TARGET "bcos-pbft")
@@ -63,9 +65,17 @@ add_subdirectory(core)
 add_subdirectory(pbft)
 
 if (TESTS)
-    hunter_add_package(Boost COMPONENTS test)
+    # fetch bcos-test
+    set(BCOS_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test/bcos-test)
+    FetchContent_Declare(bcos-test
+    GIT_REPOSITORY https://${FETCH_URL_BASE}/FISCO-BCOS/bcos-test.git
+    GIT_TAG dev
+    SOURCE_DIR ${BCOS_TEST_DIR})
+    FetchContent_MakeAvailable(bcos-test)
+    
     enable_testing()
     set(CTEST_OUTPUT_ON_FAILURE TRUE)
+    add_subdirectory(test)
 endif()
 
 include(InstallConfig)
