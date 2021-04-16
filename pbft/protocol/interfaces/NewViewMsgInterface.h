@@ -13,29 +13,30 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file Common.h
+ * @brief interface for NewViewMsg
+ * @file NewViewMsgInterface.h
  * @author: yujiechen
- * @date 2021-04-12
+ * @date 2021-04-15
  */
 #pragma once
-#include <bcos-framework/libutilities/Exceptions.h>
-#include <bcos-framework/libutilities/Log.h>
-#include <stdint.h>
-
-#define PBFT_LOG(LEVEL) LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("PBFT")
+#include "pbft/protocol/interfaces/PBFTBaseMessageInterface.h"
+#include "pbft/protocol/interfaces/ViewChangeMsgInterface.h"
 namespace bcos
 {
 namespace consensus
 {
-using ViewType = uint64_t;
-enum PacketType : uint32_t
+class NewViewMsgInterface
 {
-    PrePreparePacket = 0x00,
-    PreparePacket = 0x01,
-    CommitPacket = 0x02,
-    ViewChangePacket = 0x03,
-    NewViewPacket = 0x04,
+public:
+    using Ptr = std::shared_ptr<NewViewMsgInterface>;
+    NewViewMsgInterface() = default;
+    virtual ~NewViewMsgInterface() {}
+
+    virtual ViewChangeMsgList const& viewChangeMsgList() const = 0;
+    virtual void setViewChangeMsgList(ViewChangeMsgList const& _viewChangeMsgs) = 0;
+
+    virtual PBFTBaseMessageInterface::Ptr generatedPrePrepare() = 0;
+    virtual void setGeneratedPrePrepare(PBFTBaseMessageInterface::Ptr _prePreparedMsg) = 0;
 };
-DERIVE_BCOS_EXCEPTION(UnknownPBFTMsgType);
 }  // namespace consensus
 }  // namespace bcos

@@ -1,0 +1,495 @@
+/**
+ *  Copyright (C) 2021 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ * @brief Fake the PBFT related messages
+ * @file FakePBFTMessage.h
+ * @author: yujiechen
+ * @date 2021-04-16
+ */
+#pragma once
+#include "core/Proposal.h"
+#include "pbft/protocol/PB/PBFTCodec.h"
+#include "pbft/protocol/PB/PBFTMessage.h"
+#include "pbft/protocol/PB/PBFTNewViewMsg.h"
+#include "pbft/protocol/PB/PBFTProposal.h"
+#include "pbft/protocol/PB/PBFTViewChangeMsg.h"
+#include <boost/test/unit_test.hpp>
+
+using namespace bcos::consensus;
+using namespace bcos::crypto;
+using namespace bcos::protocol;
+using namespace bcos;
+
+namespace bcos
+{
+namespace test
+{
+class FakePBFTMessage
+{
+public:
+    using Ptr = std::shared_ptr<FakePBFTMessage>;
+    FakePBFTMessage(CryptoSuite::Ptr _cryptoSuite, KeyPairInterface::Ptr _keyPair)
+      : m_cryptoSuite(_cryptoSuite), m_keyPair(_keyPair)
+    {}
+
+    ~FakePBFTMessage() {}
+
+    PBFTProposal::Ptr fakePBFTProposal(BlockNumber _index, HashType const& _hash,
+        bytes const& _data, std::vector<int64_t> const& _nodeList,
+        std::vector<bytes> const& _signatureData)
+    {
+        auto pbftProposal = std::make_shared<PBFTProposal>();
+        pbftProposal->setIndex(_index);
+        pbftProposal->setHash(_hash);
+        pbftProposal->setData(_data);
+        // set signatureProof
+        for (size_t i = 0; i < _nodeList.size(); i++)
+        {
+            pbftProposal->appendSignatureProof(_nodeList[i], _signatureData[i]);
+        }
+        return pbftProposal;
+    }
+
+    void fakeBasePBFTMessage(PBFTBaseMessage::Ptr pfbtMessage, int64_t _timestamp, int32_t _version,
+        int64_t _view, int64_t _generatedFrom, HashType _hash)
+    {
+        pfbtMessage->setTimestamp(_timestamp);
+        pfbtMessage->setVersion(_version);
+        pfbtMessage->setView(_view);
+        pfbtMessage->setGeneratedFrom(_generatedFrom);
+        pfbtMessage->setHash(_hash);
+    }
+
+    void checkBaseMessageField(
+        PBFTBaseMessage::Ptr _pfbtMessage, PBFTBaseMessage::Ptr _decodedPBFTMsg)
+    {
+        BOOST_CHECK(_pfbtMessage->timestamp() == _decodedPBFTMsg->timestamp());
+        BOOST_CHECK(_pfbtMessage->version() == _decodedPBFTMsg->version());
+        BOOST_CHECK(_pfbtMessage->view() == _decodedPBFTMsg->view());
+        BOOST_CHECK(_pfbtMessage->generatedFrom() == _decodedPBFTMsg->generatedFrom());
+        BOOST_CHECK(_pfbtMessage->hash() == _decodedPBFTMsg->hash());
+    }
+
+    void checkProposals(ProposalList const& _pbftProposals, ProposalList const& _decodedProposals)
+    {
+        size_t i = 0;
+        for (auto proposal : _pbftProposals)
+        {
+            auto comparedProposal = std::dynamic_pointer_cast<PBFTProposal>(_decodedProposals[i++]);
+            BOOST_CHECK(*(std::dynamic_pointer_cast<PBFTProposal>(proposal)) == *comparedProposal);
+        }
+    }
+
+    PBFTMessage::Ptr fakePBFTMessage(int64_t _timestamp, int32_t _version, int64_t _view,
+        int64_t _generatedFrom, HashType _hash, ProposalList const& _proposals)
+    {
+        auto pfbtMessage = std::make_shared<PBFTMessage>();
+        fakeBasePBFTMessage(pfbtMessage, _timestamp, _version, _view, _generatedFrom, _hash);
+        pfbtMessage->setProposals(_proposals);
+        // encode
+        auto encodedData = pfbtMessage->encode(m_cryptoSuite, m_keyPair);
+        // decode
+        auto decodedPBFTMsg = std::make_shared<PBFTMessage>(m_cryptoSuite, ref(*encodedData));
+        // check the data fields
+        checkBaseMessageField(pfbtMessage, decodedPBFTMsg);
+        // check proposals
+        checkProposals(_proposals, pfbtMessage->proposals());
+        return decodedPBFTMsg;
+    }
+
+    PBFTNewViewMsg::Ptr fakePBFTNewViewMsg(int64_t _timestamp, int32_t _version, int64_t _view,
+        int64_t _generatedFrom, HashType _hash, ViewChangeMsgList const& _viewChangeList,
+        PBFTMessage::Ptr _generatedPrepare)
+    {
+        auto pbftNewViewChangeMsg = std::make_shared<PBFTNewViewMsg>();
+        // fake the base PBFT message: empty generatedPrePrepare
+        fakeBasePBFTMessage(
+            pbftNewViewChangeMsg, _timestamp, _version, _view, _generatedFrom, _hash);
+        pbftNewViewChangeMsg->setViewChangeMsgList(_viewChangeList);
+        // encode
+        auto encodedData = pbftNewViewChangeMsg->encode(nullptr, nullptr);
+        // decode
+        auto decodedNewViewMsg = std::make_shared<PBFTNewViewMsg>(ref(*encodedData));
+        // check the basic field
+        checkBaseMessageField(pbftNewViewChangeMsg, decodedNewViewMsg);
+        BOOST_CHECK(decodedNewViewMsg->generatedPrePrepare() == nullptr);
+
+
+        // encode: with generatedPrePrepare
+        pbftNewViewChangeMsg->setGeneratedPrePrepare(_generatedPrepare);
+        encodedData = pbftNewViewChangeMsg->encode(nullptr, nullptr);
+        // decode
+        decodedNewViewMsg = std::make_shared<PBFTNewViewMsg>(ref(*encodedData));
+        // check the basic field
+        checkBaseMessageField(pbftNewViewChangeMsg, decodedNewViewMsg);
+        // check generatedPrePrepare
+        auto decodedPrePrepareMsg =
+            std::dynamic_pointer_cast<PBFTMessage>(decodedNewViewMsg->generatedPrePrepare());
+        BOOST_CHECK(*_generatedPrepare == *decodedPrePrepareMsg);
+        return pbftNewViewChangeMsg;
+    }
+
+    PBFTViewChangeMsg::Ptr fakePBFTViewChangeMsg(int64_t _timestamp, int32_t _version,
+        int64_t _view, int64_t _generatedFrom, HashType _hash,
+        ProposalInterface::Ptr _committedProposals, ProposalList const& _preparedProposals)
+    {
+        auto pbftViewChangeMsg = std::make_shared<PBFTViewChangeMsg>();
+        // fake the base PBFT message
+        fakeBasePBFTMessage(pbftViewChangeMsg, _timestamp, _version, _view, _generatedFrom, _hash);
+        // fake the commmitted proposal
+        pbftViewChangeMsg->setCommittedProposal(_committedProposals);
+        // the preparedProposals
+        pbftViewChangeMsg->setPreparedProposals(_preparedProposals);
+        // encode
+        auto encodedData = pbftViewChangeMsg->encode(nullptr, nullptr);
+        // decode
+        auto decodedViewChange = std::make_shared<PBFTViewChangeMsg>(ref(*encodedData));
+        // check the basic field
+        checkBaseMessageField(pbftViewChangeMsg, decodedViewChange);
+        // check committedProposal
+        auto committedProposal = std::dynamic_pointer_cast<PBFTProposal>(_committedProposals);
+        auto decodedCommittedProposal =
+            std::dynamic_pointer_cast<PBFTProposal>(decodedViewChange->committedProposal());
+        BOOST_CHECK(*committedProposal == *decodedCommittedProposal);
+
+        // check prepared proposals
+        checkProposals(_preparedProposals, decodedViewChange->preparedProposals());
+        return decodedViewChange;
+    }
+    CryptoSuite::Ptr cryptoSuite() { return m_cryptoSuite; }
+    KeyPairInterface::Ptr keyPair() { return m_keyPair; }
+
+private:
+    CryptoSuite::Ptr m_cryptoSuite;
+    KeyPairInterface::Ptr m_keyPair;
+};
+
+ProposalInterface::Ptr fakeSingleProposal(CryptoSuite::Ptr _cryptoSuite, FakePBFTMessage::Ptr faker,
+    std::vector<std::pair<int64_t, KeyPairInterface::Ptr>> const& _nodeKeyPairList,
+    BlockNumber _index, HashType const& _hash, bytes const& _data)
+{
+    // sign for the proposal
+    std::vector<int64_t> nodeList;
+    std::vector<bytes> signatureList;
+    for (auto const& _nodeKeypairInfo : _nodeKeyPairList)
+    {
+        auto signatureData = _cryptoSuite->signatureImpl()->sign(_nodeKeypairInfo.second, _hash);
+        nodeList.push_back(_nodeKeypairInfo.first);
+        signatureList.push_back(*signatureData);
+    }
+    return faker->fakePBFTProposal(_index, _hash, _data, nodeList, signatureList);
+}
+
+ProposalList fakeProposals(CryptoSuite::Ptr _cryptoSuite, FakePBFTMessage::Ptr faker,
+    std::vector<std::pair<int64_t, KeyPairInterface::Ptr>> const& _nodeKeyPairList,
+    BlockNumber _index, bytes const& _data, size_t proposalSize)
+{
+    ProposalList proposals;
+    auto index = _index;
+    auto data = _data;
+    for (size_t i = 0; i < proposalSize; i++)
+    {
+        auto hash = _cryptoSuite->hashImpl()->hash(std::to_string(index));
+        proposals.push_back(
+            fakeSingleProposal(_cryptoSuite, faker, _nodeKeyPairList, index, hash, data));
+        index++;
+        data[0] += 1;
+    }
+    return proposals;
+}
+
+void checkFakedBasePBFTMessage(PBFTBaseMessage::Ptr fakedMessage, int64_t orgTimestamp,
+    int32_t version, int64_t view, int64_t generatedFrom, HashType const& proposalHash)
+{
+    // check the content
+    BOOST_CHECK(fakedMessage->timestamp() == orgTimestamp);
+    BOOST_CHECK(fakedMessage->version() == version);
+    BOOST_CHECK(fakedMessage->hash() == proposalHash);
+    BOOST_CHECK(fakedMessage->view() == view);
+    BOOST_CHECK(fakedMessage->generatedFrom() == generatedFrom);
+}
+
+void checkSingleProposal(
+    ProposalInterface::Ptr _proposal, HashType const& _hash, BlockNumber _index, bytes const& _data)
+{
+    BOOST_CHECK(_proposal->index() == _index);
+    BOOST_CHECK(_proposal->hash() == _hash);
+    BOOST_CHECK(_proposal->data().toBytes() == _data);
+}
+
+void checkProposals(
+    ProposalList _proposals, CryptoSuite::Ptr _cryptoSuite, BlockNumber _index, bytes const& _data)
+{
+    // check the proposal
+    auto data = _data;
+    auto index = _index;
+    for (auto proposal : _proposals)
+    {
+        auto hash = _cryptoSuite->hashImpl()->hash(std::to_string(index));
+        checkSingleProposal(proposal, hash, index, data);
+        data[0] += 1;
+        index++;
+    }
+}
+
+void checkPBFTMessage(PBFTMessage::Ptr fakedMessage, int64_t orgTimestamp, int32_t version,
+    int64_t view, int64_t generatedFrom, HashType const& proposalHash, size_t proposalSize,
+    CryptoSuite::Ptr cryptoSuite, BlockNumber _index, bytes const& _data)
+{
+    checkFakedBasePBFTMessage(
+        fakedMessage, orgTimestamp, version, view, generatedFrom, proposalHash);
+    BOOST_CHECK(fakedMessage->proposals().size() == proposalSize);
+    // check the proposal
+    checkProposals(fakedMessage->proposals(), cryptoSuite, _index, _data);
+}
+
+PBFTMessage::Ptr fakePBFTMessage(int64_t orgTimestamp, int32_t version, int64_t view,
+    int64_t generatedFrom, HashType const& proposalHash, BlockNumber _index, bytes const& _data,
+    size_t proposalSize, std::shared_ptr<FakePBFTMessage> _faker, PacketType _packetType)
+{
+    auto cryptoSuite = _faker->cryptoSuite();
+    size_t signatureProofSize = 4;
+    std::vector<std::pair<int64_t, KeyPairInterface::Ptr>> nodeKeyPairList;
+    for (size_t i = 0; i < signatureProofSize; i++)
+    {
+        nodeKeyPairList.push_back(
+            std::make_pair(i, cryptoSuite->signatureImpl()->generateKeyPair()));
+    }
+    auto proposals =
+        fakeProposals(cryptoSuite, _faker, nodeKeyPairList, _index, _data, proposalSize);
+    auto fakedMessage = _faker->fakePBFTMessage(
+        orgTimestamp, version, view, generatedFrom, proposalHash, proposals);
+    fakedMessage->setPacketType(_packetType);
+    checkPBFTMessage(fakedMessage, orgTimestamp, version, view, generatedFrom, proposalHash,
+        proposalSize, cryptoSuite, _index, _data);
+    return fakedMessage;
+}
+
+
+void checkViewChangeMessage(PBFTViewChangeMsg::Ptr fakedViewChangeMessage, int64_t orgTimestamp,
+    int32_t version, int64_t view, int64_t generatedFrom, HashType const& proposalHash,
+    BlockNumber _index, bytes const& _data, BlockNumber _committedIndex,
+    HashType const& _committedHash, size_t _proposalSize, CryptoSuite::Ptr _cryptoSuite)
+{
+    checkFakedBasePBFTMessage(
+        fakedViewChangeMessage, orgTimestamp, version, view, generatedFrom, proposalHash);
+
+    // check prepared proposal
+    BOOST_CHECK(fakedViewChangeMessage->preparedProposals().size() == _proposalSize);
+    checkProposals(fakedViewChangeMessage->preparedProposals(), _cryptoSuite, _index, _data);
+    // check committed proposal
+    checkSingleProposal(
+        fakedViewChangeMessage->committedProposal(), _committedHash, _committedIndex, bytes());
+}
+
+PBFTViewChangeMsg::Ptr fakeViewChangeMessage(int64_t orgTimestamp, int32_t version, int64_t view,
+    int64_t generatedFrom, HashType const& proposalHash, BlockNumber _index, bytes const& _data,
+    BlockNumber _committedIndex, HashType const& _committedHash, size_t _proposalSize,
+    std::shared_ptr<FakePBFTMessage> _faker)
+{
+    auto cryptoSuite = _faker->cryptoSuite();
+    std::vector<std::pair<int64_t, KeyPairInterface::Ptr>> nodeKeyPairList;
+    size_t signatureProofSize = 4;
+    for (size_t i = 0; i < signatureProofSize; i++)
+    {
+        nodeKeyPairList.push_back(
+            std::make_pair(i, cryptoSuite->signatureImpl()->generateKeyPair()));
+    }
+    auto preparedProposals =
+        fakeProposals(cryptoSuite, _faker, nodeKeyPairList, _index, _data, _proposalSize);
+    std::vector<std::pair<int64_t, KeyPairInterface::Ptr>> nodeKeyPairList2;
+    auto committedProposal = fakeSingleProposal(
+        cryptoSuite, _faker, nodeKeyPairList2, _committedIndex, _committedHash, bytes());
+
+    auto fakedViewChangeMessage = _faker->fakePBFTViewChangeMsg(orgTimestamp, version, view,
+        generatedFrom, proposalHash, committedProposal, preparedProposals);
+
+    checkViewChangeMessage(fakedViewChangeMessage, orgTimestamp, version, view, generatedFrom,
+        proposalHash, _index, _data, _committedIndex, _committedHash, _proposalSize, cryptoSuite);
+    return fakedViewChangeMessage;
+}
+
+void testPBFTMessage(PacketType _packetType, CryptoSuite::Ptr _cryptoSuite)
+{
+    int64_t orgTimestamp = utcTime();
+    int32_t version = 10;
+    int64_t view = 103423423423;
+    int64_t generatedFrom = 10;
+    auto proposalHash = _cryptoSuite->hashImpl()->hash("proposal");
+    size_t proposalSize = 3;
+    auto keyPair = _cryptoSuite->signatureImpl()->generateKeyPair();
+    auto faker = std::make_shared<FakePBFTMessage>(_cryptoSuite, keyPair);
+    // for the proposal
+    BlockNumber index = 100;
+    std::string dataStr = "werldksjflaskjffakesdfastadfakedaat";
+    bytes data(dataStr.begin(), dataStr.end());
+
+    auto fakedMessage = fakePBFTMessage(orgTimestamp, version, view, generatedFrom, proposalHash,
+        index, data, proposalSize, faker, _packetType);
+
+    // test PBFTCodec
+    auto pbftCodec = std::make_shared<PBFTCodec>(keyPair, _cryptoSuite);
+    // encode and sign
+    auto encodedData = pbftCodec->encode(fakedMessage, 1);
+    // decode
+    auto message = pbftCodec->decode(ref(*encodedData));
+    PBFTMessage::Ptr decodedMsg = std::dynamic_pointer_cast<PBFTMessage>(message);
+    BOOST_CHECK(decodedMsg->packetType() == _packetType);
+    // check the decoded message
+    checkFakedBasePBFTMessage(decodedMsg, orgTimestamp, version, view, generatedFrom, proposalHash);
+    // verify the signature
+    BOOST_CHECK(decodedMsg->verifySignature(_cryptoSuite, keyPair->publicKey()) == true);
+    // the signatureHash has been updated
+    auto fakedHash = _cryptoSuite->hashImpl()->hash("fakedHash");
+    decodedMsg->setSignatureDataHash(fakedHash);
+    BOOST_CHECK(decodedMsg->verifySignature(_cryptoSuite, keyPair->publicKey()) == false);
+}
+
+void testPBFTViewChangeMessage(CryptoSuite::Ptr _cryptoSuite)
+{
+    int64_t orgTimestamp = utcTime();
+    int32_t version = 11;
+    int64_t view = 23423423432;
+    int64_t generatedFrom = 200;
+    auto proposalHash = _cryptoSuite->hashImpl()->hash("testPBFTViewChangeMessage");
+    size_t proposalSize = 4;
+    BlockNumber index = 10003;
+    std::string dataStr = "werldksjflaskjffakesdfastadfakedaat";
+    bytes data(dataStr.begin(), dataStr.end());
+
+    BlockNumber committedIndex = 10002;
+    HashType committedHash = _cryptoSuite->hash("10002");
+    auto keyPair = _cryptoSuite->signatureImpl()->generateKeyPair();
+    auto faker = std::make_shared<FakePBFTMessage>(_cryptoSuite, keyPair);
+
+    auto fakedViewChangeMsg = fakeViewChangeMessage(orgTimestamp, version, view, generatedFrom,
+        proposalHash, index, data, committedIndex, committedHash, proposalSize, faker);
+    BOOST_CHECK(fakedViewChangeMsg->packetType() == PacketType::ViewChangePacket);
+
+    // test PBFTCodec
+    auto pbftCodec = std::make_shared<PBFTCodec>(keyPair, _cryptoSuite);
+    // encode and sign
+    auto encodedData = pbftCodec->encode(fakedViewChangeMsg, 1);
+    // decode
+    auto message = pbftCodec->decode(ref(*encodedData));
+    auto decodedMsg = std::dynamic_pointer_cast<PBFTViewChangeMsg>(message);
+    // check
+    BOOST_CHECK(decodedMsg->packetType() == PacketType::ViewChangePacket);
+    // check the decoded message
+    checkViewChangeMessage(fakedViewChangeMsg, orgTimestamp, version, view, generatedFrom,
+        proposalHash, index, data, committedIndex, committedHash, proposalSize, _cryptoSuite);
+    // verify the signature
+    BOOST_CHECK(decodedMsg->verifySignature(_cryptoSuite, keyPair->publicKey()) == true);
+    // the signatureHash has been updated
+    auto fakedHash = _cryptoSuite->hashImpl()->hash("fakedHash");
+    decodedMsg->setSignatureDataHash(fakedHash);
+    BOOST_CHECK(decodedMsg->verifySignature(_cryptoSuite, keyPair->publicKey()) == false);
+}
+
+void checkNewViewMessage(PBFTNewViewMsg::Ptr fakedNewViewMessage, int64_t orgTimestamp,
+    int32_t version, int64_t view, int64_t generatedFrom, HashType const& proposalHash,
+    BlockNumber _index, bytes const& _data, int64_t viewChangeSize, int64_t proposalSize,
+    BlockNumber committedIndex, CryptoSuite::Ptr _cryptoSuite)
+{
+    checkFakedBasePBFTMessage(
+        fakedNewViewMessage, orgTimestamp, version, view, generatedFrom, proposalHash);
+
+    // check generated prepare proposal
+    /* checkPBFTMessage(
+         std::dynamic_pointer_cast<PBFTMessage>(fakedNewViewMessage->generatedPrePrepare()),
+         orgTimestamp, version, view, generatedFrom, proposalHash, proposalSize, _cryptoSuite,
+         _index, _data);*/
+
+    // check viewChangeMsgs
+    BOOST_CHECK((int64_t)(fakedNewViewMessage->viewChangeMsgList().size()) == viewChangeSize);
+    for (int64_t i = 0; i < viewChangeSize; i++)
+    {
+        auto committedHash = _cryptoSuite->hash(std::to_string(committedIndex));
+        auto fakedViewChange = fakedNewViewMessage->viewChangeMsgList()[i];
+        checkViewChangeMessage(std::dynamic_pointer_cast<PBFTViewChangeMsg>(fakedViewChange),
+            orgTimestamp, version, view, generatedFrom, proposalHash, _index, _data, committedIndex,
+            committedHash, proposalSize, _cryptoSuite);
+        committedIndex++;
+        committedHash = _cryptoSuite->hash(std::to_string(committedIndex));
+        generatedFrom++;
+        view++;
+    }
+}
+
+void testPBFTNewViewMessage(CryptoSuite::Ptr _cryptoSuite)
+{
+    int64_t orgTimestamp = utcTime();
+    int32_t version = 11;
+    int64_t view = 23423423432;
+    auto orgView = view;
+
+    int64_t generatedFrom = 200;
+    auto orgGeneratedFrom = generatedFrom;
+
+    auto proposalHash = _cryptoSuite->hashImpl()->hash("testPBFTViewChangeMessage");
+    size_t proposalSize = 4;
+    BlockNumber index = 10003;
+    std::string dataStr = "werldksjflaskjffakesdfastadfakedaat";
+    bytes data(dataStr.begin(), dataStr.end());
+
+    BlockNumber committedIndex = 10002;
+    auto orgCommittedIndex = committedIndex;
+
+    auto keyPair = _cryptoSuite->signatureImpl()->generateKeyPair();
+    auto faker = std::make_shared<FakePBFTMessage>(_cryptoSuite, keyPair);
+
+    // fake PreparedMsg
+    auto fakedPreparedMsg = fakePBFTMessage(orgTimestamp, version, view, generatedFrom,
+        proposalHash, index, data, proposalSize, faker, PacketType::PrePreparePacket);
+
+    int64_t viewChangeSize = 4;
+    ViewChangeMsgList viewChangeList;
+    for (int64_t i = 0; i < viewChangeSize; i++)
+    {
+        auto committedHash = _cryptoSuite->hash(std::to_string(committedIndex));
+        viewChangeList.push_back(fakeViewChangeMessage(orgTimestamp, version, view, generatedFrom,
+            proposalHash, index, data, committedIndex, committedHash, proposalSize, faker));
+        committedIndex++;
+        committedHash = _cryptoSuite->hash(std::to_string(committedIndex));
+        generatedFrom++;
+        view++;
+    }
+    // fake NewViewMsg
+    auto fakedNewViewMsg = faker->fakePBFTNewViewMsg(orgTimestamp, version, orgView,
+        orgGeneratedFrom, proposalHash, viewChangeList, fakedPreparedMsg);
+    BOOST_CHECK(int64_t(fakedNewViewMsg->viewChangeMsgList().size()) == viewChangeSize);
+    BOOST_CHECK(fakedNewViewMsg->generatedPrePrepare() != nullptr);
+
+    // test PBFTCodec
+    auto pbftCodec = std::make_shared<PBFTCodec>(keyPair, _cryptoSuite);
+    // encode and sign
+    auto encodedData = pbftCodec->encode(fakedNewViewMsg, 1);
+    // decode
+    auto message = pbftCodec->decode(ref(*encodedData));
+    auto decodedMsg = std::dynamic_pointer_cast<PBFTNewViewMsg>(message);
+    // check
+    BOOST_CHECK(decodedMsg->packetType() == PacketType::NewViewPacket);
+    // check the decoded message
+    checkNewViewMessage(decodedMsg, orgTimestamp, version, orgView, orgGeneratedFrom, proposalHash,
+        index, data, viewChangeSize, proposalSize, orgCommittedIndex, _cryptoSuite);
+    // verify the signature
+    BOOST_CHECK(decodedMsg->verifySignature(_cryptoSuite, keyPair->publicKey()) == true);
+    // the signatureHash has been updated
+    auto fakedHash = _cryptoSuite->hashImpl()->hash("fakedHash");
+    decodedMsg->setSignatureDataHash(fakedHash);
+    BOOST_CHECK(decodedMsg->verifySignature(_cryptoSuite, keyPair->publicKey()) == false);
+}
+}  // namespace test
+}  // namespace bcos

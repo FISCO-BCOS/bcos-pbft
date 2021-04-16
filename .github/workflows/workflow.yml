@@ -56,6 +56,8 @@ jobs:
         run: bash bcos-cmake-scripts/shell/check-commit.sh 3000 "https://api.github.com/repos/FISCO-BCOS/bcos-pbft"
       - name: compile
         run: make -j2
+      - name: run test
+        run: CTEST_OUTPUT_ON_FAILURE=TRUE make test
   build_with_gcc:
     name: build_with_gcc
     runs-on: ${{ matrix.os }}
@@ -93,6 +95,8 @@ jobs:
           cmake . -DTESTS=ON
       - name: compile
         run: make -j2
+      - name: run test
+        run: CTEST_OUTPUT_ON_FAILURE=TRUE make test
   build_with_macos:
     name: build_with_macos
     runs-on: ${{ matrix.os }}
@@ -131,6 +135,8 @@ jobs:
           export SDKROOT=$(xcrun --sdk macosx --show-sdk-path) && CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake . -DTESTS=ON
       - name: compile
         run: make -j2
+      - name: run test
+        run: CTEST_OUTPUT_ON_FAILURE=TRUE make test
   ubuntu16_04_build_with_gcc:
     name: ubuntu16_04_build_with_gcc
     runs-on: ${{ matrix.os }}
@@ -169,6 +175,16 @@ jobs:
           cmake . -DTESTS=ON -DCOVERAGE=ON
       - name: compile
         run: make -j2
+      - name: run test
+        run: CTEST_OUTPUT_ON_FAILURE=TRUE make test
+      - name: generate coverage
+        run: make coverage
+      - name: upload code coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          file: ./coverage.info
+          name: bcos-pbft coverage
+          fail_ci_if_error: true
   build_with_centos:
     name: build_with_centos
     runs-on: ubuntu-latest
@@ -207,3 +223,4 @@ jobs:
           mkdir -p build && cd build
           cmake3 .. -DTESTS=ON
           make -j2
+          CTEST_OUTPUT_ON_FAILURE=TRUE make test

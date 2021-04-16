@@ -20,6 +20,8 @@
  */
 #include "PBFTCodec.h"
 #include "PBFTMessage.h"
+#include "PBFTNewViewMsg.h"
+#include "PBFTViewChangeMsg.h"
 #include "pbft/protocol/proto/PBFT.pb.h"
 #include <bcos-framework/libprotocol/Common.h>
 
@@ -29,7 +31,7 @@ using namespace bcos::crypto;
 
 bytesPointer PBFTCodec::encode(PBFTBaseMessageInterface::Ptr _pbftMessage, int32_t _version) const
 {
-    auto pbMessage = std::make_shared<PBMessage>();
+    auto pbMessage = std::make_shared<RawMessage>();
 
     // set packetType
     auto packetType = _pbftMessage->packetType();
@@ -52,7 +54,7 @@ bytesPointer PBFTCodec::encode(PBFTBaseMessageInterface::Ptr _pbftMessage, int32
 
 PBFTBaseMessageInterface::Ptr PBFTCodec::decode(bytesConstRef _data) const
 {
-    auto pbMessage = std::make_shared<PBMessage>();
+    auto pbMessage = std::make_shared<RawMessage>();
     bcos::protocol::decodePBObject(pbMessage, _data);
     // get packetType
     PacketType packetType = (PacketType)(pbMessage->type());
@@ -69,9 +71,14 @@ PBFTBaseMessageInterface::Ptr PBFTCodec::decode(bytesConstRef _data) const
         decodedMsg = std::make_shared<PBFTMessage>(m_cryptoSuite, payLoadRefData);
         break;
     case ViewChangePacket:
-    case NewViewPacket:
-    default:
+        decodedMsg = std::make_shared<PBFTViewChangeMsg>(payLoadRefData);
         break;
+    case NewViewPacket:
+        decodedMsg = std::make_shared<PBFTNewViewMsg>(payLoadRefData);
+        break;
+    default:
+        BOOST_THROW_EXCEPTION(UnknownPBFTMsgType() << errinfo_comment(
+                                  "unknow pbft packetType: " + std::to_string(packetType)));
     }
     if (shouldHandleSignature(packetType))
     {

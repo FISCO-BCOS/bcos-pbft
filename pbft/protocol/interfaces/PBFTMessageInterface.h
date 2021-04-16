@@ -31,8 +31,8 @@ public:
     PBFTMessageInterface() = default;
     virtual ~PBFTMessageInterface() {}
 
-    virtual void setProposals(ProposalListPtr _proposals) = 0;
-    virtual ProposalListPtr proposals() const = 0;
+    virtual void setProposals(ProposalList const& _proposals) = 0;
+    virtual ProposalList const& proposals() const = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

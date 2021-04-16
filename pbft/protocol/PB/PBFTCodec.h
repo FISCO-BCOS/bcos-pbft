@@ -48,8 +48,6 @@ protected:
                 _packetType == PacketType::NewViewPacket);
     }
     virtual bytesPointer signPayLoad(bytesPointer _payLoadData) const;
-    virtual void verifySignature(bcos::crypto::PublicPtr _pubKey, bytesConstRef _payLoad,
-        bytesConstRef _signatureData) const;
 
 private:
     bcos::crypto::KeyPairInterface::Ptr m_keyPair;

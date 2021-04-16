@@ -13,43 +13,44 @@ message BaseMessage
   int64 generatedFrom = 5;
 }
 
-message PreparedProof
+message PBFTRawProposal
 {
-  int64 index = 1;
+  RawProposal proposal = 1;
+  // proof for the prepared proposal
   repeated int64 nodeList = 2;
   repeated bytes signatureList = 3;
 }
 
-message PBViewChangeMessage
+message RawViewChangeMessage
 {
   BaseMessage message = 1;
   // used to verify the validity of the latest committed proposal
-  PBProposal committedProposal = 2;
+  PBFTRawProposal committedProposal = 2;
   // prepared but not commit proposals
   // (no need to include the proposalsData, can obtain the missed proposal from other nodes)
-  repeated PBProposal preparedProposals = 3;
-  // proof for the prepared proposal
-  repeated PreparedProof preparedProof = 4;
+  repeated PBFTRawProposal preparedProposals = 3;
 }
 
-message PBNewViewMessage
-{
-  BaseMessage message = 1;
-  // 2*f+1 view change message packets collected by the leader corresponding to toView
-  repeated PBViewChangeMessage viewChangeMsgs = 2;
-  // PRE-PREPARE messages converted into uncommittedBackupProposals
-  bytes generatedPrePrepare = 3;
-}
-
-message PBPBFTMessage
+message PBFTRawMessage
 {
   bytes hashFieldsData = 1;
   // proposals that expected to reach a consensus
-  repeated PBProposal proposals = 2;
+  repeated PBFTRawProposal proposals = 2;
   bytes signatureData = 3;
 }
 
-message PBMessage
+message RawNewViewMessage
+{
+  BaseMessage message = 1;
+  // 2*f+1 view change message packets collected by the leader corresponding to toView
+  repeated RawViewChangeMessage viewChangeMsgList = 2;
+  // PRE-PREPARE messages converted into uncommittedBackupProposals
+  oneof generated_prepare{
+    PBFTRawMessage generatedPrePrepare = 3;
+  }
+}
+
+message RawMessage
 {
   int32 version = 1;
   int32 type = 2;

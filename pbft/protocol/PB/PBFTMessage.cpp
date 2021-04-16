@@ -20,34 +20,42 @@
  */
 #include "PBFTMessage.h"
 #include "core/Proposal.h"
+#include "pbft/protocol/PB/PBFTProposal.h"
 
 using namespace bcos;
 using namespace bcos::consensus;
 using namespace bcos::crypto;
+using namespace bcos::protocol;
 
 bytesPointer PBFTMessage::encode(
     CryptoSuite::Ptr _cryptoSuite, KeyPairInterface::Ptr _keyPair) const
 {
     // encode the PBFTBaseMessage
     auto hashFieldsData = PBFTBaseMessage::encode(_cryptoSuite, _keyPair);
-    m_pbPBFTMessage->set_hashfieldsdata(hashFieldsData->data(), hashFieldsData->size());
+    m_pbftRawMessage->set_hashfieldsdata(hashFieldsData->data(), hashFieldsData->size());
     generateAndSetSignatureData(_cryptoSuite, _keyPair);
-    return bcos::protocol::encodePBObject(m_pbPBFTMessage);
+    return encodePBObject(m_pbftRawMessage);
 }
 
 void PBFTMessage::decode(bytesConstRef _data)
 {
-    bcos::protocol::decodePBObject(m_pbPBFTMessage, _data);
-    auto const& hashFieldsData = m_pbPBFTMessage->hashfieldsdata();
+    decodePBObject(m_pbftRawMessage, _data);
+    auto const& hashFieldsData = m_pbftRawMessage->hashfieldsdata();
     auto baseMessageData =
         bytesConstRef((byte const*)hashFieldsData.c_str(), hashFieldsData.size());
     PBFTBaseMessage::decode(baseMessageData);
+    PBFTMessage::deserializeToObject();
+}
+
+void PBFTMessage::deserializeToObject()
+{
+    PBFTBaseMessage::deserializeToObject();
     // decode the proposals
     m_proposals->clear();
-    for (int i = 0; i < m_pbPBFTMessage->proposals_size(); i++)
+    for (int i = 0; i < m_pbftRawMessage->proposals_size(); i++)
     {
-        std::shared_ptr<PBProposal> pbProposal(m_pbPBFTMessage->mutable_proposals(i));
-        m_proposals->push_back(std::make_shared<Proposal>(pbProposal));
+        std::shared_ptr<PBFTRawProposal> rawProposal(m_pbftRawMessage->mutable_proposals(i));
+        m_proposals->push_back(std::make_shared<PBFTProposal>(rawProposal));
     }
 }
 
@@ -57,14 +65,14 @@ void PBFTMessage::decodeAndSetSignature(CryptoSuite::Ptr _cryptoSuite, bytesCons
     auto dataHash = getHashFieldsDataHash(_cryptoSuite);
     setSignatureDataHash(dataHash);
 
-    auto const& signatureData = m_pbPBFTMessage->signaturedata();
+    auto const& signatureData = m_pbftRawMessage->signaturedata();
     bytes signatureDataBytes(signatureData.begin(), signatureData.end());
     setSignatureData(std::move(signatureDataBytes));
 }
 
 HashType PBFTMessage::getHashFieldsDataHash(CryptoSuite::Ptr _cryptoSuite) const
 {
-    auto const& hashFieldsData = m_pbPBFTMessage->hashfieldsdata();
+    auto const& hashFieldsData = m_pbftRawMessage->hashfieldsdata();
     auto hashFieldsDataRef =
         bytesConstRef((byte const*)hashFieldsData.data(), hashFieldsData.size());
     return _cryptoSuite->hash(hashFieldsDataRef);
@@ -76,16 +84,37 @@ void PBFTMessage::generateAndSetSignatureData(
     auto dataHash = getHashFieldsDataHash(_cryptoSuite);
     auto signature = _cryptoSuite->signatureImpl()->sign(_keyPair, dataHash, false);
     // set the signature data
-    m_pbPBFTMessage->set_signaturedata(signature->data(), signature->size());
+    m_pbftRawMessage->set_signaturedata(signature->data(), signature->size());
 }
 
-void PBFTMessage::setProposals(ProposalListPtr _proposals)
+void PBFTMessage::setProposals(ProposalList const& _proposals)
 {
-    for (auto proposal : *_proposals)
+    *m_proposals = _proposals;
+    for (auto proposal : _proposals)
     {
-        Proposal::Ptr proposalImpl = std::dynamic_pointer_cast<Proposal>(proposal);
+        auto proposalImpl = std::dynamic_pointer_cast<PBFTProposal>(proposal);
         assert(proposalImpl);
-        m_pbPBFTMessage->mutable_proposals()->AddAllocated(proposalImpl->pbProposal().get());
+        m_pbftRawMessage->mutable_proposals()->UnsafeArenaAddAllocated(
+            proposalImpl->pbftRawProposal().get());
     }
-    m_proposals = _proposals;
+}
+
+bool PBFTMessage::operator==(PBFTMessage const& _pbftMessage)
+{
+    if (!PBFTBaseMessage::operator==(_pbftMessage))
+    {
+        return false;
+    }
+    // check proposal
+    for (size_t i = 0; i < _pbftMessage.proposals().size(); i++)
+    {
+        auto proposal = std::dynamic_pointer_cast<PBFTProposal>((*m_proposals)[i]);
+        auto comparedProposal =
+            std::dynamic_pointer_cast<PBFTProposal>((_pbftMessage.proposals())[i]);
+        if (*proposal != *comparedProposal)
+        {
+            return false;
+        }
+    }
+    return true;
 }
