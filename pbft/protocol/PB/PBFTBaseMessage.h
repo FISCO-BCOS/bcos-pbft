@@ -36,7 +36,9 @@ public:
 
     explicit PBFTBaseMessage(std::shared_ptr<BaseMessage> _baseMessage)
       : m_baseMessage(_baseMessage), m_signatureData(std::make_shared<bytes>())
-    {}
+    {
+        PBFTBaseMessage::deserializeToObject();
+    }
 
     ~PBFTBaseMessage() override {}
 
@@ -68,12 +70,11 @@ public:
     {
         return bcos::protocol::encodePBObject(m_baseMessage);
     }
+
     void decode(bytesConstRef _data) override
     {
         bcos::protocol::decodePBObject(m_baseMessage, _data);
-        auto const& hashData = m_baseMessage->hash();
-        m_hash =
-            bcos::crypto::HashType((byte const*)hashData.c_str(), bcos::crypto::HashType::size);
+        PBFTBaseMessage::deserializeToObject();
     }
 
     bytes const& signatureData() override { return *m_signatureData; }
@@ -93,7 +94,28 @@ public:
         return _cryptoSuite->signatureImpl()->verify(_pubKey, m_dataHash, ref(*m_signatureData));
     }
 
-private:
+    bool operator==(PBFTBaseMessage const& _pbftMessage)
+    {
+        return (timestamp() == _pbftMessage.timestamp()) && (version() == _pbftMessage.version()) &&
+               (generatedFrom() == _pbftMessage.generatedFrom()) &&
+               (view() == _pbftMessage.view()) && (hash() == _pbftMessage.hash());
+    }
+
+protected:
+    virtual void deserializeToObject()
+    {
+        auto const& hashData = m_baseMessage->hash();
+        if (hashData.size() < bcos::crypto::HashType::size)
+        {
+            return;
+        }
+        m_hash =
+            bcos::crypto::HashType((byte const*)hashData.c_str(), bcos::crypto::HashType::size);
+    }
+
+    std::shared_ptr<BaseMessage> baseMessage() { return m_baseMessage; }
+    void setBaseMessage(std::shared_ptr<BaseMessage> _baseMessage) { m_baseMessage = _baseMessage; }
+
     std::shared_ptr<BaseMessage> m_baseMessage;
     bcos::crypto::HashType m_hash;
     PacketType m_packetType;

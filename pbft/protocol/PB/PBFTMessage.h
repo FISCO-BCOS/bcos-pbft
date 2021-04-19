@@ -32,32 +32,60 @@ class PBFTMessage : public PBFTBaseMessage, public PBFTMessageInterface
 {
 public:
     using Ptr = std::shared_ptr<PBFTMessage>;
-    PBFTMessage(bcos::crypto::CryptoSuite::Ptr _cryptoSuite, bytesConstRef _data)
-      : PBFTBaseMessage()
+    PBFTMessage()
+      : PBFTBaseMessage(),
+        m_pbftRawMessage(std::make_shared<PBFTRawMessage>()),
+        m_proposals(std::make_shared<ProposalList>())
+    {}
+
+    explicit PBFTMessage(std::shared_ptr<PBFTRawMessage> _pbftRawMessage) : PBFTBaseMessage()
     {
+        m_pbftRawMessage = _pbftRawMessage;
         m_proposals = std::make_shared<ProposalList>();
-        m_pbPBFTMessage = std::make_shared<PBPBFTMessage>();
+        auto const& hashFieldsData = m_pbftRawMessage->hashfieldsdata();
+        auto baseMessageData =
+            bytesConstRef((byte const*)hashFieldsData.c_str(), hashFieldsData.size());
+        PBFTBaseMessage::decode(baseMessageData);
+        PBFTMessage::deserializeToObject();
+    }
+
+    PBFTMessage(bcos::crypto::CryptoSuite::Ptr _cryptoSuite, bytesConstRef _data) : PBFTMessage()
+    {
         decodeAndSetSignature(_cryptoSuite, _data);
     }
 
+    ~PBFTMessage() override
+    {
+        // return the ownership of rawProposal to the passed-in proposal
+        auto allocatedProposalSize = m_pbftRawMessage->proposals_size();
+        for (int i = 0; i < allocatedProposalSize; i++)
+        {
+            m_pbftRawMessage->mutable_proposals()->UnsafeArenaReleaseLast();
+        }
+    }
+
+    std::shared_ptr<PBFTRawMessage> pbftRawMessage() { return m_pbftRawMessage; }
     bytesPointer encode(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
         bcos::crypto::KeyPairInterface::Ptr _keyPair) const override;
     void decode(bytesConstRef _data) override;
 
-    void setProposals(ProposalListPtr _proposals) override;
-    ProposalListPtr proposals() const override { return m_proposals; }
+    void setProposals(ProposalList const& _proposals) override;
+    ProposalList const& proposals() const override { return *m_proposals; }
 
     virtual void decodeAndSetSignature(
         bcos::crypto::CryptoSuite::Ptr _pbftConfig, bytesConstRef _data);
 
+    bool operator==(PBFTMessage const& _pbftMessage);
+
 protected:
+    void deserializeToObject() override;
     virtual bcos::crypto::HashType getHashFieldsDataHash(
         bcos::crypto::CryptoSuite::Ptr _cryptoSuite) const;
     virtual void generateAndSetSignatureData(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
         bcos::crypto::KeyPairInterface::Ptr _keyPair) const;
 
 private:
-    std::shared_ptr<PBPBFTMessage> m_pbPBFTMessage;
+    std::shared_ptr<PBFTRawMessage> m_pbftRawMessage;
     ProposalListPtr m_proposals;
 };
 }  // namespace consensus

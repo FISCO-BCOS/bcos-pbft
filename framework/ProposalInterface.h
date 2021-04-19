@@ -34,10 +34,15 @@ public:
 
     // the index of the proposal
     virtual bcos::protocol::BlockNumber index() const = 0;
+    virtual void setIndex(bcos::protocol::BlockNumber _index) = 0;
+
     // the hash of the proposal
     virtual bcos::crypto::HashType const& hash() const = 0;
+    virtual void setHash(bcos::crypto::HashType const& _hash) = 0;
     // the data of the proposal
     virtual bcos::bytesConstRef data() const = 0;
+    virtual void setData(bytes const& _data) = 0;
+    virtual void setData(bytes&& _data) = 0;
 
     // the signature to the proposal(optional)
     virtual bytesConstRef signature() const = 0;

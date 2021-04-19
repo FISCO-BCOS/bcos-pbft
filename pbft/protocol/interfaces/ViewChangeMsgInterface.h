@@ -13,29 +13,32 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file Common.h
+ * @brief interface for ViewChangeMsg
+ * @file ViewChangeMsgInterface.h
  * @author: yujiechen
- * @date 2021-04-12
+ * @date 2021-04-15
  */
 #pragma once
-#include <bcos-framework/libutilities/Exceptions.h>
-#include <bcos-framework/libutilities/Log.h>
-#include <stdint.h>
+#include "framework/ProposalInterface.h"
 
-#define PBFT_LOG(LEVEL) LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("PBFT")
 namespace bcos
 {
 namespace consensus
 {
-using ViewType = uint64_t;
-enum PacketType : uint32_t
+class ViewChangeMsgInterface
 {
-    PrePreparePacket = 0x00,
-    PreparePacket = 0x01,
-    CommitPacket = 0x02,
-    ViewChangePacket = 0x03,
-    NewViewPacket = 0x04,
+public:
+    using Ptr = std::shared_ptr<ViewChangeMsgInterface>;
+    ViewChangeMsgInterface() = default;
+    virtual ~ViewChangeMsgInterface() {}
+
+    virtual ProposalInterface::Ptr committedProposal() = 0;
+    virtual void setCommittedProposal(ProposalInterface::Ptr _proposal) = 0;
+
+    virtual ProposalList const& preparedProposals() = 0;
+    virtual void setPreparedProposals(ProposalList const& _preparedProposal) = 0;
 };
-DERIVE_BCOS_EXCEPTION(UnknownPBFTMsgType);
+using ViewChangeMsgList = std::vector<ViewChangeMsgInterface::Ptr>;
+using ViewChangeMsgListPtr = std::shared_ptr<ViewChangeMsgList>;
 }  // namespace consensus
 }  // namespace bcos

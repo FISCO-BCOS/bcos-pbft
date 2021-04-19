@@ -32,56 +32,70 @@ class Proposal : public ProposalInterface
 {
 public:
     using Ptr = std::shared_ptr<Proposal>;
-    Proposal(bcos::protocol::BlockNumber _index, bcos::crypto::HashType _hash) : Proposal()
+    Proposal() : m_rawProposal(std::make_shared<RawProposal>()) {}
+
+    explicit Proposal(std::shared_ptr<RawProposal> _rawProposal) : m_rawProposal(_rawProposal)
     {
-        m_hash = _hash;
-        m_pbProposal->set_index(_index);
-        m_pbProposal->set_hash(_hash.data(), bcos::crypto::HashType::size);
+        auto const& hashData = _rawProposal->hash();
+        if (hashData.size() < bcos::crypto::HashType::size)
+        {
+            return;
+        }
+        m_hash =
+            bcos::crypto::HashType((byte const*)hashData.c_str(), bcos::crypto::HashType::size);
     }
-
-    Proposal(
-        bcos::protocol::BlockNumber _index, bcos::crypto::HashType _hash, bcos::bytes const& _data)
-      : Proposal(_index, _hash)
-    {
-        m_pbProposal->set_data(_data.data(), _data.size());
-    }
-
-    explicit Proposal(std::shared_ptr<PBProposal> _pbProposal) : m_pbProposal(_pbProposal)
-    {
-        m_hash = bcos::crypto::HashType(
-            (byte*)_pbProposal->hash().c_str(), bcos::crypto::HashType::size);
-    }
-
-    std::shared_ptr<PBProposal> pbProposal() { return m_pbProposal; }
-
     ~Proposal() override {}
 
     // the index of the proposal
-    bcos::protocol::BlockNumber index() const override { return m_pbProposal->index(); }
+    bcos::protocol::BlockNumber index() const override { return m_rawProposal->index(); }
+    void setIndex(bcos::protocol::BlockNumber _index) override { m_rawProposal->set_index(_index); }
+
     // the hash of the proposal
     bcos::crypto::HashType const& hash() const override { return m_hash; }
-
+    void setHash(bcos::crypto::HashType const& _hash) override
+    {
+        m_hash = _hash;
+        m_rawProposal->set_hash(_hash.data(), bcos::crypto::HashType::size);
+    }
     // the payload of the proposal
     bcos::bytesConstRef data() const override
     {
-        auto const& data = m_pbProposal->data();
+        auto const& data = m_rawProposal->data();
         return bcos::bytesConstRef((byte const*)data.c_str(), data.size());
+    }
+    void setData(bytes const& _data) override
+    {
+        m_rawProposal->set_data(_data.data(), _data.size());
+    }
+
+    void setData(bytes&& _data) override
+    {
+        auto size = _data.size();
+        m_rawProposal->set_data(std::move(_data).data(), size);
     }
 
     bytesConstRef signature() const override
     {
-        auto const& signature = m_pbProposal->signature();
+        auto const& signature = m_rawProposal->signature();
         return bcos::bytesConstRef((byte const*)signature.c_str(), signature.size());
     }
+
     void setSignature(bytes const& _data) override
     {
-        m_pbProposal->set_signature(_data.data(), _data.size());
+        m_rawProposal->set_signature(_data.data(), _data.size());
     }
 
-protected:
-    Proposal() : m_pbProposal(std::make_shared<PBProposal>()) {}
+    bool operator==(Proposal const _proposal)
+    {
+        return _proposal.index() == index() && _proposal.hash() == hash() &&
+               _proposal.data().toBytes() == data().toBytes();
+    }
+    bool operator!=(Proposal const _proposal) { return !(operator==(_proposal)); }
 
-    std::shared_ptr<PBProposal> m_pbProposal;
+    std::shared_ptr<RawProposal> rawProposal() { return m_rawProposal; }
+
+protected:
+    std::shared_ptr<RawProposal> m_rawProposal;
     bcos::crypto::HashType m_hash;
 };
 }  // namespace consensus
