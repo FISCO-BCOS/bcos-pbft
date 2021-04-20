@@ -48,6 +48,7 @@ include(CompilerSettings)
 
 include_directories(${CMAKE_INSTALL_INCLUDEDIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 set(PROTO_PATH ${PROJECT_SOURCE_DIR})
 
@@ -55,8 +56,8 @@ set(PROTO_PATH ${PROJECT_SOURCE_DIR})
 include(InstallBcosFrameworkDependencies)
 
 # for proto generation
-set(PBFT_PROTO_GENERATE_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set(CONSENSUS_PROTO_GENERATE_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(PBFT_PROTO_GENERATE_BASE_DIR ${CMAKE_CURRENT_BINARY_DIR})
+set(CONSENSUS_PROTO_GENERATE_BASE_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
 set(BCOS_CONSENSUS_CORE_TARGET "bcos-consensus-core")
 set(BCOS_PBFT_TARGET "bcos-pbft")
@@ -105,5 +106,5 @@ include(BuildDocs)
 # for code coverage
 if (COVERAGE)
     include(Coverage)
-    config_coverage("'/usr*' '${CMAKE_SOURCE_DIR}/bcos-cmake-scripts*' '${CMAKE_SOURCE_DIR}/test/bcos-test*'")
+    config_coverage("'/usr*' '${CMAKE_CURRENT_SOURCE_DIR}/bcos-cmake-scripts*' '${CMAKE_CURRENT_SOURCE_DIR}/test/bcos-test*'")
 endif ()
