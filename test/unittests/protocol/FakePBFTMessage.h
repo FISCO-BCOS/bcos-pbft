@@ -22,6 +22,7 @@
 #include "core/Proposal.h"
 #include "pbft/protocol/PB/PBFTCodec.h"
 #include "pbft/protocol/PB/PBFTMessage.h"
+#include "pbft/protocol/PB/PBFTMessageFactoryImpl.h"
 #include "pbft/protocol/PB/PBFTNewViewMsg.h"
 #include "pbft/protocol/PB/PBFTProposal.h"
 #include "pbft/protocol/PB/PBFTViewChangeMsg.h"
@@ -340,7 +341,8 @@ void testPBFTMessage(PacketType _packetType, CryptoSuite::Ptr _cryptoSuite)
         index, data, proposalSize, faker, _packetType);
 
     // test PBFTCodec
-    auto pbftCodec = std::make_shared<PBFTCodec>(keyPair, _cryptoSuite);
+    PBFTMessageFactory::Ptr pbftMessageFactory = std::make_shared<PBFTMessageFactoryImpl>();
+    auto pbftCodec = std::make_shared<PBFTCodec>(keyPair, _cryptoSuite, pbftMessageFactory);
     // encode and sign
     auto encodedData = pbftCodec->encode(fakedMessage, 1);
     // decode
@@ -379,7 +381,8 @@ void testPBFTViewChangeMessage(CryptoSuite::Ptr _cryptoSuite)
     BOOST_CHECK(fakedViewChangeMsg->packetType() == PacketType::ViewChangePacket);
 
     // test PBFTCodec
-    auto pbftCodec = std::make_shared<PBFTCodec>(keyPair, _cryptoSuite);
+    PBFTMessageFactory::Ptr pbftMessageFactory = std::make_shared<PBFTMessageFactoryImpl>();
+    auto pbftCodec = std::make_shared<PBFTCodec>(keyPair, _cryptoSuite, pbftMessageFactory);
     // encode and sign
     auto encodedData = pbftCodec->encode(fakedViewChangeMsg, 1);
     // decode
@@ -407,10 +410,10 @@ void checkNewViewMessage(PBFTNewViewMsg::Ptr fakedNewViewMessage, int64_t orgTim
         fakedNewViewMessage, orgTimestamp, version, view, generatedFrom, proposalHash);
 
     // check generated prepare proposal
-    /* checkPBFTMessage(
-         std::dynamic_pointer_cast<PBFTMessage>(fakedNewViewMessage->generatedPrePrepare()),
-         orgTimestamp, version, view, generatedFrom, proposalHash, proposalSize, _cryptoSuite,
-         _index, _data);*/
+    checkPBFTMessage(
+        std::dynamic_pointer_cast<PBFTMessage>(fakedNewViewMessage->generatedPrePrepare()),
+        orgTimestamp, version, view, generatedFrom, proposalHash, proposalSize, _cryptoSuite,
+        _index, _data);
 
     // check viewChangeMsgs
     BOOST_CHECK((int64_t)(fakedNewViewMessage->viewChangeMsgList().size()) == viewChangeSize);
@@ -473,7 +476,8 @@ void testPBFTNewViewMessage(CryptoSuite::Ptr _cryptoSuite)
     BOOST_CHECK(fakedNewViewMsg->generatedPrePrepare() != nullptr);
 
     // test PBFTCodec
-    auto pbftCodec = std::make_shared<PBFTCodec>(keyPair, _cryptoSuite);
+    PBFTMessageFactory::Ptr pbftMessageFactory = std::make_shared<PBFTMessageFactoryImpl>();
+    auto pbftCodec = std::make_shared<PBFTCodec>(keyPair, _cryptoSuite, pbftMessageFactory);
     // encode and sign
     auto encodedData = pbftCodec->encode(fakedNewViewMsg, 1);
     // decode

@@ -20,12 +20,13 @@
  */
 #pragma once
 #include "framework/ProposalInterface.h"
+#include "pbft/protocol/interfaces/PBFTBaseMessageInterface.h"
 
 namespace bcos
 {
 namespace consensus
 {
-class ViewChangeMsgInterface
+class ViewChangeMsgInterface : virtual public PBFTBaseMessageInterface
 {
 public:
     using Ptr = std::shared_ptr<ViewChangeMsgInterface>;

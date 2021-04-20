@@ -36,11 +36,6 @@ public:
     virtual void start() = 0;
     // stop the consensus engine
     virtual void stop() = 0;
-
-    // the consensus config
-    virtual ConsensusConfigInterface::Ptr consensusConfig() const = 0;
-    // the consensus Timer
-    virtual TimerInterface::Ptr timer() = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

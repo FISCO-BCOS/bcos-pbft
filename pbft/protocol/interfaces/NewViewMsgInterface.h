@@ -25,7 +25,7 @@ namespace bcos
 {
 namespace consensus
 {
-class NewViewMsgInterface
+class NewViewMsgInterface : virtual public PBFTBaseMessageInterface
 {
 public:
     using Ptr = std::shared_ptr<NewViewMsgInterface>;
