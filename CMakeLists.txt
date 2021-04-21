@@ -19,11 +19,15 @@
 cmake_minimum_required(VERSION 3.10)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
 
+if (NOT DEFINED URL_BASE)
+    set(URL_BASE "github.com")
+    # set(URL_BASE "github.com.cnpmjs.org")
+endif()
+
 include(FetchContent)
-set(FETCH_URL_BASE "github.com")
 set(BCOS_CMAKE_SCRIPTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/bcos-cmake-scripts)
 FetchContent_Declare(bcos-cmake-scripts
-    GIT_REPOSITORY https://${FETCH_URL_BASE}/FISCO-BCOS/bcos-cmake-scripts.git
+    GIT_REPOSITORY https://${URL_BASE}/FISCO-BCOS/bcos-cmake-scripts.git
     GIT_TAG dev
     SOURCE_DIR ${BCOS_CMAKE_SCRIPTS_DIR}
 )
@@ -37,6 +41,7 @@ include(HunterGate)
 HunterGate(
     URL "https://github.com/FISCO-BCOS/hunter/archive/4ba91e1dc10bd74cb757be4ea40d2b3657d808ac.tar.gz"
     SHA1 "9d92a895063ce5f174593686c5f0b0f52377e39d"
+    FILEPATH "${BCOS_PBFT_CMAKE_DIR}/config.cmake"
 )
 project(bcos-pbft VERSION "3.0.0")
 set(VERSION_SUFFIX "")
@@ -69,7 +74,7 @@ if (TESTS)
     # fetch bcos-test
     set(BCOS_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test/bcos-test)
     FetchContent_Declare(bcos-test
-    GIT_REPOSITORY https://${FETCH_URL_BASE}/FISCO-BCOS/bcos-test.git
+    GIT_REPOSITORY https://${URL_BASE}/FISCO-BCOS/bcos-test.git
     GIT_TAG dev
     SOURCE_DIR ${BCOS_TEST_DIR})
     FetchContent_MakeAvailable(bcos-test)

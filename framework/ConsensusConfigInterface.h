@@ -40,6 +40,7 @@ public:
 
     // the sealer list
     virtual ConsensusNodeList const& consensusNodeList() const = 0;
+    virtual bool isConsensusNode() const = 0;
 
     // the consensus timeout
     virtual uint64_t consensusTimeout() const = 0;
