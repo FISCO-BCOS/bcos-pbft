@@ -20,6 +20,7 @@
  */
 #pragma once
 #include "pbft/protocol/interfaces/PBFTCodecInterface.h"
+#include "pbft/protocol/interfaces/PBFTMessageFactory.h"
 #include <bcos-framework/interfaces/crypto/CryptoSuite.h>
 #include <bcos-framework/interfaces/crypto/KeyPairInterface.h>
 namespace bcos
@@ -30,10 +31,11 @@ class PBFTCodec : public PBFTCodecInterface
 {
 public:
     using Ptr = std::shared_ptr<PBFTCodec>;
-    PBFTCodec(
-        bcos::crypto::KeyPairInterface::Ptr _keyPair, bcos::crypto::CryptoSuite::Ptr _cryptoSuite)
-      : m_keyPair(_keyPair), m_cryptoSuite(_cryptoSuite)
+    PBFTCodec(bcos::crypto::KeyPairInterface::Ptr _keyPair,
+        bcos::crypto::CryptoSuite::Ptr _cryptoSuite, PBFTMessageFactory::Ptr _pbftMessageFactory)
+      : m_keyPair(_keyPair), m_cryptoSuite(_cryptoSuite), m_pbftMessageFactory(_pbftMessageFactory)
     {}
+
     ~PBFTCodec() override {}
 
     bytesPointer encode(
@@ -52,6 +54,8 @@ protected:
 private:
     bcos::crypto::KeyPairInterface::Ptr m_keyPair;
     bcos::crypto::CryptoSuite::Ptr m_cryptoSuite;
+
+    PBFTMessageFactory::Ptr m_pbftMessageFactory;
 };
 }  // namespace consensus
 }  // namespace bcos

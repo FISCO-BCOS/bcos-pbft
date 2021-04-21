@@ -19,9 +19,6 @@
  * @date 2021-04-13
  */
 #include "PBFTCodec.h"
-#include "PBFTMessage.h"
-#include "PBFTNewViewMsg.h"
-#include "PBFTViewChangeMsg.h"
 #include "pbft/protocol/proto/PBFT.pb.h"
 #include <bcos-framework/libprotocol/Common.h>
 
@@ -68,13 +65,13 @@ PBFTBaseMessageInterface::Ptr PBFTCodec::decode(bytesConstRef _data) const
     case PacketType::PrePreparePacket:
     case PacketType::PreparePacket:
     case PacketType::CommitPacket:
-        decodedMsg = std::make_shared<PBFTMessage>(m_cryptoSuite, payLoadRefData);
+        decodedMsg = m_pbftMessageFactory->createPBFTMsg(m_cryptoSuite, payLoadRefData);
         break;
     case ViewChangePacket:
-        decodedMsg = std::make_shared<PBFTViewChangeMsg>(payLoadRefData);
+        decodedMsg = m_pbftMessageFactory->createViewChangeMsg(payLoadRefData);
         break;
     case NewViewPacket:
-        decodedMsg = std::make_shared<PBFTNewViewMsg>(payLoadRefData);
+        decodedMsg = m_pbftMessageFactory->createNewViewMsg(payLoadRefData);
         break;
     default:
         BOOST_THROW_EXCEPTION(UnknownPBFTMsgType() << errinfo_comment(

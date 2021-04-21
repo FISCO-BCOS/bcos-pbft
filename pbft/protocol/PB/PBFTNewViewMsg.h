@@ -27,7 +27,7 @@ namespace bcos
 {
 namespace consensus
 {
-class PBFTNewViewMsg : public PBFTBaseMessage, NewViewMsgInterface
+class PBFTNewViewMsg : public NewViewMsgInterface, public PBFTBaseMessage
 {
 public:
     using Ptr = std::shared_ptr<PBFTNewViewMsg>;

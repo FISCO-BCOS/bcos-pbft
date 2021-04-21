@@ -26,7 +26,7 @@ namespace bcos
 {
 namespace consensus
 {
-class PBFTBaseMessage : public PBFTBaseMessageInterface
+class PBFTBaseMessage : virtual public PBFTBaseMessageInterface
 {
 public:
     using Ptr = std::shared_ptr<PBFTBaseMessage>;
