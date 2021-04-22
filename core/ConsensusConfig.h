@@ -43,6 +43,7 @@ public:
     // the nodeIndex of this node
     IndexType nodeIndex() const override { return m_nodeIndex; }
 
+    bool isConsensusNode() const override { return (m_nodeIndex != NON_CONSENSUS_NODE); }
     // the consensus node list
     ConsensusNodeList const& consensusNodeList() const override;
 
