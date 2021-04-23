@@ -87,7 +87,7 @@ void PBFTMessage::generateAndSetSignatureData(
     m_pbftRawMessage->set_signaturedata(signature->data(), signature->size());
 }
 
-void PBFTMessage::setProposals(ProposalList const& _proposals)
+void PBFTMessage::setProposals(PBFTProposalList const& _proposals)
 {
     *m_proposals = _proposals;
     for (auto proposal : _proposals)

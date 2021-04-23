@@ -19,8 +19,8 @@
  * @date 2021-04-13
  */
 #pragma once
-#include "framework/ProposalInterface.h"
 #include "pbft/protocol/interfaces/PBFTBaseMessageInterface.h"
+#include "pbft/protocol/interfaces/PBFTProposalInterface.h"
 namespace bcos
 {
 namespace consensus
@@ -32,8 +32,8 @@ public:
     PBFTMessageInterface() = default;
     virtual ~PBFTMessageInterface() {}
 
-    virtual void setProposals(ProposalList const& _proposals) = 0;
-    virtual ProposalList const& proposals() const = 0;
+    virtual void setProposals(PBFTProposalList const& _proposals) = 0;
+    virtual PBFTProposalList const& proposals() const = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

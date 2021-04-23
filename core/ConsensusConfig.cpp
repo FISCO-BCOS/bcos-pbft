@@ -24,10 +24,23 @@ using namespace bcos;
 using namespace bcos::crypto;
 using namespace bcos::consensus;
 // the consensus node list
-ConsensusNodeList const& ConsensusConfig::consensusNodeList() const
+// Note: copy here to ensure thread safety
+// And the cost of copying the pointer is more efficient
+ConsensusNodeList ConsensusConfig::consensusNodeList() const
 {
     ReadGuard l(x_consensusNodeList);
     return *m_consensusNodeList;
+}
+
+NodeIDs ConsensusConfig::consensusNodeIDList() const
+{
+    ReadGuard l(x_consensusNodeList);
+    std::vector<PublicPtr> nodeIDList;
+    for (auto node : *m_consensusNodeList)
+    {
+        nodeIDList.push_back(node->nodeID());
+    }
+    return nodeIDList;
 }
 
 void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList)

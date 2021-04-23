@@ -31,7 +31,7 @@ PBFTViewChangeMsg::PBFTViewChangeMsg(std::shared_ptr<RawViewChangeMessage> _rawV
   : PBFTBaseMessage(std::shared_ptr<BaseMessage>(_rawViewChange->mutable_message()))
 {
     m_packetType = PacketType::ViewChangePacket;
-    m_preparedProposalList = std::make_shared<ProposalList>();
+    m_preparedProposalList = std::make_shared<PBFTProposalList>();
     m_rawViewChange = _rawViewChange;
     PBFTViewChangeMsg::deserializeToObject();
 }
@@ -49,7 +49,7 @@ void PBFTViewChangeMsg::decode(bytesConstRef _data)
     m_packetType = PacketType::ViewChangePacket;
 }
 
-void PBFTViewChangeMsg::setCommittedProposal(ProposalInterface::Ptr _proposal)
+void PBFTViewChangeMsg::setCommittedProposal(PBFTProposalInterface::Ptr _proposal)
 {
     m_committedProposal = _proposal;
     auto pbftProposal = std::dynamic_pointer_cast<PBFTProposal>(_proposal);
@@ -57,7 +57,7 @@ void PBFTViewChangeMsg::setCommittedProposal(ProposalInterface::Ptr _proposal)
     m_rawViewChange->set_allocated_committedproposal(pbftProposal->pbftRawProposal().get());
 }
 
-void PBFTViewChangeMsg::setPreparedProposals(ProposalList const& _preparedProposals)
+void PBFTViewChangeMsg::setPreparedProposals(PBFTProposalList const& _preparedProposals)
 {
     *m_preparedProposalList = _preparedProposals;
     for (auto proposal : _preparedProposals)

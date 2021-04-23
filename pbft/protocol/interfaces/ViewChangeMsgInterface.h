@@ -19,8 +19,8 @@
  * @date 2021-04-15
  */
 #pragma once
-#include "framework/ProposalInterface.h"
 #include "pbft/protocol/interfaces/PBFTBaseMessageInterface.h"
+#include "pbft/protocol/interfaces/PBFTProposalInterface.h"
 
 namespace bcos
 {
@@ -33,11 +33,11 @@ public:
     ViewChangeMsgInterface() = default;
     virtual ~ViewChangeMsgInterface() {}
 
-    virtual ProposalInterface::Ptr committedProposal() = 0;
-    virtual void setCommittedProposal(ProposalInterface::Ptr _proposal) = 0;
+    virtual PBFTProposalInterface::Ptr committedProposal() = 0;
+    virtual void setCommittedProposal(PBFTProposalInterface::Ptr _proposal) = 0;
 
-    virtual ProposalList const& preparedProposals() = 0;
-    virtual void setPreparedProposals(ProposalList const& _preparedProposal) = 0;
+    virtual PBFTProposalList const& preparedProposals() = 0;
+    virtual void setPreparedProposals(PBFTProposalList const& _preparedProposal) = 0;
 };
 using ViewChangeMsgList = std::vector<ViewChangeMsgInterface::Ptr>;
 using ViewChangeMsgListPtr = std::shared_ptr<ViewChangeMsgList>;

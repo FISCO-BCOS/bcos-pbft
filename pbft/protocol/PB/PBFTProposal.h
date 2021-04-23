@@ -25,9 +25,10 @@ namespace bcos
 {
 namespace consensus
 {
-class PBFTProposal : public Proposal
+class PBFTProposal : public Proposal, virtual public PBFTProposalInterface
 {
 public:
+    using Ptr = std::shared_ptr<PBFTProposal>;
     PBFTProposal() : Proposal()
     {
         m_pbftRawProposal = std::make_shared<PBFTRawProposal>();
@@ -44,9 +45,9 @@ public:
 
     std::shared_ptr<PBFTRawProposal> pbftRawProposal() { return m_pbftRawProposal; }
 
-    virtual size_t signatureProofSize() const { return m_pbftRawProposal->signaturelist_size(); }
+    size_t signatureProofSize() const override { return m_pbftRawProposal->signaturelist_size(); }
 
-    virtual std::pair<int64_t, bytesConstRef> signatureProof(size_t _index) const
+    std::pair<int64_t, bytesConstRef> signatureProof(size_t _index) const override
     {
         auto const& signatureData = m_pbftRawProposal->signaturelist(_index);
         auto signatureDataRef =
@@ -54,11 +55,17 @@ public:
         return std::make_pair(m_pbftRawProposal->nodelist(_index), signatureDataRef);
     }
 
-    virtual void appendSignatureProof(int64_t _nodeIdx, bytes const& _signatureData)
+    void appendSignatureProof(int64_t _nodeIdx, bytes const& _signatureData) override
     {
         m_pbftRawProposal->add_nodelist(_nodeIdx);
         m_pbftRawProposal->add_signaturelist(_signatureData.data(), _signatureData.size());
     }
+
+    void setView(ViewType _view) override { m_view = _view; }
+    ViewType view() const override { return m_view; }
+
+    void setGeneratedFrom(IndexType _from) override { m_generatedFrom = _from; }
+    IndexType generatedFrom() const override { return m_generatedFrom; }
 
     bool operator==(PBFTProposal const& _proposal)
     {
@@ -89,8 +96,8 @@ public:
 
 private:
     std::shared_ptr<PBFTRawProposal> m_pbftRawProposal;
+    ViewType m_view;
+    IndexType m_generatedFrom;
 };
-using PBFTProposalList = std::vector<PBFTProposal::Ptr>;
-using PBFTProposalListPtr = std::shared_ptr<PBFTProposalList>;
 }  // namespace consensus
 }  // namespace bcos

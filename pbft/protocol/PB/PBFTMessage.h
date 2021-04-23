@@ -35,13 +35,13 @@ public:
     PBFTMessage()
       : PBFTBaseMessage(),
         m_pbftRawMessage(std::make_shared<PBFTRawMessage>()),
-        m_proposals(std::make_shared<ProposalList>())
+        m_proposals(std::make_shared<PBFTProposalList>())
     {}
 
     explicit PBFTMessage(std::shared_ptr<PBFTRawMessage> _pbftRawMessage) : PBFTBaseMessage()
     {
         m_pbftRawMessage = _pbftRawMessage;
-        m_proposals = std::make_shared<ProposalList>();
+        m_proposals = std::make_shared<PBFTProposalList>();
         auto const& hashFieldsData = m_pbftRawMessage->hashfieldsdata();
         auto baseMessageData =
             bytesConstRef((byte const*)hashFieldsData.c_str(), hashFieldsData.size());
@@ -69,8 +69,8 @@ public:
         bcos::crypto::KeyPairInterface::Ptr _keyPair) const override;
     void decode(bytesConstRef _data) override;
 
-    void setProposals(ProposalList const& _proposals) override;
-    ProposalList const& proposals() const override { return *m_proposals; }
+    void setProposals(PBFTProposalList const& _proposals) override;
+    PBFTProposalList const& proposals() const override { return *m_proposals; }
 
     virtual void decodeAndSetSignature(
         bcos::crypto::CryptoSuite::Ptr _pbftConfig, bytesConstRef _data);
@@ -86,7 +86,7 @@ protected:
 
 private:
     std::shared_ptr<PBFTRawMessage> m_pbftRawMessage;
-    ProposalListPtr m_proposals;
+    PBFTProposalListPtr m_proposals;
 };
 }  // namespace consensus
 }  // namespace bcos

@@ -39,7 +39,8 @@ public:
     virtual IndexType nodeIndex() const = 0;
 
     // the sealer list
-    virtual ConsensusNodeList const& consensusNodeList() const = 0;
+    virtual ConsensusNodeList consensusNodeList() const = 0;
+    virtual bcos::crypto::NodeIDs consensusNodeIDList() const = 0;
     virtual bool isConsensusNode() const = 0;
 
     // the consensus timeout

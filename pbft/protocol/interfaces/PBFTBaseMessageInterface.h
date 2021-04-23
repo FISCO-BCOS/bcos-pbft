@@ -20,6 +20,7 @@
  */
 #pragma once
 #include "pbft/utilities/Common.h"
+#include <bcos-framework/interfaces/consensus/ConsensusTypeDef.h>
 #include <bcos-framework/interfaces/crypto/CommonType.h>
 #include <bcos-framework/interfaces/crypto/CryptoSuite.h>
 #include <bcos-framework/interfaces/crypto/KeyPairInterface.h>
@@ -38,15 +39,18 @@ public:
 
     virtual int64_t timestamp() const = 0;
     virtual int32_t version() const = 0;
-    virtual int64_t view() const = 0;
-    virtual int64_t generatedFrom() const = 0;
+    virtual ViewType view() const = 0;
+    virtual IndexType generatedFrom() const = 0;
+    virtual int64_t index() const = 0;
+    virtual void setIndex(int64_t _proposalStartIndex) = 0;
+
     virtual bcos::crypto::HashType const& hash() const = 0;
     virtual PacketType packetType() const = 0;
 
     virtual void setTimestamp(int64_t _timestamp) = 0;
     virtual void setVersion(int32_t _version) = 0;
     virtual void setView(ViewType _view) = 0;
-    virtual void setGeneratedFrom(int64_t _generatedFrom) = 0;
+    virtual void setGeneratedFrom(IndexType _generatedFrom) = 0;
     virtual void setHash(bcos::crypto::HashType const& _hash) = 0;
     virtual void setPacketType(PacketType _packetType) = 0;
 
@@ -64,5 +68,13 @@ public:
     virtual bool verifySignature(
         bcos::crypto::CryptoSuite::Ptr _cryptoSuite, bcos::crypto::PublicPtr _pubKey) = 0;
 };
+inline std::string printPBFTMsgInfo(PBFTBaseMessageInterface::Ptr _pbftMsg)
+{
+    std::ostringstream stringstream;
+    stringstream << LOG_KV("reqHash", _pbftMsg->hash().abridged())
+                 << LOG_KV("reqIndex", _pbftMsg->index()) << LOG_KV("reqV", _pbftMsg->view())
+                 << LOG_KV("fromIdx", _pbftMsg->generatedFrom());
+    return stringstream.str();
+}
 }  // namespace consensus
 }  // namespace bcos

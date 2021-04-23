@@ -19,6 +19,7 @@
  * @date 2021-04-21
  */
 #pragma once
+#include "pbft/cache/PBFTProposalCache.h"
 #include "pbft/config/PBFTConfig.h"
 #include "pbft/protocol/interfaces/PBFTMessageFactory.h"
 #include "pbft/protocol/interfaces/PBFTMessageInterface.h"
@@ -29,18 +30,49 @@ namespace consensus
 class PBFTReqCache
 {
 public:
+    using Ptr = std::shared_ptr<PBFTReqCache>;
     explicit PBFTReqCache(PBFTConfig::Ptr _config) : m_config(_config) {}
     virtual ~PBFTReqCache() {}
 
     virtual void addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepareMsg);
-    virtual bool prePrepareExists(PBFTMessageInterface::Ptr _prePrepareMsg);
+    virtual bool existPrePrepare(PBFTMessageInterface::Ptr _prePrepareMsg);
+    virtual bool conflictWithProcessedReq(PBFTMessageInterface::Ptr _msg);
+    virtual bool conflictWithPrecommitProposal(PBFTMessageInterface::Ptr _prePrepareMsg);
+
+    virtual void addPrepareCache(PBFTMessageInterface::Ptr _prepareReq)
+    {
+        addCache(m_pbftProposalList, _prepareReq,
+            [](PBFTProposalCache::Ptr _pbftCache, PBFTProposalInterface::Ptr _pbftProposal) {
+                _pbftCache->addPrepareCache(_pbftProposal);
+            });
+    }
+
+    virtual void addCommitReq(PBFTMessageInterface::Ptr _commitReq)
+    {
+        addCache(m_pbftProposalList, _commitReq,
+            [](PBFTProposalCache::Ptr _pbftCache, PBFTProposalInterface::Ptr _pbftProposal) {
+                _pbftCache->addCommitCache(_pbftProposal);
+            });
+    }
+
     // clear the expired cache periodically
     virtual void clearExpiredCache() {}
 
-protected:
+private:
+    using PBFTProposalListType = std::map<bcos::crypto::HashType,
+        std::map<bcos::protocol::BlockNumber, PBFTProposalCache::Ptr>>;
+    using UpdatePBFTCacheHandler = std::function<void(
+        PBFTProposalCache::Ptr _proposalCache, PBFTProposalInterface::Ptr _pbftProposal)>;
+    void addCache(PBFTProposalListType& _proposalCache, PBFTMessageInterface::Ptr _pbftReq,
+        UpdatePBFTCacheHandler _handler);
+
+private:
     PBFTConfig::Ptr m_config;
     PBFTMessageInterface::Ptr m_prePrepareCache = nullptr;
     mutable SharedMutex x_prePrepareCache;
+
+    PBFTProposalListType m_pbftProposalList;
+    std::vector<PBFTProposalCache::Ptr> m_precommitProposalList;
 };
 }  // namespace consensus
 }  // namespace bcos
