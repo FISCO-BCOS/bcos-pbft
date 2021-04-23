@@ -44,14 +44,14 @@ public:
 
     int64_t timestamp() const override { return m_baseMessage->timestamp(); }
     int32_t version() const override { return m_baseMessage->version(); }
-    int64_t view() const override { return m_baseMessage->view(); }
-    int64_t generatedFrom() const override { return m_baseMessage->generatedfrom(); }
+    ViewType view() const override { return m_baseMessage->view(); }
+    IndexType generatedFrom() const override { return m_baseMessage->generatedfrom(); }
     bcos::crypto::HashType const& hash() const override { return m_hash; }
 
     void setTimestamp(int64_t _timestamp) override { m_baseMessage->set_timestamp(_timestamp); }
     void setVersion(int32_t _version) override { m_baseMessage->set_version(_version); }
     void setView(ViewType _view) override { m_baseMessage->set_view(_view); }
-    void setGeneratedFrom(int64_t _generatedFrom) override
+    void setGeneratedFrom(IndexType _generatedFrom) override
     {
         m_baseMessage->set_generatedfrom(_generatedFrom);
     }
@@ -93,6 +93,9 @@ public:
     {
         return _cryptoSuite->signatureImpl()->verify(_pubKey, m_dataHash, ref(*m_signatureData));
     }
+
+    int64_t index() const override { return m_baseMessage->index(); }
+    void setIndex(int64_t _index) override { m_baseMessage->set_index(_index); }
 
     bool operator==(PBFTBaseMessage const& _pbftMessage)
     {

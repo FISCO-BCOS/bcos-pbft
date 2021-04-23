@@ -5,12 +5,13 @@ package bcos.consensus;
 message BaseMessage
 {
   int32 version = 1;
+  int64 index = 2;
   // the hash of the proposals or the committed proposal
-  bytes hash = 2;
-  int64 view = 3;
-  int64 timestamp = 4;
+  bytes hash = 3;
+  int64 view = 4;
+  int64 timestamp = 5;
   // the index of the node that generated the request
-  int64 generatedFrom = 5;
+  int64 generatedFrom = 6;
 }
 
 message PBFTRawProposal

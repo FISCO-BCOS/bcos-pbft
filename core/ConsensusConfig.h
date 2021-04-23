@@ -45,7 +45,8 @@ public:
 
     bool isConsensusNode() const override { return (m_nodeIndex != NON_CONSENSUS_NODE); }
     // the consensus node list
-    ConsensusNodeList const& consensusNodeList() const override;
+    ConsensusNodeList consensusNodeList() const override;
+    bcos::crypto::NodeIDs consensusNodeIDList() const override;
 
     uint64_t consensusTimeout() const override { return m_consensusTimeout; }
 
@@ -60,6 +61,7 @@ public:
     {
         WriteGuard l(x_committedProposal);
         m_committedProposal = _committedProposal;
+        m_progressedIndex = m_committedProposal->index() + 1;
     }
 
     ProposalInterface::ConstPtr committedProposal() override
@@ -67,11 +69,13 @@ public:
         ReadGuard l(x_committedProposal);
         return std::const_pointer_cast<ProposalInterface const>(m_committedProposal);
     }
-    bcos::crypto::KeyPairInterface::Ptr keyPair() { return m_keyPair; }
+
+    virtual bcos::protocol::BlockNumber progressedIndex() { return m_progressedIndex; }
 
     virtual void updateQuorum() = 0;
     IndexType getNodeIndexByNodeID(bcos::crypto::PublicPtr _nodeID);
     ConsensusNodeInterface::Ptr getConsensusNodeByIndex(IndexType _nodeIndex);
+    bcos::crypto::KeyPairInterface::Ptr keyPair() { return m_keyPair; }
 
 protected:
     bcos::crypto::KeyPairInterface::Ptr m_keyPair;
@@ -86,6 +90,8 @@ protected:
 
     ProposalInterface::Ptr m_committedProposal;
     mutable bcos::SharedMutex x_committedProposal;
+
+    std::atomic<bcos::protocol::BlockNumber> m_progressedIndex = {0};
 };
 }  // namespace consensus
 }  // namespace bcos

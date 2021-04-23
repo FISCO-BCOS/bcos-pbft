@@ -28,7 +28,7 @@ namespace bcos
 namespace consensus
 {
 const bcos::protocol::BlockNumber InvalidBlockNumber = -1;
-class Proposal : public ProposalInterface
+class Proposal : virtual public ProposalInterface
 {
 public:
     using Ptr = std::shared_ptr<Proposal>;

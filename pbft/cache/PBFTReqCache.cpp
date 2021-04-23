@@ -27,9 +27,10 @@ void PBFTReqCache::addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepareMsg)
 {
     WriteGuard l(x_prePrepareCache);
     m_prePrepareCache = _prePrepareMsg;
+    PBFT_LOG(INFO) << LOG_DESC("addPrePrepareCache") << printPBFTMsgInfo(_prePrepareMsg);
 }
 
-bool PBFTReqCache::prePrepareExists(PBFTMessageInterface::Ptr _prePrepareMsg)
+bool PBFTReqCache::existPrePrepare(PBFTMessageInterface::Ptr _prePrepareMsg)
 {
     ReadGuard l(x_prePrepareCache);
     if (m_prePrepareCache == nullptr)
@@ -38,4 +39,45 @@ bool PBFTReqCache::prePrepareExists(PBFTMessageInterface::Ptr _prePrepareMsg)
     }
     return (_prePrepareMsg->hash() == m_prePrepareCache->hash()) &&
            (m_prePrepareCache->view() >= _prePrepareMsg->view());
+}
+
+bool PBFTReqCache::conflictWithProcessedReq(PBFTMessageInterface::Ptr _msg)
+{
+    ReadGuard l(x_prePrepareCache);
+    if (m_prePrepareCache == nullptr)
+    {
+        return false;
+    }
+    return (_msg->hash() != m_prePrepareCache->hash() || _msg->view() != m_prePrepareCache->view());
+}
+
+bool PBFTReqCache::conflictWithPrecommitProposal(PBFTMessageInterface::Ptr _prePrepareMsg)
+{
+    for (auto precommitProposal : m_precommitProposalList)
+    {
+        if (precommitProposal->conflictWithPrecommitProposal(_prePrepareMsg))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void PBFTReqCache::addCache(PBFTProposalListType& _proposalCache,
+    PBFTMessageInterface::Ptr _pbftReq, UpdatePBFTCacheHandler _handler)
+
+{
+    auto const& msgHash = _pbftReq->hash();
+    auto const& proposals = _pbftReq->proposals();
+    for (auto pbftProposal : _pbftReq->proposals())
+    {
+        auto index = pbftProposal->index();
+        if (!_proposalCache.count(msgHash) || !(_proposalCache[msgHash].count(index)))
+        {
+            _proposalCache[msgHash][index] = std::make_shared<PBFTProposalCache>(m_config, index);
+        }
+        pbftProposal->setView(_pbftReq->view());
+        pbftProposal->setGeneratedFrom(_pbftReq->generatedFrom());
+        _handler(_proposalCache[msgHash][index], pbftProposal);
+    }
 }

@@ -31,7 +31,7 @@ public:
     using Ptr = std::shared_ptr<PBFTViewChangeMsg>;
     PBFTViewChangeMsg() : PBFTBaseMessage()
     {
-        m_preparedProposalList = std::make_shared<ProposalList>();
+        m_preparedProposalList = std::make_shared<PBFTProposalList>();
         m_rawViewChange = std::make_shared<RawViewChangeMessage>();
         m_rawViewChange->set_allocated_message(PBFTBaseMessage::baseMessage().get());
         m_packetType = PacketType::ViewChangePacket;
@@ -40,7 +40,7 @@ public:
     explicit PBFTViewChangeMsg(std::shared_ptr<RawViewChangeMessage> _rawViewChange);
     explicit PBFTViewChangeMsg(bytesConstRef _data) : PBFTBaseMessage()
     {
-        m_preparedProposalList = std::make_shared<ProposalList>();
+        m_preparedProposalList = std::make_shared<PBFTProposalList>();
         m_rawViewChange = std::make_shared<RawViewChangeMessage>();
         decode(_data);
     }
@@ -61,12 +61,12 @@ public:
 
     std::shared_ptr<RawViewChangeMessage> rawViewChange() { return m_rawViewChange; }
 
-    ProposalInterface::Ptr committedProposal() override { return m_committedProposal; }
-    ProposalList const& preparedProposals() override { return *m_preparedProposalList; }
+    PBFTProposalInterface::Ptr committedProposal() override { return m_committedProposal; }
+    PBFTProposalList const& preparedProposals() override { return *m_preparedProposalList; }
 
-    void setCommittedProposal(ProposalInterface::Ptr _proposal) override;
+    void setCommittedProposal(PBFTProposalInterface::Ptr _proposal) override;
 
-    void setPreparedProposals(ProposalList const& _preparedProposals) override;
+    void setPreparedProposals(PBFTProposalList const& _preparedProposals) override;
 
     bytesPointer encode(
         bcos::crypto::CryptoSuite::Ptr, bcos::crypto::KeyPairInterface::Ptr) const override;
@@ -79,9 +79,9 @@ protected:
 private:
     std::shared_ptr<RawViewChangeMessage> m_rawViewChange;
     // required and need to be verified
-    ProposalInterface::Ptr m_committedProposal;
+    PBFTProposalInterface::Ptr m_committedProposal;
     // optional
-    ProposalListPtr m_preparedProposalList;
+    PBFTProposalListPtr m_preparedProposalList;
 };
 using PBFTViewChangeMsgList = std::vector<PBFTViewChangeMsg::Ptr>;
 using PBFTViewChangeMsgListPtr = std::shared_ptr<PBFTViewChangeMsg>;

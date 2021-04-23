@@ -21,6 +21,7 @@
 #pragma once
 #include "pbft/protocol/interfaces/NewViewMsgInterface.h"
 #include "pbft/protocol/interfaces/PBFTMessageInterface.h"
+#include "pbft/protocol/interfaces/PBFTProposalInterface.h"
 #include "pbft/protocol/interfaces/ViewChangeMsgInterface.h"
 #include <bcos-framework/interfaces/crypto/CryptoSuite.h>
 namespace bcos
@@ -43,6 +44,7 @@ public:
 
     virtual NewViewMsgInterface::Ptr createNewViewMsg() = 0;
     virtual NewViewMsgInterface::Ptr createNewViewMsg(bytesConstRef _data) = 0;
+    virtual PBFTProposalInterface::Ptr createPBFTProposal() = 0;
 };
 }  // namespace consensus
 }  // namespace bcos
