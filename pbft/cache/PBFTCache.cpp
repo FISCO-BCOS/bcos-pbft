@@ -14,44 +14,22 @@
  *  limitations under the License.
  *
  * @brief cache for the consensus state of the proposal
- * @file PBFTProposalCache.cpp
+ * @file PBFTCache.cpp
  * @author: yujiechen
  * @date 2021-04-23
  */
-#include "PBFTProposalCache.h"
+#include "PBFTCache.h"
 
 using namespace bcos;
 using namespace bcos::consensus;
 using namespace bcos::protocol;
 using namespace bcos::crypto;
 
-PBFTProposalCache::PBFTProposalCache(PBFTConfig::Ptr _config, BlockNumber _index)
+PBFTCache::PBFTCache(PBFTConfig::Ptr _config, BlockNumber _index)
   : m_config(_config), m_index(_index)
 {}
 
-bool PBFTProposalCache::conflictWithPrecommitProposal(PBFTMessageInterface::Ptr _prePrepareMsg)
-{
-    // empty or older prepared cache
-    if (!m_precommitProposal)
-    {
-        return false;
-    }
-    if (m_precommitProposal->index() < m_config->progressedIndex())
-    {
-        return false;
-    }
-    if (_prePrepareMsg->index() == m_precommitProposal->index() &&
-        _prePrepareMsg->hash() != m_precommitProposal->hash())
-    {
-        PBFT_LOG(INFO) << LOG_DESC(
-                              "the received pre-prepare msg is conflict with the preparedCache")
-                       << printPBFTMsgInfo(_prePrepareMsg);
-        return true;
-    }
-    return false;
-}
-
-void PBFTProposalCache::addCache(CollectionCacheType& _cachedReq, QuorumRecoderType& _weightInfo,
+void PBFTCache::addCache(CollectionCacheType& _cachedReq, QuorumRecoderType& _weightInfo,
     PBFTProposalInterface::Ptr _proposal)
 
 {
@@ -79,4 +57,12 @@ void PBFTProposalCache::addCache(CollectionCacheType& _cachedReq, QuorumRecoderT
         _weightInfo[proposalHash] += nodeInfo->weight();
     }
     _cachedReq[proposalHash][generatedFrom] = _proposal;
+}
+
+void PBFTCache::setSignatureList()
+{
+    for (auto const& it : m_commitCacheList[m_precommit->hash()])
+    {
+        m_precommit->appendSignatureProof(it.first, it.second->signature());
+    }
 }

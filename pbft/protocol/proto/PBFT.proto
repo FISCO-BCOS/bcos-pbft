@@ -20,6 +20,8 @@ message PBFTRawProposal
   // proof for the prepared proposal
   repeated int64 nodeList = 2;
   repeated bytes signatureList = 3;
+  int64 view = 4;
+  int64 generatedFrom = 5;
 }
 
 message RawViewChangeMessage

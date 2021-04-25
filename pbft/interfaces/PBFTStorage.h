@@ -13,31 +13,27 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief interface for PBFTCodec
- * @file PBFTCodecInterface.h
+ * @brief StorageInterface for PBFT
+ * @file PBFTStorage.cpp
  * @author: yujiechen
- * @date 2021-04-13
+ * @date 2021-04-26
  */
 #pragma once
-#include "pbft/protocol/interfaces/PBFTBaseMessageInterface.h"
-#include <bcos-framework/interfaces/crypto/KeyInterface.h>
-#include <bcos-framework/libutilities/Common.h>
+#include "pbft/interfaces/PBFTProposalInterface.h"
+
 namespace bcos
 {
 namespace consensus
 {
-class PBFTCodecInterface
+class PBFTStorage
 {
 public:
-    using Ptr = std::shared_ptr<PBFTCodecInterface>;
-    PBFTCodecInterface() = default;
-    virtual ~PBFTCodecInterface() {}
+    using Ptr = std::shared_ptr<PBFTStorage>;
+    PBFTStorage() = default;
+    virtual ~PBFTStorage() {}
 
-    virtual bytesPointer encode(
-        PBFTBaseMessageInterface::Ptr _pbftMessage, int32_t _version = 0) const = 0;
-    // Taking into account the situation of future blocks, verify the signature if and only when
-    // processing the message packet
-    virtual PBFTBaseMessageInterface::Ptr decode(bytesConstRef _data) const = 0;
+    virtual void storePrecommitProposal(PBFTProposalInterface::Ptr _preCommitProposal) = 0;
+    virtual void asyncCommitProposal(PBFTProposalInterface::Ptr _commitProposal) = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

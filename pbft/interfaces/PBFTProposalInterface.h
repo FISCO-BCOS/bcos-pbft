@@ -35,7 +35,7 @@ public:
 
     virtual size_t signatureProofSize() const = 0;
     virtual std::pair<int64_t, bytesConstRef> signatureProof(size_t _index) const = 0;
-    virtual void appendSignatureProof(int64_t _nodeIdx, bytes const& _signatureData) = 0;
+    virtual void appendSignatureProof(int64_t _nodeIdx, bytesConstRef _signatureData) = 0;
 
     // In order to support the consensus of a single proposal dimension
     virtual void setView(ViewType _view) = 0;
@@ -46,5 +46,14 @@ public:
 };
 using PBFTProposalList = std::vector<PBFTProposalInterface::Ptr>;
 using PBFTProposalListPtr = std::shared_ptr<PBFTProposalList>;
+
+template <typename T>
+inline std::string printPBFTProposal(T _proposal)
+{
+    std::ostringstream stringstream;
+    stringstream << LOG_KV("propHash", _proposal->hash().abridged())
+                 << LOG_KV("propIndex", _proposal->index());
+    return stringstream.str();
+}
 }  // namespace consensus
 }  // namespace bcos

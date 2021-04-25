@@ -60,7 +60,7 @@ void PBFTViewChangeMsg::setCommittedProposal(PBFTProposalInterface::Ptr _proposa
 void PBFTViewChangeMsg::setPreparedProposals(PBFTProposalList const& _preparedProposals)
 {
     *m_preparedProposalList = _preparedProposals;
-    for (auto proposal : _preparedProposals)
+    for (auto proposal : *m_preparedProposalList)
     {
         auto pbftProposal = std::dynamic_pointer_cast<PBFTProposal>(proposal);
         m_rawViewChange->mutable_preparedproposals()->AddAllocated(

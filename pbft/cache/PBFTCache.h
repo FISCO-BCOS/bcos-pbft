@@ -14,27 +14,24 @@
  *  limitations under the License.
  *
  * @brief cache for the consensus state of the proposal
- * @file PBFTProposalCache.h
+ * @file PBFTCache.h
  * @author: yujiechen
  * @date 2021-04-23
  */
 #pragma once
 #include "pbft/config/PBFTConfig.h"
-#include "pbft/protocol/interfaces/PBFTMessageInterface.h"
+#include "pbft/interfaces/PBFTMessageInterface.h"
 
 namespace bcos
 {
 namespace consensus
 {
-class PBFTProposalCache
+class PBFTCache
 {
 public:
-    using Ptr = std::shared_ptr<PBFTProposalCache>;
-    PBFTProposalCache(PBFTConfig::Ptr _config, bcos::protocol::BlockNumber _index);
-    virtual ~PBFTProposalCache() {}
-
-    virtual bool conflictWithPrecommitProposal(PBFTMessageInterface::Ptr _prePrepareMsg);
-
+    using Ptr = std::shared_ptr<PBFTCache>;
+    PBFTCache(PBFTConfig::Ptr _config, bcos::protocol::BlockNumber _index);
+    virtual ~PBFTCache() {}
     virtual void addPrepareCache(PBFTProposalInterface::Ptr _prepareProposal)
     {
         addCache(m_prepareCacheList, m_prepareReqWeight, _prepareProposal);
@@ -45,19 +42,53 @@ public:
         addCache(m_commitCacheList, m_commitReqWeight, _commitProposal);
     }
 
+    virtual void addPrePrepareCache(PBFTProposalInterface::Ptr _prePrepareProposal)
+    {
+        m_prePrepare = _prePrepareProposal;
+    }
+
     bcos::protocol::BlockNumber index() const { return m_index; }
 
-    bool collectEnoughPrepareReq(bcos::crypto::HashType const& _hash)
+    bool collectEnoughPrepareReq()
     {
-        return collectEnoughQuorum(_hash, m_prepareReqWeight);
+        if (!checkPrePrepareProposalStatus())
+        {
+            return false;
+        }
+        return collectEnoughQuorum(m_prePrepare->hash(), m_prepareReqWeight);
     }
 
-    bool collectEnoughCommitReq(bcos::crypto::HashType const& _hash)
+    bool collectEnoughCommitReq()
     {
-        return collectEnoughQuorum(_hash, m_commitReqWeight);
+        if (!checkPrePrepareProposalStatus())
+        {
+            return false;
+        }
+        return collectEnoughQuorum(m_prePrepare->hash(), m_commitReqWeight);
     }
+    virtual void intoPrecommit()
+    {
+        m_precommit = m_prePrepare;
+        m_config->storage()->storePrecommitProposal(m_precommit);
+    }
+
+    virtual PBFTProposalInterface::Ptr preCommitProposal() { return m_precommit; }
+    virtual void setSignatureList();
 
 private:
+    inline bool checkPrePrepareProposalStatus()
+    {
+        if (m_prePrepare == nullptr)
+        {
+            return false;
+        }
+        if (m_prePrepare->view() != m_config->view())
+        {
+            return false;
+        }
+        return true;
+    }
+
     using CollectionCacheType =
         std::map<bcos::crypto::HashType, std::map<IndexType, PBFTProposalInterface::Ptr>>;
     using QuorumRecoderType = std::map<bcos::crypto::HashType, uint64_t>;
@@ -82,7 +113,8 @@ private:
     CollectionCacheType m_commitCacheList;
     QuorumRecoderType m_commitReqWeight;
 
-    PBFTProposalInterface::Ptr m_precommitProposal = nullptr;
+    PBFTProposalInterface::Ptr m_prePrepare = nullptr;
+    PBFTProposalInterface::Ptr m_precommit = nullptr;
 };
 }  // namespace consensus
 }  // namespace bcos

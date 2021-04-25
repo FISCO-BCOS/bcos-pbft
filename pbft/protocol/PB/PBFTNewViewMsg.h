@@ -19,9 +19,9 @@
  * @date 2021-04-16
  */
 #pragma once
+#include "pbft/interfaces/NewViewMsgInterface.h"
+#include "pbft/interfaces/ViewChangeMsgInterface.h"
 #include "pbft/protocol/PB/PBFTBaseMessage.h"
-#include "pbft/protocol/interfaces/NewViewMsgInterface.h"
-#include "pbft/protocol/interfaces/ViewChangeMsgInterface.h"
 
 namespace bcos
 {

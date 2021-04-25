@@ -13,42 +13,31 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief interface for Timer
- * @file TimerInterface.h
+ * @brief interface for PBFTCodec
+ * @file PBFTCodecInterface.h
  * @author: yujiechen
- * @date 2021-04-09
+ * @date 2021-04-13
  */
 #pragma once
-#include <memory>
-
+#include "pbft/interfaces/PBFTBaseMessageInterface.h"
+#include <bcos-framework/interfaces/crypto/KeyInterface.h>
+#include <bcos-framework/libutilities/Common.h>
 namespace bcos
 {
 namespace consensus
 {
-class TimerInterface
+class PBFTCodecInterface
 {
 public:
-    using Ptr = std::shared_ptr<TimerInterface>;
-    TimerInterface() = default;
-    virtual ~TimerInterface() {}
+    using Ptr = std::shared_ptr<PBFTCodecInterface>;
+    PBFTCodecInterface() = default;
+    virtual ~PBFTCodecInterface() {}
 
-    // start the timer
-    virtual void start() = 0;
-    // stop the timer
-    virtual void stop() = 0;
-    // reset the timer with the given timeout
-    virtual void reset(uint64_t _timeout) = 0;
-
-    virtual bool running() = 0;
-
-    virtual int64_t timeout() = 0;
-
-protected:
-    // invoked everytime when it reaches the timeout
-    virtual void run() = 0;
-
-    // adjust the timeout
-    virtual uint64_t adjustTimeout() = 0;
+    virtual bytesPointer encode(
+        PBFTBaseMessageInterface::Ptr _pbftMessage, int32_t _version = 0) const = 0;
+    // Taking into account the situation of future blocks, verify the signature if and only when
+    // processing the message packet
+    virtual PBFTBaseMessageInterface::Ptr decode(bytesConstRef _data) const = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

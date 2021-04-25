@@ -20,7 +20,7 @@
  */
 #pragma once
 #include "bcos-framework/interfaces/txpool/TxPoolInterface.h"
-#include "pbft/protocol/interfaces/PBFTProposalInterface.h"
+#include "pbft/interfaces/PBFTProposalInterface.h"
 #include <bcos-framework/interfaces/protocol/CommonError.h>
 
 namespace bcos
