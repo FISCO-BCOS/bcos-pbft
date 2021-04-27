@@ -197,8 +197,87 @@ void PBFTCacheProcessor::addViewChangeReq(ViewChangeMsgInterface::Ptr _viewChang
     auto fromIdx = _viewChange->generatedFrom();
     if (!m_viewChangeCache.count(reqView) && !m_viewChangeCache[reqView].count(fromIdx))
     {
+        auto nodeInfo = m_config->getConsensusNodeByIndex(fromIdx);
+        if (!nodeInfo)
+        {
+            return;
+        }
         m_viewChangeCache[reqView][fromIdx] = _viewChange;
+        if (!m_viewChangeWeight.count(reqView))
+        {
+            m_viewChangeWeight[reqView] = 0;
+        }
+        m_viewChangeWeight[reqView] += nodeInfo->weight();
+        auto committedIndex = _viewChange->committedProposal()->index();
+        if (!m_maxCommittedIndex.count(reqView) || m_maxCommittedIndex[reqView] < committedIndex)
+        {
+            m_maxCommittedIndex[reqView] = committedIndex;
+        }
+        PBFT_LOG(DEBUG) << LOG_DESC("addViewChangeReq") << printPBFTMsgInfo(_viewChange)
+                        << LOG_KV("weight", m_viewChangeWeight[reqView])
+                        << LOG_KV("maxCommittedIndex", m_maxCommittedIndex[reqView]);
     }
 }
-// TODO:
-void PBFTCacheProcessor::checkAndTryToNewView() {}
+
+NewViewMsgInterface::Ptr PBFTCacheProcessor::checkAndTryIntoNewView()
+{
+    if (!m_config->leaderAfterViewChange())
+    {
+        return nullptr;
+    }
+    auto toView = m_config->toView();
+    if (!m_viewChangeWeight.count(toView))
+    {
+        return nullptr;
+    }
+    if (m_viewChangeWeight[toView] < m_config->minRequiredQuorum())
+    {
+        return nullptr;
+    }
+    // the next leader collect enough viewChange requests
+    // set the viewchanges(without prePreparedProposals)
+    auto viewChangeCache = m_viewChangeCache[toView];
+    ViewChangeMsgList viewChangeList;
+    for (auto const& it : viewChangeCache)
+    {
+        viewChangeList.push_back(m_config->pbftMessageFactory()->populateFrom(it.second));
+    }
+    // try to find the precommit proposal from the cache
+    PBFTProposalList prePreparedProposals;
+    auto maxCommittedIndex = m_maxCommittedIndex[toView];
+    for (auto const& it : viewChangeCache)
+    {
+        auto viewChangeReq = it.second;
+        for (auto proposal : viewChangeReq->preparedProposals())
+        {
+            if (proposal->index() > maxCommittedIndex)
+            {
+                prePreparedProposals.push_back(proposal);
+            }
+        }
+    }
+    // create the prePrepare message
+    auto prePrepareMsg = m_config->pbftMessageFactory()->populateFrom(PacketType::PrePreparePacket,
+        m_config->pbftMsgDefaultVersion(), toView, utcTime(), m_config->nodeIndex(),
+        prePreparedProposals, m_config->cryptoSuite(), m_config->keyPair(), false);
+
+    // create newView message
+    auto newViewMsg = m_config->pbftMessageFactory()->createNewViewMsg();
+    newViewMsg->setPacketType(PacketType::NewViewPacket);
+    newViewMsg->setVersion(m_config->pbftMsgDefaultVersion());
+    newViewMsg->setView(toView);
+    newViewMsg->setTimestamp(utcTime());
+    newViewMsg->setGeneratedFrom(m_config->nodeIndex());
+    // set viewchangeList
+    newViewMsg->setViewChangeMsgList(viewChangeList);
+    // set the prePrepared proposal
+    newViewMsg->setGeneratedPrePrepare(prePrepareMsg);
+    // encode and broadcast the viewchangeReq
+    auto encodedData = m_config->codec()->encode(newViewMsg);
+    m_config->frontService()->asyncSendMessageByNodeIDs(
+        bcos::protocol::ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
+    PBFT_LOG(DEBUG) << LOG_DESC("The next leader broadcast NewView request")
+                    << printPBFTMsgInfo(newViewMsg)
+                    << LOG_KV("prePrepareProposal", prePrepareMsg->proposals().size());
+    return newViewMsg;
+}

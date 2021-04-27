@@ -73,7 +73,7 @@ public:
     virtual void checkAndCommit();
 
     virtual void addViewChangeReq(ViewChangeMsgInterface::Ptr _viewChange);
-    virtual void checkAndTryToNewView();
+    virtual NewViewMsgInterface::Ptr checkAndTryIntoNewView();
 
     // TODO: clear the expired cache periodically
     virtual void clearExpiredCache() {}
@@ -104,8 +104,8 @@ private:
     using ViewChangeCacheType =
         std::map<ViewType, std::map<IndexType, ViewChangeMsgInterface::Ptr>>;
     ViewChangeCacheType m_viewChangeCache;
-    using ViewChangeQuorumType = std::map<ViewType, uint64_t>;
-    ViewChangeQuorumType m_viewChangeWeight;
+    std::map<ViewType, uint64_t> m_viewChangeWeight;
+    std::map<ViewType, int64_t> m_maxCommittedIndex;
 
     // cached proposals that have collected enough signatures
     std::priority_queue<PBFTProposalInterface::Ptr, PBFTProposalList, ProposalQueueCmp>

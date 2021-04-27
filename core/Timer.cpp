@@ -51,9 +51,8 @@ void Timer::startTimer()
     m_running = true;
     m_timer->expires_from_now(std::chrono::milliseconds(adjustTimeout()));
     auto timer = std::weak_ptr<Timer>(shared_from_this());
-    auto startT = utcTime();
     // calls the timeout handler
-    m_timer->async_wait([startT, timer](const boost::system::error_code& error) {
+    m_timer->async_wait([timer](const boost::system::error_code& error) {
         // the timer has been cancelled
         if (error == boost::asio::error::operation_aborted)
         {
