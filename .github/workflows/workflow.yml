@@ -31,7 +31,10 @@ jobs:
       - uses: actions/cache@v2
         id: cache
         with:
-          path: /home/runner/.hunter
+          path: |
+            /home/runner/.hunter
+            /Users/runner/.hunter/
+            ccache
           key: hunter-clang-v1-notest-${{ runner.temp }}-${{ github.base_ref }}-${{ hashFiles('.github/workflows/workflow.yml') }}
           restore-keys: |
             hunter-clang-v1-notest-${{ runner.temp }}-${{ github.base_ref }}-${{ hashFiles('.github/workflows/workflow.yml') }}
@@ -188,7 +191,10 @@ jobs:
   build_with_centos:
     name: build_with_centos
     runs-on: ubuntu-latest
-    container: docker.io/centos:7
+    container:
+      image: docker.io/centos:7
+      volumes:
+        - /github/home/.hunter:/github/home/.hunter
     steps:
       - uses: actions/checkout@v2
         with:

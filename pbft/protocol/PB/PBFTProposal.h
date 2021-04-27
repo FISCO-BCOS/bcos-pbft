@@ -55,17 +55,17 @@ public:
         return std::make_pair(m_pbftRawProposal->nodelist(_index), signatureDataRef);
     }
 
-    void appendSignatureProof(int64_t _nodeIdx, bytes const& _signatureData) override
+    void appendSignatureProof(int64_t _nodeIdx, bytesConstRef _signatureData) override
     {
         m_pbftRawProposal->add_nodelist(_nodeIdx);
         m_pbftRawProposal->add_signaturelist(_signatureData.data(), _signatureData.size());
     }
 
-    void setView(ViewType _view) override { m_view = _view; }
-    ViewType view() const override { return m_view; }
+    void setView(ViewType _view) override { m_pbftRawProposal->set_view(_view); }
+    ViewType view() const override { return m_pbftRawProposal->view(); }
 
-    void setGeneratedFrom(IndexType _from) override { m_generatedFrom = _from; }
-    IndexType generatedFrom() const override { return m_generatedFrom; }
+    void setGeneratedFrom(IndexType _from) override { m_pbftRawProposal->set_generatedfrom(_from); }
+    IndexType generatedFrom() const override { return m_pbftRawProposal->generatedfrom(); }
 
     bool operator==(PBFTProposal const& _proposal)
     {
@@ -96,8 +96,6 @@ public:
 
 private:
     std::shared_ptr<PBFTRawProposal> m_pbftRawProposal;
-    ViewType m_view;
-    IndexType m_generatedFrom;
 };
 }  // namespace consensus
 }  // namespace bcos

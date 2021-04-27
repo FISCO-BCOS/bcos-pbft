@@ -58,7 +58,7 @@ public:
         // set signatureProof
         for (size_t i = 0; i < _nodeList.size(); i++)
         {
-            pbftProposal->appendSignatureProof(_nodeList[i], _signatureData[i]);
+            pbftProposal->appendSignatureProof(_nodeList[i], ref(_signatureData[i]));
         }
         return pbftProposal;
     }

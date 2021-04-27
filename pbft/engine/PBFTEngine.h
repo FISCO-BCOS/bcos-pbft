@@ -26,21 +26,14 @@
 
 namespace bcos
 {
-namespace front
-{
-class FrontServiceInterface;
-}
 namespace consensus
 {
 class PBFTBaseMessageInterface;
 class PBFTMessageInterface;
 class ViewChangeMsgInterface;
 class NewViewMsgInterface;
-class PBFTMessageFactory;
 class PBFTConfig;
-class PBFTCodecInterface;
-class ValidatorInterface;
-class PBFTReqCache;
+class PBFTCacheProcessor;
 class PBFTProposalInterface;
 
 using PBFTMsgQueue = ConcurrentQueue<std::shared_ptr<PBFTBaseMessageInterface>>;
@@ -56,12 +49,7 @@ enum CheckResult
 class PBFTEngine : public ConsensusEngine, public std::enable_shared_from_this<PBFTEngine>
 {
 public:
-    PBFTEngine(std::shared_ptr<PBFTConfig> _config, std::shared_ptr<PBFTCodecInterface> _codec,
-        std::shared_ptr<PBFTMessageFactory> _pbftMessageFactory,
-        std::shared_ptr<ValidatorInterface> _validator,
-        std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
-        bool _needVerifyProposal);
-
+    explicit PBFTEngine(std::shared_ptr<PBFTConfig> _config);
     ~PBFTEngine() override { stop(); }
 
     void start() override;
@@ -88,11 +76,16 @@ protected:
 
     // Process the Prepare type message packet
     virtual bool handlePrepareMsg(std::shared_ptr<PBFTMessageInterface> _prepareMsg);
-    virtual CheckResult checkPrepareMsg(std::shared_ptr<PBFTMessageInterface> _prepareMsg);
-    virtual void tryToPrecommit(std::shared_ptr<PBFTMessageInterface> _prepareMsg);
+    virtual CheckResult checkPBFTMsg(std::shared_ptr<PBFTMessageInterface> _prepareMsg);
 
     virtual bool handleCommitMsg(std::shared_ptr<PBFTMessageInterface> _commitMsg);
+
+    virtual void onTimeout();
+    virtual void broadcastViewChangeReq();
+
     virtual bool handleViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg);
+    virtual bool checkPrecommitProposal(std::shared_ptr<PBFTProposalInterface> _precommitProposal);
+
     virtual bool handleNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
 
 private:
@@ -102,34 +95,22 @@ private:
         boost::unique_lock<boost::mutex> l(x_signalled);
         m_signalled.wait_for(l, boost::chrono::milliseconds(5));
     }
-    std::string printCurrentState();
 
 private:
     // PBFT configuration class
     // mainly maintains the node information, consensus configuration information
     // such as consensus node list, consensus weight, etc.
     std::shared_ptr<PBFTConfig> m_config;
-    // Codec for serialization/deserialization of PBFT message packets
-    std::shared_ptr<PBFTCodecInterface> m_codec;
-    // Factory for creating PBFT message package
-    std::shared_ptr<PBFTMessageFactory> m_pbftMessageFactory;
-    // Proposal validator
-    std::shared_ptr<ValidatorInterface> m_validator;
-    // FrontService, used to send/receive P2P message packages
-    std::shared_ptr<bcos::front::FrontServiceInterface> m_frontService;
 
     // PBFT message cache queue
     PBFTMsgQueuePtr m_msgQueue;
-    std::shared_ptr<PBFTReqCache> m_pbftReqCache;
-    // Flag, used to indicate whether Proposal needs to be verified
-    bool m_needVerifyProposal;
+    std::shared_ptr<PBFTCacheProcessor> m_cacheProcessor;
 
     boost::condition_variable m_signalled;
     boost::mutex x_signalled;
     mutable Mutex m_mutex;
 
     const unsigned c_PopWaitSeconds = 5;
-    const unsigned c_pbftMsgDefaultVersion = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

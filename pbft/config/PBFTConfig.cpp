@@ -46,3 +46,37 @@ IndexType PBFTConfig::leaderIndex(bcos::protocol::BlockNumber _proposalIndex)
 {
     return (_proposalIndex / m_leaderSwitchPeriod + m_view) % m_consensusNodeNum;
 }
+
+bool PBFTConfig::leaderAfterViewChange()
+{
+    auto expectedLeader =
+        (m_progressedIndex / m_leaderSwitchPeriod + m_toView) % m_consensusNodeNum;
+    return (m_nodeIndex == expectedLeader);
+}
+
+PBFTProposalInterface::Ptr PBFTConfig::populateCommittedProposal()
+{
+    ReadGuard l(x_committedProposal);
+    if (!m_committedProposal)
+    {
+        return nullptr;
+    }
+    return m_pbftMessageFactory->populateFrom(
+        std::dynamic_pointer_cast<PBFTProposalInterface>(m_committedProposal));
+}
+
+std::string PBFTConfig::printCurrentState()
+{
+    std::ostringstream stringstream;
+    if (!committedProposal())
+    {
+        stringstream << LOG_DESC("The storage has not been intited.");
+        return stringstream.str();
+    }
+
+    stringstream << LOG_KV("consNum", progressedIndex())
+                 << LOG_KV("committedHash", committedProposal()->hash().abridged())
+                 << LOG_KV("committedIndex", committedProposal()->index()) << LOG_KV("view", view())
+                 << LOG_KV("Idx", nodeIndex()) << LOG_KV("nodeId", nodeID()->shortHex());
+    return stringstream.str();
+}
