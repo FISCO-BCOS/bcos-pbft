@@ -34,6 +34,9 @@ public:
 
     virtual void storePrecommitProposal(PBFTProposalInterface::Ptr _preCommitProposal) = 0;
     virtual void asyncCommitProposal(PBFTProposalInterface::Ptr _commitProposal) = 0;
+    virtual void asyncCommitProposal(bytesConstRef _data) = 0;
+    // TODO:
+    // virtual void asyncGetProposal(int64_t _proposalIndex) = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

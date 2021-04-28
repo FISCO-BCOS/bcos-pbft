@@ -57,6 +57,8 @@ public:
         m_consensusTimeout.store(_consensusTimeout);
     }
 
+    // Note: After the block sync,
+    // need to set the committedProposal of the consensus in the ordering phase
     void setCommittedProposal(ProposalInterface::Ptr _committedProposal) override
     {
         WriteGuard l(x_committedProposal);

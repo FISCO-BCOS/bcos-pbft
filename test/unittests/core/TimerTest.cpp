@@ -20,6 +20,7 @@
  */
 #include "core/Timer.h"
 #include <bcos-test/libutils/TestPromptFixture.h>
+#include <pbft/engine/PBFTTimer.h>
 #include <boost/test/unit_test.hpp>
 using namespace bcos;
 using namespace bcos::consensus;
@@ -34,6 +35,7 @@ public:
     ~FakeTimer() override {}
     void setTriggerTimeout(bool _triggerTimeout) { m_triggerTimeout = _triggerTimeout; }
     bool triggerTimeout() { return m_triggerTimeout; }
+    void registerTimeoutHandler(std::function<void()>) override {}
 
 protected:
     // invoked everytime when it reaches the timeout
@@ -100,6 +102,14 @@ BOOST_AUTO_TEST_CASE(testTimerWithoutWait)
     timer->start();
     BOOST_CHECK(timer->triggerTimeout() == false);
 }
+
+BOOST_AUTO_TEST_CASE(testPBFTTimer)
+{
+    auto timeoutInterval = 100;
+    auto timer = std::make_shared<PBFTTimer>(timeoutInterval);
+    timer->start();
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace test
 }  // namespace bcos

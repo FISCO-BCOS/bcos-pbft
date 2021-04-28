@@ -104,6 +104,9 @@ public:
                (view() == _pbftMessage.view()) && (hash() == _pbftMessage.hash());
     }
 
+    void setFrom(bcos::crypto::PublicPtr _from) override { m_from = _from; }
+    bcos::crypto::PublicPtr from() const override { return m_from; }
+
 protected:
     virtual void deserializeToObject()
     {
@@ -125,6 +128,8 @@ protected:
 
     bcos::crypto::HashType m_dataHash;
     bytesPointer m_signatureData;
+
+    bcos::crypto::PublicPtr m_from;
 };
 }  // namespace consensus
 }  // namespace bcos

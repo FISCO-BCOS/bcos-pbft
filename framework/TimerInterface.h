@@ -19,6 +19,7 @@
  * @date 2021-04-09
  */
 #pragma once
+#include <functional>
 #include <memory>
 
 namespace bcos
@@ -42,6 +43,8 @@ public:
     virtual bool running() = 0;
 
     virtual int64_t timeout() = 0;
+
+    virtual void registerTimeoutHandler(std::function<void()> _timeoutHandler) = 0;
 
 protected:
     // invoked everytime when it reaches the timeout

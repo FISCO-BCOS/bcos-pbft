@@ -67,6 +67,9 @@ public:
     virtual void setSignatureDataHash(bcos::crypto::HashType const& _hash) = 0;
     virtual bool verifySignature(
         bcos::crypto::CryptoSuite::Ptr _cryptoSuite, bcos::crypto::PublicPtr _pubKey) = 0;
+
+    virtual void setFrom(bcos::crypto::PublicPtr _from) = 0;
+    virtual bcos::crypto::PublicPtr from() const = 0;
 };
 inline std::string printPBFTMsgInfo(PBFTBaseMessageInterface::Ptr _pbftMsg)
 {

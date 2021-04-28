@@ -84,9 +84,12 @@ protected:
     virtual void broadcastViewChangeReq();
 
     virtual bool handleViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg);
+    virtual bool isValidViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg);
     virtual bool checkPrecommitProposal(std::shared_ptr<PBFTProposalInterface> _precommitProposal);
 
     virtual bool handleNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
+    virtual void FetchProposalsAndIntoNormalPhase(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
+    virtual bool isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
 
 private:
     // utility functions

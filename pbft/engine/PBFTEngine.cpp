@@ -67,7 +67,9 @@ void PBFTEngine::onReceivePBFTMessage(bcos::Error::Ptr _error, bcos::crypto::Nod
             return;
         }
         // decode the message and push the message into the queue
-        m_msgQueue->push(m_config->codec()->decode(_data));
+        auto pbftMsg = m_config->codec()->decode(_data);
+        pbftMsg->setFrom(_fromNode);
+        m_msgQueue->push(pbftMsg);
     }
     catch (std::exception const& _e)
     {
@@ -385,12 +387,16 @@ void PBFTEngine::broadcastViewChangeReq()
         ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
     // collect the viewchangeReq
     m_cacheProcessor->addViewChangeReq(viewChangeReq);
-    m_cacheProcessor->checkAndTryToNewView();
+    auto newViewMsg = m_cacheProcessor->checkAndTryIntoNewView();
+    if (newViewMsg)
+    {
+        FetchProposalsAndIntoNormalPhase(newViewMsg);
+    }
 }
 
-bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
+bool PBFTEngine::isValidViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg)
 {
-    // check the proposal index
+    // check the committed-proposal index
     if (_viewChangeMsg->committedProposal()->index() < m_config->committedProposal()->index())
     {
         PBFT_LOG(DEBUG) << LOG_DESC("InvalidViewChangeReq: invalid index")
@@ -427,15 +433,13 @@ bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
         }
     }
     checkSignature(_viewChangeMsg);
-    m_cacheProcessor->addViewChangeReq(_viewChangeMsg);
-    m_cacheProcessor->checkAndTryToNewView();
     return true;
 }
 
 bool PBFTEngine::checkPrecommitProposal(std::shared_ptr<PBFTProposalInterface> _precommitProposal)
 {
-    // check the index of the proposal
-    if (_precommitProposal->index() < m_config->progressedIndex())
+    // check the view
+    if (_precommitProposal->view() > m_config->view())
     {
         return false;
     }
@@ -464,7 +468,67 @@ bool PBFTEngine::checkPrecommitProposal(std::shared_ptr<PBFTProposalInterface> _
     return (weight >= m_config->minRequiredQuorum());
 }
 
-bool PBFTEngine::handleNewViewMsg(NewViewMsgInterface::Ptr)
+bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
 {
+    if (!isValidViewChangeMsg(_viewChangeMsg))
+    {
+        return false;
+    }
+    // TODO: sync the proposal when the committedProposal is older than the index of the viewchange
+    m_cacheProcessor->addViewChangeReq(_viewChangeMsg);
+    auto newViewMsg = m_cacheProcessor->checkAndTryIntoNewView();
+    if (newViewMsg)
+    {
+        FetchProposalsAndIntoNormalPhase(newViewMsg);
+    }
     return true;
 }
+
+bool PBFTEngine::isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg)
+{
+    // check the newViewMsg
+    if (_newViewMsg->view() <= m_config->view())
+    {
+        PBFT_LOG(DEBUG) << LOG_DESC("InvalidNewViewMsg for invalid view")
+                        << printPBFTMsgInfo(_newViewMsg);
+        return false;
+    }
+    // check the viewchange
+    uint64_t weight = 0;
+    auto viewChangeList = _newViewMsg->viewChangeMsgList();
+    for (auto viewChangeReq : viewChangeList)
+    {
+        if (!isValidViewChangeMsg(viewChangeReq))
+        {
+            PBFT_LOG(DEBUG) << LOG_DESC("InvalidNewViewMsg for viewChange check failed")
+                            << printPBFTMsgInfo(viewChangeReq);
+            return false;
+        }
+        auto nodeInfo = m_config->getConsensusNodeByIndex(viewChangeReq->generatedFrom());
+        if (!nodeInfo)
+        {
+            continue;
+        }
+        weight += nodeInfo->weight();
+    }
+    // TODO: need to ensure the accuracy of local weight parameters
+    if (weight < m_config->minRequiredQuorum())
+    {
+        return false;
+    }
+    // TODO: check the prePrepared message
+    checkSignature(_newViewMsg);
+    return true;
+}
+
+bool PBFTEngine::handleNewViewMsg(NewViewMsgInterface::Ptr _newViewMsg)
+{
+    if (!isValidNewViewMsg(_newViewMsg))
+    {
+        return false;
+    }
+    // TODO: handle the newViewMsg
+    return true;
+}
+
+void PBFTEngine::FetchProposalsAndIntoNormalPhase(NewViewMsgInterface::Ptr) {}
