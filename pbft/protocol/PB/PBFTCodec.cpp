@@ -65,13 +65,19 @@ PBFTBaseMessageInterface::Ptr PBFTCodec::decode(bytesConstRef _data) const
     case PacketType::PrePreparePacket:
     case PacketType::PreparePacket:
     case PacketType::CommitPacket:
+    case PacketType::CommittedProposalResponse:
+    case PacketType::PreparedProposalResponse:
         decodedMsg = m_pbftMessageFactory->createPBFTMsg(m_cryptoSuite, payLoadRefData);
         break;
-    case ViewChangePacket:
+    case PacketType::ViewChangePacket:
         decodedMsg = m_pbftMessageFactory->createViewChangeMsg(payLoadRefData);
         break;
-    case NewViewPacket:
+    case PacketType::NewViewPacket:
         decodedMsg = m_pbftMessageFactory->createNewViewMsg(payLoadRefData);
+        break;
+    case PacketType::CommittedProposalRequest:
+    case PacketType::PreparedProposalRequest:
+        decodedMsg = m_pbftMessageFactory->createPBFTRequest(payLoadRefData);
         break;
     default:
         BOOST_THROW_EXCEPTION(UnknownPBFTMsgType() << errinfo_comment(

@@ -63,8 +63,8 @@ public:
         return pbftProposal;
     }
 
-    void fakeBasePBFTMessage(PBFTBaseMessage::Ptr pfbtMessage, int64_t _timestamp, int32_t _version,
-        int64_t _view, int64_t _generatedFrom, HashType _hash)
+    void fakeBasePBFTMessage(PBFTBaseMessageInterface::Ptr pfbtMessage, int64_t _timestamp,
+        int32_t _version, int64_t _view, int64_t _generatedFrom, HashType _hash)
     {
         pfbtMessage->setTimestamp(_timestamp);
         pfbtMessage->setVersion(_version);
@@ -215,7 +215,7 @@ PBFTProposalList fakeProposals(CryptoSuite::Ptr _cryptoSuite, PBFTMessageFixture
     return proposals;
 }
 
-void checkFakedBasePBFTMessage(PBFTBaseMessage::Ptr fakedMessage, int64_t orgTimestamp,
+void checkFakedBasePBFTMessage(PBFTBaseMessageInterface::Ptr fakedMessage, int64_t orgTimestamp,
     int32_t version, ViewType view, IndexType generatedFrom, HashType const& proposalHash)
 {
     // check the content
@@ -499,6 +499,49 @@ void testPBFTNewViewMessage(CryptoSuite::Ptr _cryptoSuite)
     auto fakedHash = _cryptoSuite->hashImpl()->hash("fakedHash");
     decodedMsg->setSignatureDataHash(fakedHash);
     BOOST_CHECK(decodedMsg->verifySignature(_cryptoSuite, keyPair->publicKey()) == false);
+}
+
+void testPBFTRequest(CryptoSuite::Ptr _cryptoSuite, PacketType _packetType)
+{
+    auto timeStamp = utcTime();
+    int32_t version = 12;
+    ViewType view = 234234234;
+    IndexType generatedFrom = 200;
+
+    auto proposalHash = _cryptoSuite->hashImpl()->hash("testPBFTRequest");
+    auto keyPair = _cryptoSuite->signatureImpl()->generateKeyPair();
+    auto faker = std::make_shared<PBFTMessageFixture>(_cryptoSuite, keyPair);
+    auto pbftMessageFactory = std::make_shared<PBFTMessageFactoryImpl>();
+
+    auto pbftRequest = pbftMessageFactory->createPBFTRequest();
+    faker->fakeBasePBFTMessage(pbftRequest, timeStamp, version, view, generatedFrom, proposalHash);
+    int64_t startIndex = 1435345;
+    int64_t size = 10;
+    pbftRequest->setSize(size);
+    pbftRequest->setIndex(startIndex);
+    pbftRequest->setPacketType(_packetType);
+    // encode
+    auto encodedData = pbftRequest->encode(_cryptoSuite, keyPair);
+    // decode
+    auto decodedPBFTRequest = pbftMessageFactory->createPBFTRequest(ref(*encodedData));
+    BOOST_CHECK(*(std::dynamic_pointer_cast<PBFTRequest>(decodedPBFTRequest)) ==
+                *(std::dynamic_pointer_cast<PBFTRequest>(pbftRequest)));
+    checkFakedBasePBFTMessage(
+        decodedPBFTRequest, timeStamp, version, view, generatedFrom, proposalHash);
+    BOOST_CHECK(decodedPBFTRequest->index() == startIndex);
+    BOOST_CHECK(decodedPBFTRequest->size() == size);
+
+    // encode/decode with codec
+    auto pbftCodec = std::make_shared<PBFTCodec>(keyPair, _cryptoSuite, pbftMessageFactory);
+    // encode and sign
+    encodedData = pbftCodec->encode(pbftRequest, 1);
+    // decode
+    auto message = pbftCodec->decode(ref(*encodedData));
+    auto decodedMsg = std::dynamic_pointer_cast<PBFTRequest>(message);
+    // check the decoded message
+    checkFakedBasePBFTMessage(decodedMsg, timeStamp, version, view, generatedFrom, proposalHash);
+    BOOST_CHECK(decodedMsg->index() == startIndex);
+    BOOST_CHECK(decodedMsg->size() == size);
 }
 }  // namespace test
 }  // namespace bcos

@@ -22,8 +22,10 @@
 #include "pbft/interfaces/NewViewMsgInterface.h"
 #include "pbft/interfaces/PBFTMessageInterface.h"
 #include "pbft/interfaces/PBFTProposalInterface.h"
+#include "pbft/interfaces/PBFTRequestInterface.h"
 #include "pbft/interfaces/ViewChangeMsgInterface.h"
 #include <bcos-framework/interfaces/crypto/CryptoSuite.h>
+#include <bcos-framework/interfaces/protocol/ProtocolTypeDef.h>
 namespace bcos
 {
 namespace consensus
@@ -45,6 +47,29 @@ public:
     virtual NewViewMsgInterface::Ptr createNewViewMsg() = 0;
     virtual NewViewMsgInterface::Ptr createNewViewMsg(bytesConstRef _data) = 0;
     virtual PBFTProposalInterface::Ptr createPBFTProposal() = 0;
+
+    virtual PBFTRequestInterface::Ptr createPBFTRequest() = 0;
+    virtual PBFTRequestInterface::Ptr createPBFTRequest(bytesConstRef _data) = 0;
+
+    virtual PBFTRequestInterface::Ptr populateFrom(
+        PacketType _packetType, bcos::protocol::BlockNumber _startIndex, int64_t _offset)
+    {
+        auto pbftRequest = createPBFTRequest();
+        pbftRequest->setPacketType(_packetType);
+        pbftRequest->setIndex(_startIndex);
+        pbftRequest->setSize(_offset);
+        return pbftRequest;
+    }
+
+    virtual PBFTRequestInterface::Ptr populateFrom(PacketType _packetType,
+        bcos::protocol::BlockNumber _index, bcos::crypto::HashType const& _hash)
+    {
+        auto pbftRequest = createPBFTRequest();
+        pbftRequest->setPacketType(_packetType);
+        pbftRequest->setIndex(_index);
+        pbftRequest->setHash(_hash);
+        return pbftRequest;
+    }
 
     virtual PBFTMessageInterface::Ptr populateFrom(PacketType _packetType, int32_t _version,
         ViewType _view, int64_t _timestamp, IndexType _generatedFrom,
@@ -90,7 +115,7 @@ public:
     }
 
     virtual PBFTProposalInterface::Ptr populateFrom(
-        PBFTProposalInterface::Ptr _proposal, bool _withData = true)
+        PBFTProposalInterface::Ptr _proposal, bool _withData = true, bool _withProof = true)
     {
         auto proposal = createPBFTProposal();
         proposal->setIndex(_proposal->index());
@@ -102,11 +127,14 @@ public:
         proposal->setView(_proposal->view());
         proposal->setGeneratedFrom(_proposal->generatedFrom());
         // set the signature proof
-        auto signatureSize = _proposal->signatureProofSize();
-        for (size_t i = 0; i < signatureSize; i++)
+        if (_withProof)
         {
-            auto proof = _proposal->signatureProof(i);
-            proposal->appendSignatureProof(proof.first, proof.second);
+            auto signatureSize = _proposal->signatureProofSize();
+            for (size_t i = 0; i < signatureSize; i++)
+            {
+                auto proof = _proposal->signatureProof(i);
+                proposal->appendSignatureProof(proof.first, proof.second);
+            }
         }
         return proposal;
     }

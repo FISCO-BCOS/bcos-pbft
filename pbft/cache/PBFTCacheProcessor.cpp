@@ -118,6 +118,7 @@ void PBFTCacheProcessor::checkAndPreCommit()
             it.second->intoPrecommit();
             precommitProposals.push_back(it.second->preCommitProposal());
             m_preCommitReq = m_prePrepareCache;
+            m_preCommitReq->setGeneratedFrom(m_config->nodeIndex());
             auto precommitWithoutData =
                 m_config->pbftMessageFactory()->populateFrom(it.second->preCommitProposal(), false);
             m_preCommitProposals->push_back(precommitWithoutData);
@@ -248,11 +249,14 @@ NewViewMsgInterface::Ptr PBFTCacheProcessor::checkAndTryIntoNewView()
     for (auto const& it : viewChangeCache)
     {
         auto viewChangeReq = it.second;
+        // the preparedProposal without payLoad
         for (auto proposal : viewChangeReq->preparedProposals())
         {
             if (proposal->index() > maxCommittedIndex)
             {
-                prePreparedProposals.push_back(proposal);
+                auto proposalWithoutProof =
+                    m_config->pbftMessageFactory()->populateFrom(proposal, false, false);
+                prePreparedProposals.push_back(proposalWithoutProof);
             }
         }
     }
@@ -279,5 +283,64 @@ NewViewMsgInterface::Ptr PBFTCacheProcessor::checkAndTryIntoNewView()
     PBFT_LOG(DEBUG) << LOG_DESC("The next leader broadcast NewView request")
                     << printPBFTMsgInfo(newViewMsg)
                     << LOG_KV("prePrepareProposal", prePrepareMsg->proposals().size());
+    m_newViewCache = newViewMsg;
     return newViewMsg;
 }
+
+bool PBFTCacheProcessor::checkPrecommitProposal(
+    std::shared_ptr<PBFTProposalInterface> _precommitProposal)
+{
+    // check the view
+    if (_precommitProposal->view() > m_config->view())
+    {
+        return false;
+    }
+    // check the signature
+    uint64_t weight = 0;
+    auto proofSize = _precommitProposal->signatureProofSize();
+    for (size_t i = 0; i < proofSize; i++)
+    {
+        auto proof = _precommitProposal->signatureProof(i);
+        // check the proof
+        auto nodeInfo = m_config->getConsensusNodeByIndex(proof.first);
+        if (!nodeInfo)
+        {
+            return false;
+        }
+        // verify the signature
+        auto ret = m_config->cryptoSuite()->signatureImpl()->verify(
+            nodeInfo->nodeID(), _precommitProposal->hash(), proof.second);
+        if (!ret)
+        {
+            return false;
+        }
+        weight += nodeInfo->weight();
+    }
+    // check the quorum
+    return (weight >= m_config->minRequiredQuorum());
+}
+
+bytesPointer PBFTCacheProcessor::precommitProposalData(PBFTMessageInterface::Ptr _pbftMessage,
+    bcos::protocol::BlockNumber _index, bcos::crypto::HashType const& _hash)
+{
+    if (!m_caches.count(m_preCommitReq->hash()))
+    {
+        return nullptr;
+    }
+    auto cache = m_caches[m_preCommitReq->hash()];
+    if (!cache.count(_index))
+    {
+        return nullptr;
+    }
+    auto proposalCache = cache[_index];
+    if (proposalCache->preCommitProposal()->hash() != _hash)
+    {
+        return nullptr;
+    }
+    PBFTProposalList pbftProposalList;
+    pbftProposalList.push_back(proposalCache->preCommitProposal());
+    _pbftMessage->setProposals(pbftProposalList);
+    return m_config->codec()->encode(_pbftMessage);
+}
+
+void PBFTCacheProcessor::fillMissedProposal(PBFTProposalInterface::Ptr) {}

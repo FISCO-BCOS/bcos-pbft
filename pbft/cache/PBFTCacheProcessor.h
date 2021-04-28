@@ -79,6 +79,12 @@ public:
     virtual void clearExpiredCache() {}
     // TODO: remove invalid viewchange
     virtual void removeInvalidViewChange() {}
+    virtual bool checkPrecommitProposal(std::shared_ptr<PBFTProposalInterface> _precommitProposal);
+    virtual bytesPointer precommitProposalData(PBFTMessageInterface::Ptr _pbftMessage,
+        bcos::protocol::BlockNumber _index, bcos::crypto::HashType const& _hash);
+
+    // TODO: fill the missed proposal
+    virtual void fillMissedProposal(PBFTProposalInterface::Ptr _proposal);
 
 private:
     using PBFTCachesType =
@@ -88,8 +94,7 @@ private:
         PBFTCache::Ptr _proposalCache, PBFTProposalInterface::Ptr _pbftProposal)>;
     void addCache(PBFTCachesType& _proposalCache, PBFTMessageInterface::Ptr _pbftReq,
         UpdateCacheHandler _handler);
-
-    void submitProposalsInOrder();
+    virtual void submitProposalsInOrder();
 
 private:
     PBFTConfig::Ptr m_config;
@@ -106,6 +111,8 @@ private:
     ViewChangeCacheType m_viewChangeCache;
     std::map<ViewType, uint64_t> m_viewChangeWeight;
     std::map<ViewType, int64_t> m_maxCommittedIndex;
+
+    NewViewMsgInterface::Ptr m_newViewCache;
 
     // cached proposals that have collected enough signatures
     std::priority_queue<PBFTProposalInterface::Ptr, PBFTProposalList, ProposalQueueCmp>

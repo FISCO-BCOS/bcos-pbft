@@ -39,6 +39,8 @@ BOOST_AUTO_TEST_CASE(testNormalPBFTMessage)
     testPBFTMessage(PacketType::PrePreparePacket, cryptoSuite);
     testPBFTMessage(PacketType::PreparePacket, cryptoSuite);
     testPBFTMessage(PacketType::CommitPacket, cryptoSuite);
+    testPBFTMessage(PacketType::CommittedProposalResponse, cryptoSuite);
+    testPBFTMessage(PacketType::PreparedProposalResponse, cryptoSuite);
 }
 
 BOOST_AUTO_TEST_CASE(testSMPBFTMessage)
@@ -81,6 +83,24 @@ BOOST_AUTO_TEST_CASE(testSMNewViewMessage)
     auto signatureImpl = std::make_shared<SM2SignatureImpl>();
     auto cryptoSuite = std::make_shared<CryptoSuite>(hashImpl, signatureImpl, nullptr);
     testPBFTNewViewMessage(cryptoSuite);
+}
+
+BOOST_AUTO_TEST_CASE(testNormalPBFTRequest)
+{
+    auto hashImpl = std::make_shared<Keccak256Hash>();
+    auto signatureImpl = std::make_shared<Secp256k1SignatureImpl>();
+    auto cryptoSuite = std::make_shared<CryptoSuite>(hashImpl, signatureImpl, nullptr);
+    testPBFTRequest(cryptoSuite, PacketType::CommittedProposalRequest);
+    testPBFTRequest(cryptoSuite, PacketType::PreparedProposalRequest);
+}
+
+BOOST_AUTO_TEST_CASE(testSMPBFTRequest)
+{
+    auto hashImpl = std::make_shared<Sm3Hash>();
+    auto signatureImpl = std::make_shared<SM2SignatureImpl>();
+    auto cryptoSuite = std::make_shared<CryptoSuite>(hashImpl, signatureImpl, nullptr);
+    testPBFTRequest(cryptoSuite, PacketType::CommittedProposalRequest);
+    testPBFTRequest(cryptoSuite, PacketType::PreparedProposalRequest);
 }
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace test

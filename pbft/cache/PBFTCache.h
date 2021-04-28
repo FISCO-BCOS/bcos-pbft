@@ -68,6 +68,7 @@ public:
     }
     virtual void intoPrecommit()
     {
+        m_precommit->setGeneratedFrom(m_config->nodeIndex());
         m_precommit = m_prePrepare;
         m_config->storage()->storePrecommitProposal(m_precommit);
     }

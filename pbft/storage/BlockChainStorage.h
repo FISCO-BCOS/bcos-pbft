@@ -40,7 +40,6 @@ public:
     void storePrecommitProposal(PBFTProposalInterface::Ptr) override {}
     // commit the executed-block into the blockchain
     void asyncCommitProposal(PBFTProposalInterface::Ptr) override {}
-    void asyncCommitProposal(bytesConstRef) override {}
 
 private:
     std::shared_ptr<bcos::ledger::LedgerInterface> m_ledger;
