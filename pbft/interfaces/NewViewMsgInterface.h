@@ -19,7 +19,7 @@
  * @date 2021-04-15
  */
 #pragma once
-#include "pbft/interfaces/PBFTBaseMessageInterface.h"
+#include "pbft/interfaces/PBFTMessageInterface.h"
 #include "pbft/interfaces/ViewChangeMsgInterface.h"
 namespace bcos
 {
@@ -35,8 +35,8 @@ public:
     virtual ViewChangeMsgList const& viewChangeMsgList() const = 0;
     virtual void setViewChangeMsgList(ViewChangeMsgList const& _viewChangeMsgs) = 0;
 
-    virtual PBFTBaseMessageInterface::Ptr generatedPrePrepare() = 0;
-    virtual void setGeneratedPrePrepare(PBFTBaseMessageInterface::Ptr _prePreparedMsg) = 0;
+    virtual PBFTMessageList const& prePrepareList() = 0;
+    virtual void setPrePrepareList(PBFTMessageList const& _prePrepareList) = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

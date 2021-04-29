@@ -43,6 +43,7 @@ public:
     virtual bcos::bytesConstRef data() const = 0;
     virtual void setData(bytes const& _data) = 0;
     virtual void setData(bytes&& _data) = 0;
+    virtual void setData(bcos::bytesConstRef _data) = 0;
 
     // the signature to the proposal(optional)
     virtual bytesConstRef signature() const = 0;

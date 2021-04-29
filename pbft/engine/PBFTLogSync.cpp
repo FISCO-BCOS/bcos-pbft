@@ -46,15 +46,16 @@ void PBFTLogSync::requestCommittedProposals(
         });
 }
 
-void PBFTLogSync::requestPrecommitData(
-    bcos::crypto::PublicPtr _from, BlockNumber _index, bcos::crypto::HashType const& _hash)
+void PBFTLogSync::requestPrecommitData(bcos::crypto::PublicPtr _from,
+    PBFTMessageInterface::Ptr _prePrepareMsg, HandlePrePrepareCallback _prePrepareCallback)
 {
     auto pbftRequest = m_config->pbftMessageFactory()->populateFrom(
-        PacketType::PreparedProposalRequest, _index, _hash);
+        PacketType::PreparedProposalRequest, _prePrepareMsg->index(), _prePrepareMsg->hash());
     requestPBFTData(_from, pbftRequest,
-        [this](Error::Ptr _error, NodeIDPtr _nodeID, bytesConstRef _data,
-            SendResponseCallback _sendResponse) {
-            return this->onRecvPrecommitResponse(_error, _nodeID, _data, _sendResponse);
+        [this, _prePrepareMsg, _prePrepareCallback](Error::Ptr _error, NodeIDPtr _nodeID,
+            bytesConstRef _data, SendResponseCallback _sendResponse) {
+            return this->onRecvPrecommitResponse(
+                _error, _nodeID, _data, _prePrepareMsg, _prePrepareCallback, _sendResponse);
         });
 }
 
@@ -130,9 +131,9 @@ void PBFTLogSync::onReceivePrecommitRequest(
                 return;
             }
             // get the local precommitData
-            auto pbftMessage = pbftLogSync->m_config->pbftMessageFactory()->createPBFTMsg();
+            auto pbftMessage = pbftLogSync->m_config->pbftMessageFactory()->createViewChangeMsg();
             pbftMessage->setPacketType(PacketType::PreparedProposalResponse);
-            auto precommitData = pbftLogSync->m_pbftCache->precommitProposalData(
+            auto precommitData = pbftLogSync->m_pbftCache->fetchPrecommitData(
                 pbftMessage, pbftRequest->index(), pbftRequest->hash());
             // response the precommitData
             _sendResponse(ref(*precommitData));
@@ -166,8 +167,9 @@ void PBFTLogSync::onReceiveCommittedProposalRequest(
 }
 
 
-void PBFTLogSync::onRecvPrecommitResponse(
-    Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID, bytesConstRef _data, SendResponseCallback)
+void PBFTLogSync::onRecvPrecommitResponse(Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
+    bytesConstRef _data, PBFTMessageInterface::Ptr _prePrepareMsg,
+    HandlePrePrepareCallback _prePrepareCallback, SendResponseCallback)
 {
     if (_error->errorCode() != CommonError::SUCCESS)
     {
@@ -181,16 +183,25 @@ void PBFTLogSync::onRecvPrecommitResponse(
     {
         return;
     }
-    auto pbftMessage = std::dynamic_pointer_cast<PBFTMessageInterface>(response);
-    for (auto proposal : pbftMessage->proposals())
+    auto pbftMessage = std::dynamic_pointer_cast<ViewChangeMsgInterface>(response);
+    assert(pbftMessage->preparedProposals().size() == 1);
+    auto precommitMsg = (pbftMessage->preparedProposals())[0];
+    if (!precommitMsg->consensusProposal())
     {
-        if (!m_pbftCache->checkPrecommitProposal(proposal))
-        {
-            PBFT_LOG(WARNING) << LOG_DESC("Recv invalid precommit response")
-                              << printPBFTProposal(proposal);
-            return;
-        }
-        // fill the fetched proposal to the cache
-        m_pbftCache->fillMissedProposal(proposal);
+        return;
     }
+    if (precommitMsg->consensusProposal()->index() !=
+            _prePrepareMsg->consensusProposal()->index() ||
+        precommitMsg->consensusProposal()->hash() != _prePrepareMsg->consensusProposal()->hash())
+    {
+        return;
+    }
+    if (!m_pbftCache->checkPrecommitMsg(precommitMsg))
+    {
+        PBFT_LOG(WARNING) << LOG_DESC("Recv invalid precommit response")
+                          << printPBFTMsgInfo(precommitMsg);
+        return;
+    }
+    _prePrepareMsg->consensusProposal()->setData(precommitMsg->consensusProposal()->data());
+    _prePrepareCallback(_prePrepareMsg);
 }

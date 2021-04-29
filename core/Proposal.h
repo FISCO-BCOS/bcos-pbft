@@ -74,6 +74,11 @@ public:
         m_rawProposal->set_data(std::move(_data).data(), size);
     }
 
+    void setData(bcos::bytesConstRef _data) override
+    {
+        m_rawProposal->set_data(_data.data(), _data.size());
+    }
+
     bytesConstRef signature() const override
     {
         auto const& signature = m_rawProposal->signature();

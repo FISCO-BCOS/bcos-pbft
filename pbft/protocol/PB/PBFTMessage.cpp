@@ -52,6 +52,11 @@ void PBFTMessage::deserializeToObject()
     PBFTBaseMessage::deserializeToObject();
     // decode the proposals
     m_proposals->clear();
+
+    std::shared_ptr<PBFTRawProposal> rawConsensusProposal(
+        m_pbftRawMessage->mutable_consensusproposal());
+    m_consensusProposal = std::make_shared<PBFTProposal>(rawConsensusProposal);
+
     for (int i = 0; i < m_pbftRawMessage->proposals_size(); i++)
     {
         std::shared_ptr<PBFTRawProposal> rawProposal(m_pbftRawMessage->mutable_proposals(i));
@@ -68,6 +73,14 @@ void PBFTMessage::decodeAndSetSignature(CryptoSuite::Ptr _cryptoSuite, bytesCons
     auto const& signatureData = m_pbftRawMessage->signaturedata();
     bytes signatureDataBytes(signatureData.begin(), signatureData.end());
     setSignatureData(std::move(signatureDataBytes));
+}
+
+void PBFTMessage::setConsensusProposal(PBFTProposalInterface::Ptr _consensusProposal)
+{
+    m_consensusProposal = _consensusProposal;
+    auto pbftProposal = std::dynamic_pointer_cast<PBFTProposal>(_consensusProposal);
+    // set committed proposal
+    m_pbftRawMessage->set_allocated_consensusproposal(pbftProposal->pbftRawProposal().get());
 }
 
 HashType PBFTMessage::getHashFieldsDataHash(CryptoSuite::Ptr _cryptoSuite) const

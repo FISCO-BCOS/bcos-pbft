@@ -33,8 +33,8 @@ public:
     using Ptr = std::shared_ptr<ValidatorInterface>;
     ValidatorInterface() = default;
     virtual ~ValidatorInterface() {}
-    virtual void verifyProposals(bcos::crypto::PublicPtr _fromNode,
-        PBFTProposalList const& _proposals,
+    virtual void verifyProposal(bcos::crypto::PublicPtr _fromNode,
+        PBFTProposalInterface::Ptr _proposal,
         std::function<void(Error::Ptr, bool)> _verifyFinishedHandler) = 0;
 };
 
@@ -45,14 +45,12 @@ public:
     explicit TxsValidator(bcos::txpool::TxPoolInterface::Ptr _txPool) : m_txPool(_txPool) {}
     ~TxsValidator() override {}
 
-    void verifyProposals(bcos::crypto::PublicPtr _fromNode, PBFTProposalList const& _proposals,
+    void verifyProposal(bcos::crypto::PublicPtr _fromNode, PBFTProposalInterface::Ptr _proposal,
         std::function<void(Error::Ptr, bool)> _verifyFinishedHandler) override
     {
         std::vector<bytesConstRef> proposalsData;
-        for (auto proposal : _proposals)
-        {
-            proposalsData.push_back(proposal->data());
-        }
+        proposalsData.push_back(_proposal->data());
+
         m_txPool->asyncVerifyBlocks(_fromNode, proposalsData, _verifyFinishedHandler);
     }
 

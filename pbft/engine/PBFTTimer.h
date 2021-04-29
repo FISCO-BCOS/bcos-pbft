@@ -20,7 +20,6 @@
  */
 #pragma once
 #include "core/Timer.h"
-#include "pbft/engine/PBFTEngine.h"
 namespace bcos
 {
 namespace consensus
@@ -39,6 +38,7 @@ public:
     }
 
     void updateChangeCycle(int64_t _changeCycle) { m_changeCycle = _changeCycle; }
+    void resetChangeCycle() { m_changeCycle = 0; }
     uint64_t changeCycle() const { return m_changeCycle; }
 
 protected:

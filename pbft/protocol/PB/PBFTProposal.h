@@ -60,13 +60,7 @@ public:
         m_pbftRawProposal->add_nodelist(_nodeIdx);
         m_pbftRawProposal->add_signaturelist(_signatureData.data(), _signatureData.size());
     }
-
-    void setView(ViewType _view) override { m_pbftRawProposal->set_view(_view); }
-    ViewType view() const override { return m_pbftRawProposal->view(); }
-
-    void setGeneratedFrom(IndexType _from) override { m_pbftRawProposal->set_generatedfrom(_from); }
-    IndexType generatedFrom() const override { return m_pbftRawProposal->generatedfrom(); }
-
+    
     bool operator==(PBFTProposal const& _proposal)
     {
         if (!Proposal::operator==(_proposal))

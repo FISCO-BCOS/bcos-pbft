@@ -56,6 +56,8 @@ public:
 
     ~PBFTMessage() override
     {
+        // return back the ownership to m_consensusProposal
+        m_pbftRawMessage->unsafe_arena_release_consensusproposal();
         // return the ownership of rawProposal to the passed-in proposal
         auto allocatedProposalSize = m_pbftRawMessage->proposals_size();
         for (int i = 0; i < allocatedProposalSize; i++)
@@ -72,6 +74,9 @@ public:
     void setProposals(PBFTProposalList const& _proposals) override;
     PBFTProposalList const& proposals() const override { return *m_proposals; }
 
+    void setConsensusProposal(PBFTProposalInterface::Ptr _consensusProposal) override;
+    PBFTProposalInterface::Ptr consensusProposal() override { return m_consensusProposal;}
+
     virtual void decodeAndSetSignature(
         bcos::crypto::CryptoSuite::Ptr _pbftConfig, bytesConstRef _data);
 
@@ -86,6 +91,7 @@ protected:
 
 private:
     std::shared_ptr<PBFTRawMessage> m_pbftRawMessage;
+    PBFTProposalInterface::Ptr m_consensusProposal;
     PBFTProposalListPtr m_proposals;
 };
 }  // namespace consensus

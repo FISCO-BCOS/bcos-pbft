@@ -32,8 +32,13 @@ public:
     PBFTMessageInterface() = default;
     virtual ~PBFTMessageInterface() {}
 
+    virtual void setConsensusProposal(PBFTProposalInterface::Ptr _consensusProposals) = 0;
+    virtual PBFTProposalInterface::Ptr consensusProposal() = 0;
+
     virtual void setProposals(PBFTProposalList const& _proposals) = 0;
     virtual PBFTProposalList const& proposals() const = 0;
 };
+using PBFTMessageList = std::vector<PBFTMessageInterface::Ptr>;
+using PBFTMessageListPtr = std::shared_ptr<PBFTMessageList>;
 }  // namespace consensus
 }  // namespace bcos

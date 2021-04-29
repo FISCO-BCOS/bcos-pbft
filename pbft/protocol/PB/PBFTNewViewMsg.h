@@ -36,12 +36,14 @@ public:
         m_rawNewView = std::make_shared<RawNewViewMessage>();
         m_rawNewView->set_allocated_message(PBFTBaseMessage::baseMessage().get());
         m_viewChangeList = std::make_shared<ViewChangeMsgList>();
+        m_prePrepareList = std::make_shared<PBFTMessageList>();
         m_packetType = PacketType::NewViewPacket;
     }
     explicit PBFTNewViewMsg(bytesConstRef _data) : PBFTBaseMessage()
     {
         m_rawNewView = std::make_shared<RawNewViewMessage>();
         m_viewChangeList = std::make_shared<ViewChangeMsgList>();
+        m_prePrepareList = std::make_shared<PBFTMessageList>();
         m_packetType = PacketType::NewViewPacket;
         decode(_data);
     }
@@ -50,13 +52,16 @@ public:
     {
         // return back the ownership of message to the PBFTBaseMessage
         m_rawNewView->unsafe_arena_release_message();
-        // return back the ownership to m_generatedPreprepare
-        m_rawNewView->unsafe_arena_release_generatedpreprepare();
         // return back the ownership to m_viewChangeList
         auto viewChangeSize = m_rawNewView->viewchangemsglist_size();
         for (auto i = 0; i < viewChangeSize; i++)
         {
             m_rawNewView->mutable_viewchangemsglist()->UnsafeArenaReleaseLast();
+        }
+        auto preprepareSize = m_rawNewView->prepreparelist_size();
+        for (auto i = 0; i < preprepareSize; i++)
+        {
+            m_rawNewView->mutable_prepreparelist()->UnsafeArenaReleaseLast();
         }
     }
 
@@ -65,10 +70,10 @@ public:
     void decode(bytesConstRef _data) override;
 
     void setViewChangeMsgList(ViewChangeMsgList const& _viewChangeMsgList) override;
-    void setGeneratedPrePrepare(PBFTBaseMessageInterface::Ptr _prePreparedMsg) override;
-
     ViewChangeMsgList const& viewChangeMsgList() const override { return *m_viewChangeList; }
-    PBFTBaseMessageInterface::Ptr generatedPrePrepare() override { return m_generatedPreprepare; }
+
+    PBFTMessageList const& prePrepareList() override { return *m_prePrepareList; }
+    void setPrePrepareList(PBFTMessageList const& _preparedProposal) override;
 
 protected:
     void deserializeToObject() override;
@@ -77,8 +82,7 @@ private:
     std::shared_ptr<RawNewViewMessage> m_rawNewView;
     // required and need to be verified
     ViewChangeMsgListPtr m_viewChangeList;
-    // optional
-    PBFTBaseMessageInterface::Ptr m_generatedPreprepare = nullptr;
+    PBFTMessageListPtr m_prePrepareList;
 };
 }  // namespace consensus
 }  // namespace bcos

@@ -32,19 +32,40 @@ public:
     using Ptr = std::shared_ptr<PBFTCache>;
     PBFTCache(PBFTConfig::Ptr _config, bcos::protocol::BlockNumber _index);
     virtual ~PBFTCache() {}
-    virtual void addPrepareCache(PBFTProposalInterface::Ptr _prepareProposal)
+    bool existPrePrepare(PBFTMessageInterface::Ptr _prePrepareMsg)
+    {
+        if (!m_prePrepare)
+        {
+            return false;
+        }
+        return (_prePrepareMsg->hash() == m_prePrepare->hash()) &&
+               (m_prePrepare->view() >= _prePrepareMsg->view());
+    }
+
+    bool conflictWithProcessedReq(PBFTMessageInterface::Ptr _msg)
+    {
+        if (!m_prePrepare)
+        {
+            return false;
+        }
+        return (_msg->hash() != m_prePrepare->hash() || _msg->view() < m_prePrepare->view());
+    }
+
+    bool conflictWithPrecommitReq(PBFTMessageInterface::Ptr _prePrepareMsg);
+
+    virtual void addPrepareCache(PBFTMessageInterface::Ptr _prepareProposal)
     {
         addCache(m_prepareCacheList, m_prepareReqWeight, _prepareProposal);
     }
 
-    virtual void addCommitCache(PBFTProposalInterface::Ptr _commitProposal)
+    virtual void addCommitCache(PBFTMessageInterface::Ptr _commitProposal)
     {
         addCache(m_commitCacheList, m_commitReqWeight, _commitProposal);
     }
 
-    virtual void addPrePrepareCache(PBFTProposalInterface::Ptr _prePrepareProposal)
+    virtual void addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepareMsg)
     {
-        m_prePrepare = _prePrepareProposal;
+        m_prePrepare = _prePrepareMsg;
     }
 
     bcos::protocol::BlockNumber index() const { return m_index; }
@@ -70,11 +91,14 @@ public:
     {
         m_precommit->setGeneratedFrom(m_config->nodeIndex());
         m_precommit = m_prePrepare;
-        m_config->storage()->storePrecommitProposal(m_precommit);
+        m_config->storage()->storePrecommitProposal(m_precommit->consensusProposal());
     }
 
-    virtual PBFTProposalInterface::Ptr preCommitProposal() { return m_precommit; }
+    virtual PBFTMessageInterface::Ptr preCommitCache() { return m_precommit; }
+    virtual PBFTMessageInterface::Ptr preCommitWithoutData() { return m_precommitWithoutData; }
     virtual void setSignatureList();
+    PBFTMessageInterface::Ptr checkAndPreCommit();
+    PBFTMessageInterface::Ptr checkAndCommit();
 
 private:
     inline bool checkPrePrepareProposalStatus()
@@ -91,10 +115,10 @@ private:
     }
 
     using CollectionCacheType =
-        std::map<bcos::crypto::HashType, std::map<IndexType, PBFTProposalInterface::Ptr>>;
+        std::map<bcos::crypto::HashType, std::map<IndexType, PBFTMessageInterface::Ptr>>;
     using QuorumRecoderType = std::map<bcos::crypto::HashType, uint64_t>;
     void addCache(CollectionCacheType& _cachedReq, QuorumRecoderType& _weightInfo,
-        PBFTProposalInterface::Ptr _proposal);
+        PBFTMessageInterface::Ptr _proposal);
 
     bool collectEnoughQuorum(bcos::crypto::HashType const& _hash, QuorumRecoderType& _weightInfo)
     {
@@ -114,8 +138,9 @@ private:
     CollectionCacheType m_commitCacheList;
     QuorumRecoderType m_commitReqWeight;
 
-    PBFTProposalInterface::Ptr m_prePrepare = nullptr;
-    PBFTProposalInterface::Ptr m_precommit = nullptr;
+    PBFTMessageInterface::Ptr m_prePrepare = nullptr;
+    PBFTMessageInterface::Ptr m_precommit = nullptr;
+    PBFTMessageInterface::Ptr m_precommitWithoutData = nullptr;
 };
 }  // namespace consensus
 }  // namespace bcos

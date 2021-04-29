@@ -36,13 +36,6 @@ public:
     virtual size_t signatureProofSize() const = 0;
     virtual std::pair<int64_t, bytesConstRef> signatureProof(size_t _index) const = 0;
     virtual void appendSignatureProof(int64_t _nodeIdx, bytesConstRef _signatureData) = 0;
-
-    // In order to support the consensus of a single proposal dimension
-    virtual void setView(ViewType _view) = 0;
-    virtual ViewType view() const = 0;
-
-    virtual void setGeneratedFrom(IndexType _from) = 0;
-    virtual IndexType generatedFrom() const = 0;
 };
 using PBFTProposalList = std::vector<PBFTProposalInterface::Ptr>;
 using PBFTProposalListPtr = std::shared_ptr<PBFTProposalList>;
