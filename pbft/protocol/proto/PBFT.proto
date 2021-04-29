@@ -53,6 +53,12 @@ message RawNewViewMessage
   }
 }
 
+message ProposalRequest
+{
+    BaseMessage message = 1;
+    int64 size = 2;
+}
+
 message RawMessage
 {
   int32 version = 1;

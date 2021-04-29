@@ -33,6 +33,7 @@ PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
   : ConsensusEngine("pbft", 0), m_config(_config), m_msgQueue(std::make_shared<PBFTMsgQueue>())
 {
     m_cacheProcessor = std::make_shared<PBFTCacheProcessor>(_config);
+    m_logSync = std::make_shared<PBFTLogSync>(m_config, m_cacheProcessor);
 }
 
 void PBFTEngine::start()
@@ -50,7 +51,7 @@ void PBFTEngine::stop()
 }
 
 void PBFTEngine::onReceivePBFTMessage(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _fromNode,
-    bytesConstRef _data, std::function<void(bytesConstRef _respData)>)
+    bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponseCallback)
 {
     try
     {
@@ -69,6 +70,18 @@ void PBFTEngine::onReceivePBFTMessage(bcos::Error::Ptr _error, bcos::crypto::Nod
         // decode the message and push the message into the queue
         auto pbftMsg = m_config->codec()->decode(_data);
         pbftMsg->setFrom(_fromNode);
+        // the committed proposal request message
+        if (pbftMsg->packetType() == PacketType::CommittedProposalRequest)
+        {
+            m_logSync->onReceiveCommittedProposalRequest(pbftMsg, _sendResponseCallback);
+            return;
+        }
+        // the precommitted proposals request message
+        if (pbftMsg->packetType() == PacketType::PreparedProposalRequest)
+        {
+            m_logSync->onReceivePrecommitRequest(pbftMsg, _sendResponseCallback);
+            return;
+        }
         m_msgQueue->push(pbftMsg);
     }
     catch (std::exception const& _e)
@@ -425,7 +438,7 @@ bool PBFTEngine::isValidViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _v
     // check the precommmitted proposals
     for (auto proposal : _viewChangeMsg->preparedProposals())
     {
-        if (!checkPrecommitProposal(proposal))
+        if (!m_cacheProcessor->checkPrecommitProposal(proposal))
         {
             PBFT_LOG(DEBUG) << LOG_DESC("InvalidViewChangeReq for invalid proposal")
                             << printPBFTProposal(proposal) << m_config->printCurrentState();
@@ -434,38 +447,6 @@ bool PBFTEngine::isValidViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _v
     }
     checkSignature(_viewChangeMsg);
     return true;
-}
-
-bool PBFTEngine::checkPrecommitProposal(std::shared_ptr<PBFTProposalInterface> _precommitProposal)
-{
-    // check the view
-    if (_precommitProposal->view() > m_config->view())
-    {
-        return false;
-    }
-    // check the signature
-    uint64_t weight = 0;
-    auto proofSize = _precommitProposal->signatureProofSize();
-    for (size_t i = 0; i < proofSize; i++)
-    {
-        auto proof = _precommitProposal->signatureProof(i);
-        // check the proof
-        auto nodeInfo = m_config->getConsensusNodeByIndex(proof.first);
-        if (!nodeInfo)
-        {
-            return false;
-        }
-        // verify the signature
-        auto ret = m_config->cryptoSuite()->signatureImpl()->verify(
-            nodeInfo->nodeID(), _precommitProposal->hash(), proof.second);
-        if (!ret)
-        {
-            return false;
-        }
-        weight += nodeInfo->weight();
-    }
-    // check the quorum
-    return (weight >= m_config->minRequiredQuorum());
 }
 
 bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
@@ -530,5 +511,6 @@ bool PBFTEngine::handleNewViewMsg(NewViewMsgInterface::Ptr _newViewMsg)
     // TODO: handle the newViewMsg
     return true;
 }
+
 
 void PBFTEngine::FetchProposalsAndIntoNormalPhase(NewViewMsgInterface::Ptr) {}

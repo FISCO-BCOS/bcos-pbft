@@ -78,6 +78,7 @@ public:
 
     PBFTProposalInterface::Ptr populateCommittedProposal();
     unsigned pbftMsgDefaultVersion() const { return c_pbftMsgDefaultVersion; }
+    unsigned networkTimeoutInterval() const { return c_networkTimeoutInterval; }
     std::shared_ptr<ValidatorInterface> validator() { return m_validator; }
     PBFTStorage::Ptr storage() { return m_storage; }
     bool needVerifyProposal() const { return m_needVerifyProposal; }
@@ -109,6 +110,7 @@ private:
 
     std::atomic<uint64_t> m_leaderSwitchPeriod = {1};
     const unsigned c_pbftMsgDefaultVersion = 0;
+    const unsigned c_networkTimeoutInterval = 1000;
 };
 }  // namespace consensus
 }  // namespace bcos

@@ -24,6 +24,7 @@
 #include "pbft/protocol/PB/PBFTNewViewMsg.h"
 #include "pbft/protocol/PB/PBFTProposal.h"
 #include "pbft/protocol/PB/PBFTViewChangeMsg.h"
+#include "pbft/protocol/PB/PBFTRequest.h"
 
 namespace bcos
 {
@@ -67,6 +68,16 @@ public:
     PBFTProposalInterface::Ptr createPBFTProposal() override
     {
         return std::make_shared<PBFTProposal>();
+    }
+
+    PBFTRequestInterface::Ptr createPBFTRequest() override
+    {
+        return std::make_shared<PBFTRequest>();
+    }
+
+    PBFTRequestInterface::Ptr createPBFTRequest(bytesConstRef _data) override
+    {
+        return std::make_shared<PBFTRequest>(_data);
     }
 };
 }  // namespace consensus

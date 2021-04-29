@@ -61,7 +61,6 @@ public:
 
     // commit the proposal to the kvstorage
     void asyncCommitProposal(PBFTProposalInterface::Ptr) override {}
-    void asyncCommitProposal(bytesConstRef) override {}
 
 private:
     bcos::txpool::TxPoolInterface::Ptr m_txPool;

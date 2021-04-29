@@ -13,33 +13,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file Common.h
+ * @brief interface for PBFT request
+ * @file PBFTRequestInterface.h
  * @author: yujiechen
- * @date 2021-04-12
+ * @date 2021-04-28
  */
 #pragma once
-#include <bcos-framework/libutilities/Exceptions.h>
-#include <bcos-framework/libutilities/Log.h>
-#include <stdint.h>
-
-#define PBFT_LOG(LEVEL) LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("PBFT")
+#include "pbft/interfaces/PBFTBaseMessageInterface.h"
 namespace bcos
 {
 namespace consensus
 {
-using ViewType = uint64_t;
-enum PacketType : uint32_t
+class PBFTRequestInterface : virtual public PBFTBaseMessageInterface
 {
-    PrePreparePacket = 0x00,
-    PreparePacket = 0x01,
-    CommitPacket = 0x02,
-    ViewChangePacket = 0x03,
-    NewViewPacket = 0x04,
-    CommittedProposalRequest = 0x5,
-    CommittedProposalResponse = 0x6,
-    PreparedProposalRequest = 0x7,
-    PreparedProposalResponse = 0x8,
+public:
+    using Ptr = std::shared_ptr<PBFTRequestInterface>;
+    PBFTRequestInterface() = default;
+    virtual ~PBFTRequestInterface() {}
+
+    virtual void setSize(int64_t _size) = 0;
+    virtual int64_t size() const = 0;
 };
-DERIVE_BCOS_EXCEPTION(UnknownPBFTMsgType);
 }  // namespace consensus
 }  // namespace bcos

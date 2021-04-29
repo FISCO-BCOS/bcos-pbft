@@ -20,9 +20,9 @@
  */
 #pragma once
 #include "core/ConsensusEngine.h"
+#include "pbft/engine/PBFTLogSync.h"
 #include <bcos-framework/libutilities/ConcurrentQueue.h>
 #include <bcos-framework/libutilities/Error.h>
-
 
 namespace bcos
 {
@@ -58,7 +58,7 @@ public:
 protected:
     // Receive PBFT message package from frontService
     virtual void onReceivePBFTMessage(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
-        bytesConstRef _data, std::function<void(bytesConstRef _respData)> _respFunc);
+        bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse);
 
     // PBFT main processing function
     void executeWorker() override;
@@ -85,7 +85,6 @@ protected:
 
     virtual bool handleViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg);
     virtual bool isValidViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg);
-    virtual bool checkPrecommitProposal(std::shared_ptr<PBFTProposalInterface> _precommitProposal);
 
     virtual bool handleNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
     virtual void FetchProposalsAndIntoNormalPhase(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
@@ -108,6 +107,8 @@ private:
     // PBFT message cache queue
     PBFTMsgQueuePtr m_msgQueue;
     std::shared_ptr<PBFTCacheProcessor> m_cacheProcessor;
+    // for log syncing
+    PBFTLogSync::Ptr m_logSync;
 
     boost::condition_variable m_signalled;
     boost::mutex x_signalled;

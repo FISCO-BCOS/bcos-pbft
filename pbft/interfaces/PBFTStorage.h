@@ -19,8 +19,9 @@
  * @date 2021-04-26
  */
 #pragma once
+#include "pbft/interfaces/PBFTMessageInterface.h"
 #include "pbft/interfaces/PBFTProposalInterface.h"
-
+#include <bcos-framework/interfaces/protocol/ProtocolTypeDef.h>
 namespace bcos
 {
 namespace consensus
@@ -34,9 +35,11 @@ public:
 
     virtual void storePrecommitProposal(PBFTProposalInterface::Ptr _preCommitProposal) = 0;
     virtual void asyncCommitProposal(PBFTProposalInterface::Ptr _commitProposal) = 0;
-    virtual void asyncCommitProposal(bytesConstRef _data) = 0;
+    virtual void asyncCommitProposal(int64_t _index, bytesConstRef _data) = 0;
     // TODO:
-    // virtual void asyncGetProposal(int64_t _proposalIndex) = 0;
+    virtual PBFTMessageInterface::Ptr asyncGetCommittedProposals(
+        bcos::protocol::BlockNumber _startIndex, int64_t _offset,
+        std::function<void(PBFTProposalList const&)> _callback) = 0;
 };
 }  // namespace consensus
 }  // namespace bcos
