@@ -97,10 +97,20 @@ BOOST_AUTO_TEST_CASE(testTimer)
 
 BOOST_AUTO_TEST_CASE(testTimerWithoutWait)
 {
-    auto timeoutInterval = 100;
+    auto timeoutInterval = 200;
     auto timer = std::make_shared<FakeTimer>(timeoutInterval);
     timer->start();
     BOOST_CHECK(timer->triggerTimeout() == false);
+    // sleep 80ms
+    usleep(1000 * 150);
+
+    // test restart
+    timer->restart();
+    // sleep 20ms
+    usleep(1000 * 100);
+    BOOST_CHECK(timer->triggerTimeout() == false);
+    usleep(1000 * 150);
+    BOOST_CHECK(timer->triggerTimeout() == true);
 }
 
 BOOST_AUTO_TEST_CASE(testPBFTTimer)

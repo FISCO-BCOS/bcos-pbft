@@ -43,7 +43,7 @@ public:
 
     ~Timer() override
     {
-        m_timer->cancel();
+        stop();
         m_ioService->stop();
         if (!m_thread.is_this_thread_in())
         {
@@ -53,6 +53,12 @@ public:
 
     void start() override;
     void stop() override;
+    void restart() override
+    {
+        stop();
+        start();
+    }
+
     void reset(uint64_t _timeout) override { m_timeout = _timeout; }
 
     bool running() override { return m_running; }

@@ -37,6 +37,7 @@ public:
     virtual void start() = 0;
     // stop the timer
     virtual void stop() = 0;
+    virtual void restart() = 0;
     // reset the timer with the given timeout
     virtual void reset(uint64_t _timeout) = 0;
 
