@@ -20,6 +20,7 @@
  */
 #include "PBFTViewChangeMsg.h"
 #include "PBFTProposal.h"
+#include "PBFTMessage.h"
 #include "pbft/protocol/proto/PBFT.pb.h"
 #include <bcos-framework/libprotocol/Common.h>
 
@@ -31,7 +32,7 @@ PBFTViewChangeMsg::PBFTViewChangeMsg(std::shared_ptr<RawViewChangeMessage> _rawV
   : PBFTBaseMessage(std::shared_ptr<BaseMessage>(_rawViewChange->mutable_message()))
 {
     m_packetType = PacketType::ViewChangePacket;
-    m_preparedProposalList = std::make_shared<PBFTProposalList>();
+    m_preparedProposalList = std::make_shared<PBFTMessageList>();
     m_rawViewChange = _rawViewChange;
     PBFTViewChangeMsg::deserializeToObject();
 }
@@ -57,14 +58,14 @@ void PBFTViewChangeMsg::setCommittedProposal(PBFTProposalInterface::Ptr _proposa
     m_rawViewChange->set_allocated_committedproposal(pbftProposal->pbftRawProposal().get());
 }
 
-void PBFTViewChangeMsg::setPreparedProposals(PBFTProposalList const& _preparedProposals)
+void PBFTViewChangeMsg::setPreparedProposals(PBFTMessageList const& _preparedProposals)
 {
     *m_preparedProposalList = _preparedProposals;
     for (auto proposal : *m_preparedProposalList)
     {
-        auto pbftProposal = std::dynamic_pointer_cast<PBFTProposal>(proposal);
+        auto pbftMessage = std::dynamic_pointer_cast<PBFTMessage>(proposal);
         m_rawViewChange->mutable_preparedproposals()->AddAllocated(
-            pbftProposal->pbftRawProposal().get());
+            pbftMessage->pbftRawMessage().get());
     }
 }
 
@@ -77,8 +78,8 @@ void PBFTViewChangeMsg::deserializeToObject()
     m_committedProposal = std::make_shared<PBFTProposal>(rawCommittedProposal);
     for (int i = 0; i < m_rawViewChange->preparedproposals_size(); i++)
     {
-        std::shared_ptr<PBFTRawProposal> preparedProposal(
+        std::shared_ptr<PBFTRawMessage> preparedMsg(
             m_rawViewChange->mutable_preparedproposals(i));
-        m_preparedProposalList->push_back(std::make_shared<PBFTProposal>(preparedProposal));
+        m_preparedProposalList->push_back(std::make_shared<PBFTMessage>(preparedMsg));
     }
 }

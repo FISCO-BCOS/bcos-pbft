@@ -31,7 +31,7 @@ public:
     using Ptr = std::shared_ptr<PBFTViewChangeMsg>;
     PBFTViewChangeMsg() : PBFTBaseMessage()
     {
-        m_preparedProposalList = std::make_shared<PBFTProposalList>();
+        m_preparedProposalList = std::make_shared<PBFTMessageList>();
         m_rawViewChange = std::make_shared<RawViewChangeMessage>();
         m_rawViewChange->set_allocated_message(PBFTBaseMessage::baseMessage().get());
         m_packetType = PacketType::ViewChangePacket;
@@ -40,7 +40,7 @@ public:
     explicit PBFTViewChangeMsg(std::shared_ptr<RawViewChangeMessage> _rawViewChange);
     explicit PBFTViewChangeMsg(bytesConstRef _data) : PBFTBaseMessage()
     {
-        m_preparedProposalList = std::make_shared<PBFTProposalList>();
+        m_preparedProposalList = std::make_shared<PBFTMessageList>();
         m_rawViewChange = std::make_shared<RawViewChangeMessage>();
         decode(_data);
     }
@@ -62,11 +62,10 @@ public:
     std::shared_ptr<RawViewChangeMessage> rawViewChange() { return m_rawViewChange; }
 
     PBFTProposalInterface::Ptr committedProposal() override { return m_committedProposal; }
-    PBFTProposalList const& preparedProposals() override { return *m_preparedProposalList; }
+    PBFTMessageList const& preparedProposals() override { return *m_preparedProposalList; }
 
     void setCommittedProposal(PBFTProposalInterface::Ptr _proposal) override;
-
-    void setPreparedProposals(PBFTProposalList const& _preparedProposals) override;
+    void setPreparedProposals(PBFTMessageList const& _preparedProposals) override;
 
     bytesPointer encode(
         bcos::crypto::CryptoSuite::Ptr, bcos::crypto::KeyPairInterface::Ptr) const override;
@@ -81,7 +80,7 @@ private:
     // required and need to be verified
     PBFTProposalInterface::Ptr m_committedProposal;
     // optional
-    PBFTProposalListPtr m_preparedProposalList;
+    PBFTMessageListPtr m_preparedProposalList;
 };
 using PBFTViewChangeMsgList = std::vector<PBFTViewChangeMsg::Ptr>;
 using PBFTViewChangeMsgListPtr = std::shared_ptr<PBFTViewChangeMsg>;

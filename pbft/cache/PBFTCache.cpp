@@ -30,15 +30,15 @@ PBFTCache::PBFTCache(PBFTConfig::Ptr _config, BlockNumber _index)
 {}
 
 void PBFTCache::addCache(CollectionCacheType& _cachedReq, QuorumRecoderType& _weightInfo,
-    PBFTProposalInterface::Ptr _proposal)
+    PBFTMessageInterface::Ptr _pbftCache)
 
 {
-    if (_proposal->index() != m_index)
+    if (_pbftCache->index() != m_index)
     {
         return;
     }
-    auto const& proposalHash = _proposal->hash();
-    auto generatedFrom = _proposal->generatedFrom();
+    auto const& proposalHash = _pbftCache->hash();
+    auto generatedFrom = _pbftCache->generatedFrom();
     if (_cachedReq.count(proposalHash) && _cachedReq[proposalHash].count(generatedFrom))
     {
         return;
@@ -56,13 +56,75 @@ void PBFTCache::addCache(CollectionCacheType& _cachedReq, QuorumRecoderType& _we
     {
         _weightInfo[proposalHash] += nodeInfo->weight();
     }
-    _cachedReq[proposalHash][generatedFrom] = _proposal;
+    _cachedReq[proposalHash][generatedFrom] = _pbftCache;
 }
 
 void PBFTCache::setSignatureList()
 {
     for (auto const& it : m_commitCacheList[m_precommit->hash()])
     {
-        m_precommit->appendSignatureProof(it.first, it.second->signature());
+        m_precommit->consensusProposal()->appendSignatureProof(
+            it.first, it.second->consensusProposal()->signature());
     }
+}
+
+bool PBFTCache::conflictWithPrecommitReq(PBFTMessageInterface::Ptr _prePrepareMsg)
+{
+    if (!m_precommit)
+    {
+        return false;
+    }
+    if (m_precommit->index() < m_config->progressedIndex())
+    {
+        return false;
+    }
+    if (_prePrepareMsg->index() == m_precommit->index() &&
+        _prePrepareMsg->hash() != m_precommit->hash())
+    {
+        PBFT_LOG(INFO) << LOG_DESC(
+                              "the received pre-prepare msg is conflict with the preparedCache")
+                       << printPBFTMsgInfo(_prePrepareMsg);
+        return true;
+    }
+    return false;
+}
+
+PBFTMessageInterface::Ptr PBFTCache::checkAndPreCommit()
+{
+    if (!collectEnoughPrepareReq())
+    {
+        return nullptr;
+    }
+    // update and backup the proposal into precommit-status
+    intoPrecommit();
+    m_precommit = m_prePrepare;
+    m_precommit->setGeneratedFrom(m_config->nodeIndex());
+
+    m_precommitWithoutData = m_config->pbftMessageFactory()->populateFrom(m_precommit);
+    auto precommitProposalWithoutData =
+        m_config->pbftMessageFactory()->populateFrom(m_precommit->consensusProposal(), false);
+    m_precommitWithoutData->setConsensusProposal(precommitProposalWithoutData);
+
+    // generate the commitReq
+    auto commitReq = m_config->pbftMessageFactory()->populateFrom(PacketType::CommitPacket,
+        m_config->pbftMsgDefaultVersion(), m_config->view(), utcTime(), m_config->nodeIndex(),
+        m_precommitWithoutData->consensusProposal(), m_config->cryptoSuite(), m_config->keyPair());
+    // add the commitReq to local cache
+    addCommitCache(commitReq);
+    // broadcast the commitReq
+    auto encodedData = m_config->codec()->encode(commitReq, m_config->pbftMsgDefaultVersion());
+    m_config->frontService()->asyncSendMessageByNodeIDs(
+        bcos::protocol::ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
+    // collect the commitReq and try to commit
+    return checkAndCommit();
+}
+
+PBFTMessageInterface::Ptr PBFTCache::checkAndCommit()
+{
+    if (!collectEnoughCommitReq())
+    {
+        return nullptr;
+    }
+    setSignatureList();
+    return m_precommit;
 }

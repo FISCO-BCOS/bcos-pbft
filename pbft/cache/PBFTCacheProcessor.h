@@ -29,46 +29,65 @@ namespace bcos
 {
 namespace consensus
 {
-struct ProposalQueueCmp
-{
-    bool operator()(ProposalInterface::Ptr _a, PBFTProposalInterface::Ptr _b)
-    {
-        // increase order
-        return _a->index() > _b->index();
-    }
-};
 class PBFTCacheProcessor
 {
 public:
     using Ptr = std::shared_ptr<PBFTCacheProcessor>;
-    explicit PBFTCacheProcessor(PBFTConfig::Ptr _config)
-      : m_config(_config), m_preCommitProposals(std::make_shared<PBFTProposalList>())
-    {}
+    explicit PBFTCacheProcessor(PBFTConfig::Ptr _config) : m_config(_config) {}
 
     virtual ~PBFTCacheProcessor() {}
 
     virtual void addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepareMsg);
     virtual bool existPrePrepare(PBFTMessageInterface::Ptr _prePrepareMsg);
+
+    virtual bool tryToFillProposal(PBFTMessageInterface::Ptr _prePrepareMsg);
+
     virtual bool conflictWithProcessedReq(PBFTMessageInterface::Ptr _msg);
     virtual bool conflictWithPrecommitReq(PBFTMessageInterface::Ptr _prePrepareMsg);
-
     virtual void addPrepareCache(PBFTMessageInterface::Ptr _prepareReq)
     {
         addCache(m_caches, _prepareReq,
-            [](PBFTCache::Ptr _pbftCache, PBFTProposalInterface::Ptr _pbftProposal) {
-                _pbftCache->addPrepareCache(_pbftProposal);
+            [](PBFTCache::Ptr _pbftCache, PBFTMessageInterface::Ptr _prepareReq) {
+                _pbftCache->addPrepareCache(_prepareReq);
             });
     }
 
     virtual void addCommitReq(PBFTMessageInterface::Ptr _commitReq)
     {
         addCache(m_caches, _commitReq,
-            [](PBFTCache::Ptr _pbftCache, PBFTProposalInterface::Ptr _pbftProposal) {
-                _pbftCache->addCommitCache(_pbftProposal);
+            [](PBFTCache::Ptr _pbftCache, PBFTMessageInterface::Ptr _commitReq) {
+                _pbftCache->addCommitCache(_commitReq);
             });
     }
 
-    PBFTProposalList const& preCommitProposals() { return *m_preCommitProposals; }
+    PBFTMessageList preCommitCachesWithData()
+    {
+        PBFTMessageList precommitCacheList;
+        for (auto const& it : m_caches)
+        {
+            auto precommitCache = it.second->preCommitCache();
+            if (precommitCache != nullptr)
+            {
+                precommitCacheList.push_back(precommitCache);
+            }
+        }
+        return precommitCacheList;
+    }
+
+    PBFTMessageList preCommitCachesWithoutData()
+    {
+        PBFTMessageList precommitCacheList;
+        for (auto const& it : m_caches)
+        {
+            auto precommitCache = it.second->preCommitWithoutData();
+            if (precommitCache != nullptr)
+            {
+                precommitCacheList.push_back(precommitCache);
+            }
+        }
+        return precommitCacheList;
+    }
+
     virtual void checkAndPreCommit();
     virtual void checkAndCommit();
 
@@ -79,31 +98,25 @@ public:
     virtual void clearExpiredCache() {}
     // TODO: remove invalid viewchange
     virtual void removeInvalidViewChange() {}
-    virtual bool checkPrecommitProposal(std::shared_ptr<PBFTProposalInterface> _precommitProposal);
-    virtual bytesPointer precommitProposalData(PBFTMessageInterface::Ptr _pbftMessage,
+    virtual bytesPointer fetchPrecommitData(ViewChangeMsgInterface::Ptr _pbftMessage,
         bcos::protocol::BlockNumber _index, bcos::crypto::HashType const& _hash);
 
-    // TODO: fill the missed proposal
-    virtual void fillMissedProposal(PBFTProposalInterface::Ptr _proposal);
+    bool checkPrecommitMsg(PBFTMessageInterface::Ptr _precommitMsg);
 
 private:
-    using PBFTCachesType =
-        std::map<bcos::crypto::HashType, std::map<bcos::protocol::BlockNumber, PBFTCache::Ptr>>;
+    using PBFTCachesType = std::map<bcos::protocol::BlockNumber, PBFTCache::Ptr>;
 
-    using UpdateCacheHandler = std::function<void(
-        PBFTCache::Ptr _proposalCache, PBFTProposalInterface::Ptr _pbftProposal)>;
-    void addCache(PBFTCachesType& _proposalCache, PBFTMessageInterface::Ptr _pbftReq,
+    using UpdateCacheHandler =
+        std::function<void(PBFTCache::Ptr _pbftCache, PBFTMessageInterface::Ptr _pbftMessage)>;
+    void addCache(PBFTCachesType& _pbftCache, PBFTMessageInterface::Ptr _pbftReq,
         UpdateCacheHandler _handler);
-    virtual void submitProposalsInOrder();
+
+    PBFTMessageList generatePrePrepareMsg(
+        std::map<IndexType, ViewChangeMsgInterface::Ptr> _viewChangeCache);
 
 private:
     PBFTConfig::Ptr m_config;
-    PBFTMessageInterface::Ptr m_prePrepareCache = nullptr;
-    mutable SharedMutex x_prePrepareCache;
     PBFTCachesType m_caches;
-
-    PBFTProposalListPtr m_preCommitProposals;
-    PBFTMessageInterface::Ptr m_preCommitReq;
 
     // viewchange caches
     using ViewChangeCacheType =
@@ -111,13 +124,7 @@ private:
     ViewChangeCacheType m_viewChangeCache;
     std::map<ViewType, uint64_t> m_viewChangeWeight;
     std::map<ViewType, int64_t> m_maxCommittedIndex;
-
-    NewViewMsgInterface::Ptr m_newViewCache;
-
-    // cached proposals that have collected enough signatures
-    std::priority_queue<PBFTProposalInterface::Ptr, PBFTProposalList, ProposalQueueCmp>
-        m_commitQueue;
-    std::atomic<bcos::protocol::BlockNumber> m_blockToCommit = {0};
+    std::map<ViewType, int64_t> m_maxPrecommitIndex;
 };
 }  // namespace consensus
 }  // namespace bcos

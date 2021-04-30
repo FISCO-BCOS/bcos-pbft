@@ -21,6 +21,7 @@
 #pragma once
 #include "core/ConsensusEngine.h"
 #include "pbft/engine/PBFTLogSync.h"
+#include "pbft/engine/PBFTTimer.h"
 #include <bcos-framework/libutilities/ConcurrentQueue.h>
 #include <bcos-framework/libutilities/Error.h>
 
@@ -43,7 +44,6 @@ enum CheckResult
 {
     VALID = 0,
     INVALID = 1,
-    FUTURE = 2
 };
 
 class PBFTEngine : public ConsensusEngine, public std::enable_shared_from_this<PBFTEngine>
@@ -67,8 +67,8 @@ protected:
     virtual void handleMsg(std::shared_ptr<PBFTBaseMessageInterface> _msg);
 
     // Process Pre-prepare type message packets
-    virtual bool handlePrePrepareMsg(
-        std::shared_ptr<PBFTMessageInterface> _prePrepareMsg, bool _needVerifyProposal);
+    virtual bool handlePrePrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg,
+        bool _needVerifyProposal, bool _generatedFromNewView = false);
     virtual CheckResult checkPrePrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg);
     virtual CheckResult checkSignature(std::shared_ptr<PBFTBaseMessageInterface> _req);
     virtual CheckResult checkPBFTMsgState(std::shared_ptr<PBFTBaseMessageInterface> _pbftReq) const;
@@ -87,8 +87,9 @@ protected:
     virtual bool isValidViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg);
 
     virtual bool handleNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
-    virtual void FetchProposalsAndIntoNormalPhase(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
+    virtual void reHandlePrePrepareProposals(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
     virtual bool isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
+    virtual void reachNewView();
 
 private:
     // utility functions
@@ -109,6 +110,7 @@ private:
     std::shared_ptr<PBFTCacheProcessor> m_cacheProcessor;
     // for log syncing
     PBFTLogSync::Ptr m_logSync;
+    PBFTTimer::Ptr m_timer;
 
     boost::condition_variable m_signalled;
     boost::mutex x_signalled;

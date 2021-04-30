@@ -116,7 +116,6 @@ public:
         PBFTMessage::Ptr _generatedPrepare)
     {
         auto pbftNewViewChangeMsg = std::make_shared<PBFTNewViewMsg>();
-        // fake the base PBFT message: empty generatedPrePrepare
         fakeBasePBFTMessage(
             pbftNewViewChangeMsg, _timestamp, _version, _view, _generatedFrom, _hash);
         pbftNewViewChangeMsg->setViewChangeMsgList(_viewChangeList);
@@ -126,19 +125,20 @@ public:
         auto decodedNewViewMsg = std::make_shared<PBFTNewViewMsg>(ref(*encodedData));
         // check the basic field
         checkBaseMessageField(pbftNewViewChangeMsg, decodedNewViewMsg);
-        BOOST_CHECK(decodedNewViewMsg->generatedPrePrepare() == nullptr);
-
+        BOOST_CHECK(decodedNewViewMsg->prePrepareList().size() == 0);
 
         // encode: with generatedPrePrepare
-        pbftNewViewChangeMsg->setGeneratedPrePrepare(_generatedPrepare);
+        PBFTMessageList prePrepareList;
+        prePrepareList.push_back(_generatedPrepare);
+        pbftNewViewChangeMsg->setPrePrepareList(prePrepareList);
         encodedData = pbftNewViewChangeMsg->encode(nullptr, nullptr);
         // decode
         decodedNewViewMsg = std::make_shared<PBFTNewViewMsg>(ref(*encodedData));
         // check the basic field
         checkBaseMessageField(pbftNewViewChangeMsg, decodedNewViewMsg);
-        // check generatedPrePrepare
-        auto decodedPrePrepareMsg =
-            std::dynamic_pointer_cast<PBFTMessage>(decodedNewViewMsg->generatedPrePrepare());
+        prePrepareList = decodedNewViewMsg->prePrepareList();
+        BOOST_CHECK(prePrepareList.size() == 1);
+        auto decodedPrePrepareMsg = std::dynamic_pointer_cast<PBFTMessage>(prePrepareList[0]);
         BOOST_CHECK(*_generatedPrepare == *decodedPrePrepareMsg);
         return pbftNewViewChangeMsg;
     }
@@ -157,7 +157,14 @@ public:
         auto committedProposal =
             std::dynamic_pointer_cast<PBFTProposal>(pbftViewChangeMsg->committedProposal());
         // the preparedProposals
-        pbftViewChangeMsg->setPreparedProposals(_preparedProposals);
+        PBFTMessageList preparedMsgs;
+        for (size_t i = 0; i < _preparedProposals.size(); i++)
+        {
+            auto message = std::make_shared<PBFTMessage>();
+            message->setConsensusProposal(_preparedProposals[i]);
+            preparedMsgs.push_back(message);
+        }
+        pbftViewChangeMsg->setPreparedProposals(preparedMsgs);
         // encode
         auto encodedData = pbftViewChangeMsg->encode(nullptr, nullptr);
         // decode
@@ -169,7 +176,13 @@ public:
             std::dynamic_pointer_cast<PBFTProposal>(decodedViewChange->committedProposal());
         BOOST_CHECK(*committedProposal2 == *decodedCommittedProposal);
         // check prepared proposals
-        checkProposals(_preparedProposals, decodedViewChange->preparedProposals());
+        preparedMsgs = decodedViewChange->preparedProposals();
+        PBFTProposalList decodedProposalList;
+        for (auto msg : preparedMsgs)
+        {
+            decodedProposalList.push_back(msg->consensusProposal());
+        }
+        checkProposals(_preparedProposals, decodedProposalList);
         return decodedViewChange;
     }
     CryptoSuite::Ptr cryptoSuite() { return m_cryptoSuite; }
@@ -294,7 +307,12 @@ void checkViewChangeMessage(PBFTViewChangeMsg::Ptr fakedViewChangeMessage, int64
 
     // check prepared proposal
     BOOST_CHECK(fakedViewChangeMessage->preparedProposals().size() == _proposalSize);
-    checkProposals(fakedViewChangeMessage->preparedProposals(), _cryptoSuite, _index, _data);
+    PBFTProposalList fakedProposals;
+    for (auto msg : fakedViewChangeMessage->preparedProposals())
+    {
+        fakedProposals.push_back(msg->consensusProposal());
+    }
+    checkProposals(fakedProposals, _cryptoSuite, _index, _data);
     // check committed proposal
     checkSingleProposal(
         fakedViewChangeMessage->committedProposal(), _committedHash, _committedIndex, bytes());
@@ -414,12 +432,6 @@ void checkNewViewMessage(PBFTNewViewMsg::Ptr fakedNewViewMessage, int64_t orgTim
     checkFakedBasePBFTMessage(
         fakedNewViewMessage, orgTimestamp, version, view, generatedFrom, proposalHash);
 
-    // check generated prepare proposal
-    checkPBFTMessage(
-        std::dynamic_pointer_cast<PBFTMessage>(fakedNewViewMessage->generatedPrePrepare()),
-        orgTimestamp, version, view, generatedFrom, proposalHash, proposalSize, _cryptoSuite,
-        _index, _data);
-
     // check viewChangeMsgs
     BOOST_CHECK((int64_t)(fakedNewViewMessage->viewChangeMsgList().size()) == viewChangeSize);
     for (int64_t i = 0; i < viewChangeSize; i++)
@@ -458,10 +470,6 @@ void testPBFTNewViewMessage(CryptoSuite::Ptr _cryptoSuite)
     auto keyPair = _cryptoSuite->signatureImpl()->generateKeyPair();
     auto faker = std::make_shared<PBFTMessageFixture>(_cryptoSuite, keyPair);
 
-    // fake PreparedMsg
-    auto fakedPreparedMsg = fakePBFTMessage(orgTimestamp, version, view, generatedFrom,
-        proposalHash, index, data, proposalSize, faker, PacketType::PrePreparePacket);
-
     int64_t viewChangeSize = 4;
     ViewChangeMsgList viewChangeList;
     for (int64_t i = 0; i < viewChangeSize; i++)
@@ -475,10 +483,11 @@ void testPBFTNewViewMessage(CryptoSuite::Ptr _cryptoSuite)
         view++;
     }
     // fake NewViewMsg
+    auto fakedPreparedMsg = fakePBFTMessage(orgTimestamp, version, view, generatedFrom,
+        proposalHash, index, data, proposalSize, faker, PacketType::PrePreparePacket);
     auto fakedNewViewMsg = faker->fakePBFTNewViewMsg(orgTimestamp, version, orgView,
         orgGeneratedFrom, proposalHash, viewChangeList, fakedPreparedMsg);
     BOOST_CHECK(int64_t(fakedNewViewMsg->viewChangeMsgList().size()) == viewChangeSize);
-    BOOST_CHECK(fakedNewViewMsg->generatedPrePrepare() != nullptr);
 
     // test PBFTCodec
     PBFTMessageFactory::Ptr pbftMessageFactory = std::make_shared<PBFTMessageFactoryImpl>();

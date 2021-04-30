@@ -71,9 +71,20 @@ public:
         return pbftRequest;
     }
 
+    virtual PBFTMessageInterface::Ptr populateFrom(PBFTBaseMessageInterface::Ptr _message)
+    {
+        auto pbftMessage = createPBFTMsg();
+        pbftMessage->setPacketType(_message->packetType());
+        pbftMessage->setVersion(_message->version());
+        pbftMessage->setView(_message->view());
+        pbftMessage->setTimestamp(_message->timestamp());
+        pbftMessage->setGeneratedFrom(_message->generatedFrom());
+        return pbftMessage;
+    }
+
     virtual PBFTMessageInterface::Ptr populateFrom(PacketType _packetType, int32_t _version,
         ViewType _view, int64_t _timestamp, IndexType _generatedFrom,
-        PBFTProposalList const& _proposals, bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
+        PBFTProposalInterface::Ptr _proposal, bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
         bcos::crypto::KeyPairInterface::Ptr _keyPair, bool _needSign = true)
     {
         auto pbftMessage = createPBFTMsg();
@@ -82,22 +93,18 @@ public:
         pbftMessage->setView(_view);
         pbftMessage->setTimestamp(_timestamp);
         pbftMessage->setGeneratedFrom(_generatedFrom);
+        pbftMessage->setHash(_proposal->hash());
         PBFTProposalList populatedProposalList;
-        for (auto proposal : _proposals)
+        // create the proposal
+        auto signedProposal = createPBFTProposal();
+        signedProposal->setIndex(_proposal->index());
+        signedProposal->setHash(_proposal->hash());
+        if (_needSign)
         {
-            // create the proposal
-            auto signedProposal = createPBFTProposal();
-            signedProposal->setIndex(proposal->index());
-            signedProposal->setHash(proposal->hash());
-            if (_needSign)
-            {
-                auto signatureData =
-                    _cryptoSuite->signatureImpl()->sign(_keyPair, proposal->hash());
-                signedProposal->setSignature(*signatureData);
-            }
-            populatedProposalList.push_back(signedProposal);
+            auto signatureData = _cryptoSuite->signatureImpl()->sign(_keyPair, _proposal->hash());
+            signedProposal->setSignature(*signatureData);
         }
-        pbftMessage->setProposals(populatedProposalList);
+        pbftMessage->setConsensusProposal(signedProposal);
         return pbftMessage;
     }
 
@@ -124,8 +131,6 @@ public:
         {
             proposal->setData(_proposal->data().toBytes());
         }
-        proposal->setView(_proposal->view());
-        proposal->setGeneratedFrom(_proposal->generatedFrom());
         // set the signature proof
         if (_withProof)
         {
@@ -136,6 +141,15 @@ public:
                 proposal->appendSignatureProof(proof.first, proof.second);
             }
         }
+        return proposal;
+    }
+
+    virtual PBFTProposalInterface::Ptr populateEmptyProposal(
+        int64_t _index, bcos::crypto::HashType const& _emptyHash)
+    {
+        auto proposal = createPBFTProposal();
+        proposal->setIndex(_index);
+        proposal->setHash(_emptyHash);
         return proposal;
     }
 };

@@ -43,19 +43,18 @@ void PBFTNewViewMsg::decode(bytesConstRef _data)
 void PBFTNewViewMsg::deserializeToObject()
 {
     PBFTBaseMessage::deserializeToObject();
-    // decode into m_generatedPreprepare
-    if (m_rawNewView->has_generatedpreprepare())
-    {
-        std::shared_ptr<PBFTRawMessage> pbRawPrePrepareObject(
-            m_rawNewView->mutable_generatedpreprepare());
-        m_generatedPreprepare = std::make_shared<PBFTMessage>(pbRawPrePrepareObject);
-    }
     // decode into m_viewChangeList
     for (int i = 0; i < m_rawNewView->viewchangemsglist_size(); i++)
     {
         std::shared_ptr<RawViewChangeMessage> pbRawViewChange(
             m_rawNewView->mutable_viewchangemsglist(i));
         m_viewChangeList->push_back(std::make_shared<PBFTViewChangeMsg>(pbRawViewChange));
+    }
+    // decode into m_prePrepareList
+    for (int i = 0; i < m_rawNewView->prepreparelist_size(); i++)
+    {
+        std::shared_ptr<PBFTRawMessage> pbftRawMessage(m_rawNewView->mutable_prepreparelist(i));
+        m_prePrepareList->push_back(std::make_shared<PBFTMessage>(pbftRawMessage));
     }
 }
 
@@ -70,9 +69,12 @@ void PBFTNewViewMsg::setViewChangeMsgList(ViewChangeMsgList const& _viewChangeMs
     }
 }
 
-void PBFTNewViewMsg::setGeneratedPrePrepare(PBFTBaseMessageInterface::Ptr _prePreparedMsg)
+void PBFTNewViewMsg::setPrePrepareList(PBFTMessageList const& _prePrepareList)
 {
-    m_generatedPreprepare = _prePreparedMsg;
-    auto pbPreprepare = std::dynamic_pointer_cast<PBFTMessage>(_prePreparedMsg);
-    m_rawNewView->set_allocated_generatedpreprepare(pbPreprepare->pbftRawMessage().get());
+    *m_prePrepareList = _prePrepareList;
+    for (auto prePrepare : _prePrepareList)
+    {
+        auto pbPrePrepare = std::dynamic_pointer_cast<PBFTMessage>(prePrepare);
+        m_rawNewView->mutable_prepreparelist()->AddAllocated(pbPrePrepare->pbftRawMessage().get());
+    }
 }

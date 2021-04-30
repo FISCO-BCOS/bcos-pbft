@@ -34,6 +34,7 @@ public:
     PBFTLogSync(PBFTConfig::Ptr _config, PBFTCacheProcessor::Ptr _pbftCache);
     virtual ~PBFTLogSync() {}
     using SendResponseCallback = std::function<void(bytesConstRef _respData)>;
+    using HandlePrePrepareCallback = std::function<void(PBFTMessageInterface::Ptr)>;
     /**
      * @brief batch request committed proposals to the given node
      *
@@ -70,14 +71,15 @@ public:
      * @param _hash  the hash of the requested precommit data
      */
     virtual void requestPrecommitData(bcos::crypto::PublicPtr _from,
-        bcos::protocol::BlockNumber _index, bcos::crypto::HashType const& _hash);
+        PBFTMessageInterface::Ptr _prePrepareMsg, HandlePrePrepareCallback _prePrepareCallback);
 
 protected:
     virtual void onRecvCommittedProposalsResponse(bcos::Error::Ptr _error,
         bcos::crypto::NodeIDPtr _nodeID, bytesConstRef _data, SendResponseCallback _sendResponse);
 
     virtual void onRecvPrecommitResponse(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
-        bytesConstRef _data, SendResponseCallback _sendResponse);
+        bytesConstRef _data, PBFTMessageInterface::Ptr _prePrepareMsg,
+        HandlePrePrepareCallback _prePrepareCallback, SendResponseCallback _sendResponse);
 
     void requestPBFTData(bcos::crypto::PublicPtr _from, PBFTRequestInterface::Ptr _pbftRequest,
         bcos::front::CallbackFunc _callback);

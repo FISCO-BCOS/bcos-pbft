@@ -23,8 +23,8 @@
 #include "pbft/protocol/PB/PBFTMessage.h"
 #include "pbft/protocol/PB/PBFTNewViewMsg.h"
 #include "pbft/protocol/PB/PBFTProposal.h"
-#include "pbft/protocol/PB/PBFTViewChangeMsg.h"
 #include "pbft/protocol/PB/PBFTRequest.h"
+#include "pbft/protocol/PB/PBFTViewChangeMsg.h"
 
 namespace bcos
 {

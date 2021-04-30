@@ -84,6 +84,7 @@ public:
     bool needVerifyProposal() const { return m_needVerifyProposal; }
 
     std::string printCurrentState();
+    int64_t highWaterMark() { return m_progressedIndex + m_warterMarkLimit; }
 
 protected:
     void updateQuorum() override;
@@ -107,6 +108,9 @@ private:
     std::atomic<uint64_t> m_minRequiredQuorum;
     std::atomic<ViewType> m_view = {0};
     std::atomic<ViewType> m_toView = {0};
+
+
+    int64_t m_warterMarkLimit = 10;
 
     std::atomic<uint64_t> m_leaderSwitchPeriod = {1};
     const unsigned c_pbftMsgDefaultVersion = 0;

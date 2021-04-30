@@ -20,8 +20,16 @@ message PBFTRawProposal
   // proof for the prepared proposal
   repeated int64 nodeList = 2;
   repeated bytes signatureList = 3;
-  int64 view = 4;
-  int64 generatedFrom = 5;
+}
+
+message PBFTRawMessage
+{
+  bytes hashFieldsData = 1;
+  // for proposal consensus
+  PBFTRawProposal consensusProposal = 2;
+  // for fetch proposals
+  repeated PBFTRawProposal proposals = 3;
+  bytes signatureData = 4;
 }
 
 message RawViewChangeMessage
@@ -31,15 +39,7 @@ message RawViewChangeMessage
   PBFTRawProposal committedProposal = 2;
   // prepared but not commit proposals
   // (no need to include the proposalsData, can obtain the missed proposal from other nodes)
-  repeated PBFTRawProposal preparedProposals = 3;
-}
-
-message PBFTRawMessage
-{
-  bytes hashFieldsData = 1;
-  // proposals that expected to reach a consensus
-  repeated PBFTRawProposal proposals = 2;
-  bytes signatureData = 3;
+  repeated PBFTRawMessage preparedProposals = 3;
 }
 
 message RawNewViewMessage
@@ -47,10 +47,7 @@ message RawNewViewMessage
   BaseMessage message = 1;
   // 2*f+1 view change message packets collected by the leader corresponding to toView
   repeated RawViewChangeMessage viewChangeMsgList = 2;
-  // PRE-PREPARE messages converted into uncommittedBackupProposals
-  oneof generated_prepare{
-    PBFTRawMessage generatedPrePrepare = 3;
-  }
+  repeated PBFTRawMessage prePrepareList = 3;
 }
 
 message ProposalRequest
