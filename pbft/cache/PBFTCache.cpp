@@ -89,11 +89,16 @@ bool PBFTCache::conflictWithPrecommitReq(PBFTMessageInterface::Ptr _prePrepareMs
     return false;
 }
 
-PBFTMessageInterface::Ptr PBFTCache::checkAndPreCommit()
+bool PBFTCache::checkAndPreCommit()
 {
+    // already precommitted
+    if (m_precommit != nullptr)
+    {
+        return false;
+    }
     if (!collectEnoughPrepareReq())
     {
-        return nullptr;
+        return false;
     }
     // update and backup the proposal into precommit-status
     intoPrecommit();
@@ -119,12 +124,21 @@ PBFTMessageInterface::Ptr PBFTCache::checkAndPreCommit()
     return checkAndCommit();
 }
 
-PBFTMessageInterface::Ptr PBFTCache::checkAndCommit()
+bool PBFTCache::checkAndCommit()
 {
+    if (m_submitting == true)
+    {
+        return false;
+    }
     if (!collectEnoughCommitReq())
     {
-        return nullptr;
+        return false;
     }
     setSignatureList();
-    return m_precommit;
+    // commit the proposal
+    m_config->storage()->asyncCommitProposal(m_precommit->consensusProposal());
+    PBFT_LOG(DEBUG) << LOG_DESC("checkAndCommit: commitProposal")
+                    << printPBFTProposal(m_precommit->consensusProposal());
+    m_submitting.store(true);
+    return true;
 }

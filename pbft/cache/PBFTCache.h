@@ -97,8 +97,8 @@ public:
     virtual PBFTMessageInterface::Ptr preCommitCache() { return m_precommit; }
     virtual PBFTMessageInterface::Ptr preCommitWithoutData() { return m_precommitWithoutData; }
     virtual void setSignatureList();
-    PBFTMessageInterface::Ptr checkAndPreCommit();
-    PBFTMessageInterface::Ptr checkAndCommit();
+    virtual bool checkAndPreCommit();
+    virtual bool checkAndCommit();
 
 private:
     inline bool checkPrePrepareProposalStatus()
@@ -131,6 +131,7 @@ private:
 
 private:
     PBFTConfig::Ptr m_config;
+    std::atomic_bool m_submitting = {false};
     std::atomic<bcos::protocol::BlockNumber> m_index;
     CollectionCacheType m_prepareCacheList;
     QuorumRecoderType m_prepareReqWeight;

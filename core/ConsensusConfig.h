@@ -79,6 +79,12 @@ public:
     ConsensusNodeInterface::Ptr getConsensusNodeByIndex(IndexType _nodeIndex);
     bcos::crypto::KeyPairInterface::Ptr keyPair() { return m_keyPair; }
 
+    virtual void setBlockTxCountLimit(uint64_t _blockTxCountLimit)
+    {
+        m_blockTxCountLimit = _blockTxCountLimit;
+    }
+    virtual uint64_t blockTxCountLimit() const { return m_blockTxCountLimit.load(); }
+
 protected:
     bcos::crypto::KeyPairInterface::Ptr m_keyPair;
     std::atomic<IndexType> m_nodeIndex;
@@ -89,6 +95,8 @@ protected:
 
     // default timeout is 3000ms
     std::atomic<uint64_t> m_consensusTimeout = {3000};
+    // default blockTxCountLimit is 1000
+    std::atomic<uint64_t> m_blockTxCountLimit = {1000};
 
     ProposalInterface::Ptr m_committedProposal;
     mutable bcos::SharedMutex x_committedProposal;

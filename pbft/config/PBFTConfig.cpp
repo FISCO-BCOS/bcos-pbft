@@ -19,10 +19,32 @@
  * @date 2021-04-12
  */
 #include "PBFTConfig.h"
-#include "core/ConsensusNode.h"
 
 using namespace bcos;
 using namespace bcos::consensus;
+
+void PBFTConfig::resetConfig(bcos::ledger::LedgerConfig::Ptr _ledgerConfig)
+{
+    PBFT_LOG(INFO) << LOG_DESC("resetConfig")
+                   << LOG_KV("committedProp", _ledgerConfig->blockNumber())
+                   << LOG_KV("propHash", _ledgerConfig->hash().abridged())
+                   << LOG_KV("consensusTimeout", _ledgerConfig->consensusTimeout())
+                   << LOG_KV("blockCountLimit", _ledgerConfig->blockTxCountLimit());
+    // set committed proposal
+    auto committedProposal = m_pbftMessageFactory->createPBFTProposal();
+    committedProposal->setIndex(_ledgerConfig->blockNumber());
+    committedProposal->setHash(_ledgerConfig->hash());
+    setCommittedProposal(committedProposal);
+    // set consensusTimeout
+    setConsensusTimeout(_ledgerConfig->consensusTimeout());
+    // set blockTxCountLimit
+    setBlockTxCountLimit(_ledgerConfig->blockTxCountLimit());
+    // set ConsensusNodeList
+    auto& consensusList = _ledgerConfig->mutableConsensusNodeList();
+    setConsensusNodeList(consensusList);
+    // stop the timer
+    m_timer->stop();
+}
 
 uint64_t PBFTConfig::minRequiredQuorum() const
 {

@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ------------------------------------------------------------------------------
-file(GLOB_RECURSE SOURCES "*.cpp" "*.h" "*.sol")
+file(GLOB_RECURSE SOURCES "*.cpp" "*.h" "*.sol" "${BCOS_TEST_DIR}/*.h" "${BCOS_TEST_DIR}/*.cpp")
 
 # cmake settings
 include(SearchTestCases)
@@ -23,7 +23,8 @@ set(TEST_BINARY_NAME test-bcos-pbft)
 config_test_cases("" "${SOURCES}" bin/${TEST_BINARY_NAME} "")
 
 add_executable(${TEST_BINARY_NAME} ${SOURCES})
-target_include_directories(${TEST_BINARY_NAME} PRIVATE .)
+target_include_directories(${TEST_BINARY_NAME} PRIVATE . ${CMAKE_SOURCE_DIR} ${BCOS_TEST_DIR} ${BCOS_TEST_DIR}/..)
+
 find_package(Boost CONFIG REQUIRED unit_test_framework)
 find_package(bcos-framework)
 hunter_add_package(wedpr-crypto)
