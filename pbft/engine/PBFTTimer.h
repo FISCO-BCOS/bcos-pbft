@@ -38,6 +38,7 @@ public:
     }
 
     void updateChangeCycle(int64_t _changeCycle) { m_changeCycle = _changeCycle; }
+    void incChangeCycle(int64_t _increasedValue) { m_changeCycle += _increasedValue; }
     void resetChangeCycle() { m_changeCycle = 0; }
     uint64_t changeCycle() const { return m_changeCycle; }
 

@@ -91,6 +91,9 @@ protected:
     virtual bool isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
     virtual void reachNewView();
 
+    // function called after reaching a consensus
+    virtual void finalizeConsensus();
+
 private:
     // utility functions
     void waitSignal()
@@ -110,13 +113,21 @@ private:
     std::shared_ptr<PBFTCacheProcessor> m_cacheProcessor;
     // for log syncing
     PBFTLogSync::Ptr m_logSync;
+    // Timer
     PBFTTimer::Ptr m_timer;
+    // state variable that identifies whether has timed out
+    std::atomic_bool m_timeoutState = {false};
 
     boost::condition_variable m_signalled;
     boost::mutex x_signalled;
     mutable Mutex m_mutex;
 
     const unsigned c_PopWaitSeconds = 5;
+
+    // Message packets allowed to be processed in timeout mode
+    const std::set<PacketType> c_timeoutAllowedPacket = {ViewChangePacket, NewViewPacket,
+        CommittedProposalRequest, CommittedProposalResponse, PreparedProposalRequest,
+        PreparedProposalResponse};
 };
 }  // namespace consensus
 }  // namespace bcos

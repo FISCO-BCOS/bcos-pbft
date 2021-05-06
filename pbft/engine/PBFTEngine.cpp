@@ -35,6 +35,8 @@ PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
     m_cacheProcessor = std::make_shared<PBFTCacheProcessor>(_config);
     m_logSync = std::make_shared<PBFTLogSync>(m_config, m_cacheProcessor);
     m_timer = std::make_shared<PBFTTimer>(m_config->consensusTimeout());
+    // register the timeout function
+    m_timer->registerTimeoutHandler(boost::bind(&PBFTEngine::onTimeout, this));
 }
 
 void PBFTEngine::start()
@@ -107,7 +109,26 @@ void PBFTEngine::executeWorker()
     auto messageResult = m_msgQueue->tryPop(c_PopWaitSeconds);
     if (messageResult.first)
     {
-        handleMsg(messageResult.second);
+        if (m_timeoutState == true)
+        {
+            auto pbftMsg = messageResult.second;
+            auto packetType = pbftMsg->packetType();
+            // Pre-prepare, prepare and commit type message packets are not allowed to be processed
+            // in the timeout state
+            if (c_timeoutAllowedPacket.count(packetType))
+            {
+                handleMsg(pbftMsg);
+            }
+            // Re-insert unqualified messages into the queue
+            else
+            {
+                m_msgQueue->push(pbftMsg);
+            }
+        }
+        else
+        {
+            handleMsg(messageResult.second);
+        }
     }
     m_cacheProcessor->clearExpiredCache();
 }
@@ -276,6 +297,7 @@ bool PBFTEngine::handlePrePrepareMsg(
                                   << LOG_KV("error", boost::diagnostic_information(_e));
             }
         });
+    m_timer->start();
     return true;
 }
 
@@ -293,7 +315,10 @@ void PBFTEngine::broadcastPrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg)
     m_config->frontService()->asyncSendMessageByNodeIDs(
         ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
     // try to precommit the message
-    m_cacheProcessor->checkAndPreCommit();
+    if (m_cacheProcessor->checkAndPreCommit())
+    {
+        finalizeConsensus();
+    }
 }
 
 
@@ -329,8 +354,12 @@ bool PBFTEngine::handlePrepareMsg(PBFTMessageInterface::Ptr _prepareMsg)
     {
         return false;
     }
+    m_timer->start();
     m_cacheProcessor->addPrepareCache(_prepareMsg);
-    m_cacheProcessor->checkAndPreCommit();
+    if (m_cacheProcessor->checkAndPreCommit())
+    {
+        finalizeConsensus();
+    }
     return true;
 }
 
@@ -341,20 +370,30 @@ bool PBFTEngine::handleCommitMsg(PBFTMessageInterface::Ptr _commitMsg)
     {
         return false;
     }
+    m_timer->start();
     m_cacheProcessor->addCommitReq(_commitMsg);
-    m_cacheProcessor->checkAndCommit();
+    if (m_cacheProcessor->checkAndCommit())
+    {
+        finalizeConsensus();
+    }
     return true;
 }
 
 void PBFTEngine::onTimeout()
 {
+    Guard l(m_mutex);
+    m_timeoutState.store(true);
     PBFT_LOG(WARNING) << LOG_DESC("onTimeout") << m_config->printCurrentState();
     // update toView
     m_config->incToView(1);
+    // increase the changeCycle
+    m_timer->incChangeCycle(1);
     // clear the viewchange cache
     m_cacheProcessor->removeInvalidViewChange();
     // broadcast viewchange and try to the new-view phase
     broadcastViewChangeReq();
+    // start the timer again(the timer here must be restarted)
+    m_timer->restart();
 }
 
 void PBFTEngine::broadcastViewChangeReq()
@@ -503,10 +542,13 @@ bool PBFTEngine::handleNewViewMsg(NewViewMsgInterface::Ptr _newViewMsg)
 
 void PBFTEngine::reachNewView()
 {
+    // stop the timer when reach a new-view
+    m_timer->stop();
     // update the changeCycle
     m_timer->resetChangeCycle();
     m_config->setView(m_config->toView());
     m_config->incToView(1);
+    m_timeoutState.store(false);
     PBFT_LOG(DEBUG) << LOG_DESC("reachNewView") << m_config->printCurrentState();
 }
 
@@ -541,4 +583,11 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
             });
     }
     reachNewView();
+}
+
+void PBFTEngine::finalizeConsensus()
+{
+    Guard l(m_mutex);
+    m_timer->stop();
+    // TODO: clear the expired caches
 }

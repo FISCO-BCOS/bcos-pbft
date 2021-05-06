@@ -88,8 +88,8 @@ public:
         return precommitCacheList;
     }
 
-    virtual void checkAndPreCommit();
-    virtual void checkAndCommit();
+    virtual bool checkAndPreCommit();
+    virtual bool checkAndCommit();
 
     virtual void addViewChangeReq(ViewChangeMsgInterface::Ptr _viewChange);
     virtual NewViewMsgInterface::Ptr checkAndTryIntoNewView();

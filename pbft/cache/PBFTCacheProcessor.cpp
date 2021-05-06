@@ -98,8 +98,9 @@ void PBFTCacheProcessor::addCache(
     _handler(_pbftCache[index], _pbftReq);
 }
 
-void PBFTCacheProcessor::checkAndPreCommit()
+bool PBFTCacheProcessor::checkAndPreCommit()
 {
+    bool proposalConsSuc = false;
     for (auto const& it : m_caches)
     {
         auto commitMsg = it.second->checkAndPreCommit();
@@ -109,13 +110,17 @@ void PBFTCacheProcessor::checkAndPreCommit()
         }
         // commit the proposal
         m_config->storage()->asyncCommitProposal(commitMsg->consensusProposal());
+        // TODO: clear the expired cache
         PBFT_LOG(DEBUG) << LOG_DESC("checkAndPreCommit: commitProposal")
                         << printPBFTProposal(commitMsg->consensusProposal());
+        proposalConsSuc = true;
     }
+    return proposalConsSuc;
 }
 
-void PBFTCacheProcessor::checkAndCommit()
+bool PBFTCacheProcessor::checkAndCommit()
 {
+    bool proposalConsSuc = false;
     for (auto const& it : m_caches)
     {
         auto commitMsg = it.second->checkAndCommit();
@@ -123,12 +128,14 @@ void PBFTCacheProcessor::checkAndCommit()
         {
             continue;
         }
-
         // commit the proposal
         m_config->storage()->asyncCommitProposal(commitMsg->consensusProposal());
+        // TODO: clear the expired cache
         PBFT_LOG(DEBUG) << LOG_DESC("checkAndCommit: commitProposal")
                         << printPBFTProposal(commitMsg->consensusProposal());
+        proposalConsSuc = false;
     }
+    return proposalConsSuc;
 }
 
 void PBFTCacheProcessor::addViewChangeReq(ViewChangeMsgInterface::Ptr _viewChange)

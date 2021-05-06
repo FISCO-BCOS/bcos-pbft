@@ -48,7 +48,11 @@ void Timer::start()
 
 void Timer::startTimer()
 {
-    m_running = true;
+    // the timer already started
+    if (m_running)
+    {
+        return;
+    }
     m_timer->expires_from_now(std::chrono::milliseconds(adjustTimeout()));
     auto timer = std::weak_ptr<Timer>(shared_from_this());
     // calls the timeout handler
@@ -89,6 +93,7 @@ void Timer::startTimer()
         }
     });
     m_ioService->run();
+    m_running = true;
 }
 
 // stop the timer
