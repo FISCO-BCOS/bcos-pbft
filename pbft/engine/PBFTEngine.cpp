@@ -132,7 +132,6 @@ void PBFTEngine::executeWorker()
             handleMsg(messageResult.second);
         }
     }
-    m_cacheProcessor->clearExpiredCache();
 }
 
 void PBFTEngine::handleMsg(std::shared_ptr<PBFTBaseMessageInterface> _msg)
@@ -382,7 +381,8 @@ void PBFTEngine::onTimeout()
     // increase the changeCycle
     m_config->timer()->incChangeCycle(1);
     // clear the viewchange cache
-    m_cacheProcessor->removeInvalidViewChange();
+    m_cacheProcessor->removeInvalidViewChange(
+        m_config->view(), m_config->committedProposal()->index());
     // broadcast viewchange and try to the new-view phase
     broadcastViewChangeReq();
     // start the timer again(the timer here must be restarted)
@@ -542,6 +542,8 @@ void PBFTEngine::reachNewView()
     m_config->setView(m_config->toView());
     m_config->incToView(1);
     m_timeoutState.store(false);
+    m_cacheProcessor->resetCacheAfterViewChange(
+        m_config->view(), m_config->committedProposal()->index());
     PBFT_LOG(DEBUG) << LOG_DESC("reachNewView") << m_config->printCurrentState();
 }
 
@@ -581,8 +583,8 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
 void PBFTEngine::finalizeConsensus(bcos::ledger::LedgerConfig::Ptr _ledgerConfig)
 {
     PBFT_LOG(DEBUG) << LOG_DESC("^^^^^^^^Report") << LOG_KV("num", _ledgerConfig->blockNumber())
-                    << LOG_KV("nodeIdx", m_config->nodeIndex())
+                    << LOG_KV("nodeIdx", m_config->nodeIndex()) << LOG_KV("view", m_config->view())
                     << LOG_KV("hash", _ledgerConfig->hash().abridged());
     Guard l(m_mutex);
-    m_cacheProcessor->removeConsensusedCache(_ledgerConfig->blockNumber());
+    m_cacheProcessor->removeConsensusedCache(m_config->view(), _ledgerConfig->blockNumber());
 }

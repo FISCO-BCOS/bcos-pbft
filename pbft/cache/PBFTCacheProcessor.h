@@ -94,20 +94,20 @@ public:
     virtual void addViewChangeReq(ViewChangeMsgInterface::Ptr _viewChange);
     virtual NewViewMsgInterface::Ptr checkAndTryIntoNewView();
 
-    // TODO: clear the expired cache periodically
-    virtual void clearExpiredCache() {}
-    // TODO: remove invalid viewchange
-    virtual void removeInvalidViewChange() {}
     virtual bytesPointer fetchPrecommitData(ViewChangeMsgInterface::Ptr _pbftMessage,
         bcos::protocol::BlockNumber _index, bcos::crypto::HashType const& _hash);
 
     virtual bool checkPrecommitMsg(PBFTMessageInterface::Ptr _precommitMsg);
 
-    virtual void removeConsensusedCache(bcos::protocol::BlockNumber _consensusedNumber);
+    virtual void removeConsensusedCache(
+        ViewType _view, bcos::protocol::BlockNumber _consensusedNumber);
+    virtual void resetCacheAfterViewChange(
+        ViewType _view, bcos::protocol::BlockNumber _latestCommittedProposal);
+    virtual void removeInvalidViewChange(
+        ViewType _view, bcos::protocol::BlockNumber _latestCommittedProposal);
 
 private:
     using PBFTCachesType = std::map<bcos::protocol::BlockNumber, PBFTCache::Ptr>;
-
     using UpdateCacheHandler =
         std::function<void(PBFTCache::Ptr _pbftCache, PBFTMessageInterface::Ptr _pbftMessage)>;
     void addCache(PBFTCachesType& _pbftCache, PBFTMessageInterface::Ptr _pbftReq,
@@ -115,6 +115,7 @@ private:
 
     PBFTMessageList generatePrePrepareMsg(
         std::map<IndexType, ViewChangeMsgInterface::Ptr> _viewChangeCache);
+    void reCalculateViewChangeWeight();
 
 private:
     PBFTConfig::Ptr m_config;
@@ -125,6 +126,7 @@ private:
         std::map<ViewType, std::map<IndexType, ViewChangeMsgInterface::Ptr>>;
     ViewChangeCacheType m_viewChangeCache;
     std::map<ViewType, uint64_t> m_viewChangeWeight;
+    // only needed for viewchange
     std::map<ViewType, int64_t> m_maxCommittedIndex;
     std::map<ViewType, int64_t> m_maxPrecommitIndex;
 };

@@ -23,6 +23,7 @@
 
 using namespace bcos;
 using namespace bcos::consensus;
+using namespace bcos::protocol;
 // Note: please ensure the passed in _prePrepareMsg not be modified after addPrePrepareCache
 void PBFTCacheProcessor::addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepareMsg)
 {
@@ -137,7 +138,6 @@ void PBFTCacheProcessor::addViewChangeReq(ViewChangeMsgInterface::Ptr _viewChang
         {
             m_maxCommittedIndex[reqView] = committedIndex;
         }
-
         // get the max precommitIndex
         for (auto precommit : _viewChange->preparedProposals())
         {
@@ -169,7 +169,7 @@ PBFTMessageList PBFTCacheProcessor::generatePrePrepareMsg(
     {
         maxPrecommitIndex = m_maxPrecommitIndex[toView];
     }
-    std::map<bcos::protocol::BlockNumber, PBFTMessageInterface::Ptr> preparedProposals;
+    std::map<BlockNumber, PBFTMessageInterface::Ptr> preparedProposals;
     for (auto it : _viewChangeCache)
     {
         auto viewChangeReq = it.second;
@@ -259,7 +259,7 @@ NewViewMsgInterface::Ptr PBFTCacheProcessor::checkAndTryIntoNewView()
     // encode and broadcast the viewchangeReq
     auto encodedData = m_config->codec()->encode(newViewMsg);
     m_config->frontService()->asyncSendMessageByNodeIDs(
-        bcos::protocol::ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
+        ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
     PBFT_LOG(DEBUG) << LOG_DESC("The next leader broadcast NewView request")
                     << printPBFTMsgInfo(newViewMsg);
     return newViewMsg;
@@ -303,7 +303,7 @@ bool PBFTCacheProcessor::checkPrecommitMsg(PBFTMessageInterface::Ptr _precommitM
 }
 
 bytesPointer PBFTCacheProcessor::fetchPrecommitData(ViewChangeMsgInterface::Ptr _pbftMessage,
-    bcos::protocol::BlockNumber _index, bcos::crypto::HashType const& _hash)
+    BlockNumber _index, bcos::crypto::HashType const& _hash)
 {
     if (!m_caches.count(_index))
     {
@@ -320,7 +320,7 @@ bytesPointer PBFTCacheProcessor::fetchPrecommitData(ViewChangeMsgInterface::Ptr 
     return m_config->codec()->encode(_pbftMessage);
 }
 
-void PBFTCacheProcessor::removeConsensusedCache(bcos::protocol::BlockNumber _consensusedNumber)
+void PBFTCacheProcessor::removeConsensusedCache(ViewType _view, BlockNumber _consensusedNumber)
 {
     for (auto pcache = m_caches.begin(); pcache != m_caches.end();)
     {
@@ -330,5 +330,73 @@ void PBFTCacheProcessor::removeConsensusedCache(bcos::protocol::BlockNumber _con
             continue;
         }
         pcache++;
+    }
+    removeInvalidViewChange(_view, _consensusedNumber);
+    m_maxPrecommitIndex.clear();
+    m_maxCommittedIndex.clear();
+}
+
+
+void PBFTCacheProcessor::resetCacheAfterViewChange(
+    ViewType _view, BlockNumber _latestCommittedProposal)
+{
+    for (auto const& it : m_caches)
+    {
+        it.second->resetCache(_view);
+    }
+    m_maxPrecommitIndex.clear();
+    m_maxCommittedIndex.clear();
+    removeInvalidViewChange(_view, _latestCommittedProposal);
+}
+
+void PBFTCacheProcessor::removeInvalidViewChange(
+    ViewType _view, BlockNumber _latestCommittedProposal)
+{
+    for (auto it = m_viewChangeCache.begin(); it != m_viewChangeCache.end();)
+    {
+        auto view = it->first;
+        if (view <= _view)
+        {
+            it = m_viewChangeCache.erase(it);
+            m_viewChangeWeight.erase(view);
+            continue;
+        }
+        auto viewChangeCache = it->second;
+        for (auto pcache = viewChangeCache.begin(); pcache != viewChangeCache.end();)
+        {
+            auto index = pcache->second->index();
+            if (index < _latestCommittedProposal)
+            {
+                pcache = viewChangeCache.erase(pcache);
+                continue;
+            }
+            pcache++;
+        }
+        it++;
+    }
+    // recalculate m_viewChangeWeight
+    reCalculateViewChangeWeight();
+}
+
+void PBFTCacheProcessor::reCalculateViewChangeWeight()
+{
+    for (auto const& it : m_viewChangeCache)
+    {
+        auto view = it.first;
+        if (!m_viewChangeWeight.count(view))
+        {
+            m_viewChangeWeight[view] = 0;
+        }
+        auto const& viewChangeCache = it.second;
+        for (auto const& cache : viewChangeCache)
+        {
+            auto generatedFrom = cache.second->generatedFrom();
+            auto nodeInfo = m_config->getConsensusNodeByIndex(generatedFrom);
+            if (!nodeInfo)
+            {
+                continue;
+            }
+            m_viewChangeWeight[view] += nodeInfo->weight();
+        }
     }
 }
