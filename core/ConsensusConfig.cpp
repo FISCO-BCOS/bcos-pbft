@@ -45,7 +45,7 @@ NodeIDs ConsensusConfig::consensusNodeIDList() const
 
 void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList)
 {
-    std::sort(_consensusNodeList.begin(), _consensusNodeList.end());
+    std::sort(_consensusNodeList.begin(), _consensusNodeList.end(), ConsensusNodeComparator());
     bool updated = false;
     // update the consensus list
     {
@@ -77,6 +77,9 @@ void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList
     }
     // update quorum
     updateQuorum();
+    CONSENSUS_LOG(INFO) << LOG_DESC("updateConsensusNodeList") << LOG_KV("nodeNum", m_nodeIndex)
+                        << LOG_KV("nodeIndex", nodeIndex)
+                        << decsConsensusNodeList(_consensusNodeList);
 }
 
 IndexType ConsensusConfig::getNodeIndexByNodeID(bcos::crypto::PublicPtr _nodeID)

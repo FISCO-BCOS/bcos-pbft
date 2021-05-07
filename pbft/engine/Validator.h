@@ -48,10 +48,7 @@ public:
     void verifyProposal(bcos::crypto::PublicPtr _fromNode, PBFTProposalInterface::Ptr _proposal,
         std::function<void(Error::Ptr, bool)> _verifyFinishedHandler) override
     {
-        std::vector<bytesConstRef> proposalsData;
-        proposalsData.push_back(_proposal->data());
-
-        m_txPool->asyncVerifyBlocks(_fromNode, proposalsData, _verifyFinishedHandler);
+        m_txPool->asyncVerifyBlock(_fromNode, _proposal->data(), _verifyFinishedHandler);
     }
 
 protected:

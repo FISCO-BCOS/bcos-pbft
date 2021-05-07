@@ -22,6 +22,9 @@ include_directories(./protocol)
 aux_source_directory(./protocol/PB SRC_LIST)
 include_directories(./protocol/PB)
 
+aux_source_directory(./storage SRC_LIST)
+include_directories(./storage)
+
 add_library(${BCOS_PBFT_TARGET} ${SRC_LIST} ${PROTO_SRCS} ${HEADERS} ${PROTO_HDRS})
 
 target_compile_options(${BCOS_PBFT_TARGET} PRIVATE -Wno-error -Wno-unused-variable)

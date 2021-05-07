@@ -25,7 +25,7 @@ if (NOT DEFINED URL_BASE)
 endif()
 
 include(FetchContent)
-set(BCOS_CMAKE_SCRIPTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/bcos-cmake-scripts)
+set(BCOS_CMAKE_SCRIPTS_DIR ${CMAKE_CURRENT_BINARY_DIR}/bcos-cmake-scripts)
 FetchContent_Declare(bcos-cmake-scripts
     GIT_REPOSITORY https://${URL_BASE}/FISCO-BCOS/bcos-cmake-scripts.git
     GIT_TAG dev
@@ -39,8 +39,8 @@ list(APPEND CMAKE_MODULE_PATH ${BCOS_PBFT_CMAKE_DIR})
 #init hunter
 include(HunterGate)
 HunterGate(
-    URL "https://github.com/FISCO-BCOS/hunter/archive/4ba91e1dc10bd74cb757be4ea40d2b3657d808ac.tar.gz"
-    SHA1 "9d92a895063ce5f174593686c5f0b0f52377e39d"
+    URL "https://github.com/FISCO-BCOS/hunter/archive/8c81ea454c0c268b257da1fe3e3f2f69bd59a67d.tar.gz"
+    SHA1 "13292adf48c4c053ff2ceb7173631a296c08d1ac"
     FILEPATH "${BCOS_PBFT_CMAKE_DIR}/config.cmake"
 )
 project(bcos-pbft VERSION "3.0.0")
@@ -72,7 +72,7 @@ add_subdirectory(pbft)
 
 if (TESTS)
     # fetch bcos-test
-    set(BCOS_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test/bcos-test)
+    set(BCOS_TEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/test/bcos-test)
     FetchContent_Declare(bcos-test
     GIT_REPOSITORY https://${URL_BASE}/FISCO-BCOS/bcos-test.git
     GIT_TAG dev

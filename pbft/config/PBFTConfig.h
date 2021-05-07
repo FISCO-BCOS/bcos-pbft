@@ -20,6 +20,7 @@
  */
 #pragma once
 #include "core/ConsensusConfig.h"
+#include "pbft/engine/PBFTTimer.h"
 #include "pbft/engine/Validator.h"
 #include "pbft/interfaces/PBFTCodecInterface.h"
 #include "pbft/interfaces/PBFTMessageFactory.h"
@@ -51,9 +52,14 @@ public:
         m_frontService = _frontService;
         m_storage = _storage;
         m_needVerifyProposal = _needVerifyProposal;
+        m_storage->registerConfigResetHandler(
+            [this](bcos::ledger::LedgerConfig::Ptr _ledgerConfig) { resetConfig(_ledgerConfig); });
+        m_timer = std::make_shared<PBFTTimer>(consensusTimeout());
     }
 
     ~PBFTConfig() override {}
+
+    virtual void resetConfig(bcos::ledger::LedgerConfig::Ptr _ledgerConfig);
 
     uint64_t minRequiredQuorum() const override;
 
@@ -86,6 +92,14 @@ public:
     std::string printCurrentState();
     int64_t highWaterMark() { return m_progressedIndex + m_warterMarkLimit; }
 
+    PBFTTimer::Ptr timer() { return m_timer; }
+
+    void setConsensusTimeout(uint64_t _consensusTimeout) override
+    {
+        ConsensusConfig::setConsensusTimeout(_consensusTimeout);
+        m_timer->reset(_consensusTimeout);
+    }
+
 protected:
     void updateQuorum() override;
 
@@ -102,6 +116,8 @@ private:
     PBFTStorage::Ptr m_storage;
     // Flag, used to indicate whether Proposal needs to be verified
     bool m_needVerifyProposal;
+    // Timer
+    PBFTTimer::Ptr m_timer;
 
     std::atomic<uint64_t> m_maxFaultyQuorum;
     std::atomic<uint64_t> m_totalQuorum;

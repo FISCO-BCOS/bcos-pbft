@@ -21,12 +21,15 @@
 #pragma once
 #include "core/ConsensusEngine.h"
 #include "pbft/engine/PBFTLogSync.h"
-#include "pbft/engine/PBFTTimer.h"
 #include <bcos-framework/libutilities/ConcurrentQueue.h>
 #include <bcos-framework/libutilities/Error.h>
 
 namespace bcos
 {
+namespace ledger
+{
+class LedgerConfig;
+}
 namespace consensus
 {
 class PBFTBaseMessageInterface;
@@ -92,7 +95,7 @@ protected:
     virtual void reachNewView();
 
     // function called after reaching a consensus
-    virtual void finalizeConsensus();
+    virtual void finalizeConsensus(std::shared_ptr<bcos::ledger::LedgerConfig> _ledgerConfig);
 
 private:
     // utility functions
@@ -113,8 +116,6 @@ private:
     std::shared_ptr<PBFTCacheProcessor> m_cacheProcessor;
     // for log syncing
     PBFTLogSync::Ptr m_logSync;
-    // Timer
-    PBFTTimer::Ptr m_timer;
     // state variable that identifies whether has timed out
     std::atomic_bool m_timeoutState = {false};
 

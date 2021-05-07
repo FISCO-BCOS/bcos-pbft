@@ -98,44 +98,20 @@ void PBFTCacheProcessor::addCache(
     _handler(_pbftCache[index], _pbftReq);
 }
 
-bool PBFTCacheProcessor::checkAndPreCommit()
+void PBFTCacheProcessor::checkAndPreCommit()
 {
-    bool proposalConsSuc = false;
     for (auto const& it : m_caches)
     {
-        auto commitMsg = it.second->checkAndPreCommit();
-        if (!commitMsg)
-        {
-            continue;
-        }
-        // commit the proposal
-        m_config->storage()->asyncCommitProposal(commitMsg->consensusProposal());
-        // TODO: clear the expired cache
-        PBFT_LOG(DEBUG) << LOG_DESC("checkAndPreCommit: commitProposal")
-                        << printPBFTProposal(commitMsg->consensusProposal());
-        proposalConsSuc = true;
+        it.second->checkAndPreCommit();
     }
-    return proposalConsSuc;
 }
 
-bool PBFTCacheProcessor::checkAndCommit()
+void PBFTCacheProcessor::checkAndCommit()
 {
-    bool proposalConsSuc = false;
     for (auto const& it : m_caches)
     {
-        auto commitMsg = it.second->checkAndCommit();
-        if (!commitMsg)
-        {
-            continue;
-        }
-        // commit the proposal
-        m_config->storage()->asyncCommitProposal(commitMsg->consensusProposal());
-        // TODO: clear the expired cache
-        PBFT_LOG(DEBUG) << LOG_DESC("checkAndCommit: commitProposal")
-                        << printPBFTProposal(commitMsg->consensusProposal());
-        proposalConsSuc = false;
+        it.second->checkAndCommit();
     }
-    return proposalConsSuc;
 }
 
 void PBFTCacheProcessor::addViewChangeReq(ViewChangeMsgInterface::Ptr _viewChange)
@@ -342,4 +318,17 @@ bytesPointer PBFTCacheProcessor::fetchPrecommitData(ViewChangeMsgInterface::Ptr 
     precommitMessage.push_back(cache->preCommitCache());
     _pbftMessage->setPreparedProposals(precommitMessage);
     return m_config->codec()->encode(_pbftMessage);
+}
+
+void PBFTCacheProcessor::removeConsensusedCache(bcos::protocol::BlockNumber _consensusedNumber)
+{
+    for (auto pcache = m_caches.begin(); pcache != m_caches.end();)
+    {
+        if (pcache->first <= _consensusedNumber)
+        {
+            pcache = m_caches.erase(pcache);
+            continue;
+        }
+        pcache++;
+    }
 }

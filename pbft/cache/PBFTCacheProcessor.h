@@ -88,8 +88,8 @@ public:
         return precommitCacheList;
     }
 
-    virtual bool checkAndPreCommit();
-    virtual bool checkAndCommit();
+    virtual void checkAndPreCommit();
+    virtual void checkAndCommit();
 
     virtual void addViewChangeReq(ViewChangeMsgInterface::Ptr _viewChange);
     virtual NewViewMsgInterface::Ptr checkAndTryIntoNewView();
@@ -101,7 +101,9 @@ public:
     virtual bytesPointer fetchPrecommitData(ViewChangeMsgInterface::Ptr _pbftMessage,
         bcos::protocol::BlockNumber _index, bcos::crypto::HashType const& _hash);
 
-    bool checkPrecommitMsg(PBFTMessageInterface::Ptr _precommitMsg);
+    virtual bool checkPrecommitMsg(PBFTMessageInterface::Ptr _precommitMsg);
+
+    virtual void removeConsensusedCache(bcos::protocol::BlockNumber _consensusedNumber);
 
 private:
     using PBFTCachesType = std::map<bcos::protocol::BlockNumber, PBFTCache::Ptr>;

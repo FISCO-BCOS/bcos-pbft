@@ -22,6 +22,7 @@
 #include "boost/bind.hpp"
 #include "interfaces/protocol/CommonError.h"
 #include "pbft/cache/PBFTCacheProcessor.h"
+#include <bcos-framework/interfaces/ledger/LedgerConfig.h>
 #include <bcos-framework/interfaces/protocol/Protocol.h>
 
 using namespace bcos;
@@ -34,9 +35,10 @@ PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
 {
     m_cacheProcessor = std::make_shared<PBFTCacheProcessor>(_config);
     m_logSync = std::make_shared<PBFTLogSync>(m_config, m_cacheProcessor);
-    m_timer = std::make_shared<PBFTTimer>(m_config->consensusTimeout());
     // register the timeout function
-    m_timer->registerTimeoutHandler(boost::bind(&PBFTEngine::onTimeout, this));
+    m_config->timer()->registerTimeoutHandler(boost::bind(&PBFTEngine::onTimeout, this));
+    m_config->storage()->registerFinalizeHandler(
+        boost::bind(&PBFTEngine::finalizeConsensus, this, _1));
 }
 
 void PBFTEngine::start()
@@ -297,7 +299,7 @@ bool PBFTEngine::handlePrePrepareMsg(
                                   << LOG_KV("error", boost::diagnostic_information(_e));
             }
         });
-    m_timer->start();
+    m_config->timer()->start();
     return true;
 }
 
@@ -315,10 +317,7 @@ void PBFTEngine::broadcastPrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg)
     m_config->frontService()->asyncSendMessageByNodeIDs(
         ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
     // try to precommit the message
-    if (m_cacheProcessor->checkAndPreCommit())
-    {
-        finalizeConsensus();
-    }
+    m_cacheProcessor->checkAndPreCommit();
 }
 
 
@@ -354,12 +353,9 @@ bool PBFTEngine::handlePrepareMsg(PBFTMessageInterface::Ptr _prepareMsg)
     {
         return false;
     }
-    m_timer->start();
+    m_config->timer()->start();
     m_cacheProcessor->addPrepareCache(_prepareMsg);
-    if (m_cacheProcessor->checkAndPreCommit())
-    {
-        finalizeConsensus();
-    }
+    m_cacheProcessor->checkAndPreCommit();
     return true;
 }
 
@@ -370,12 +366,9 @@ bool PBFTEngine::handleCommitMsg(PBFTMessageInterface::Ptr _commitMsg)
     {
         return false;
     }
-    m_timer->start();
+    m_config->timer()->start();
     m_cacheProcessor->addCommitReq(_commitMsg);
-    if (m_cacheProcessor->checkAndCommit())
-    {
-        finalizeConsensus();
-    }
+    m_cacheProcessor->checkAndCommit();
     return true;
 }
 
@@ -387,13 +380,13 @@ void PBFTEngine::onTimeout()
     // update toView
     m_config->incToView(1);
     // increase the changeCycle
-    m_timer->incChangeCycle(1);
+    m_config->timer()->incChangeCycle(1);
     // clear the viewchange cache
     m_cacheProcessor->removeInvalidViewChange();
     // broadcast viewchange and try to the new-view phase
     broadcastViewChangeReq();
     // start the timer again(the timer here must be restarted)
-    m_timer->restart();
+    m_config->timer()->restart();
 }
 
 void PBFTEngine::broadcastViewChangeReq()
@@ -543,9 +536,9 @@ bool PBFTEngine::handleNewViewMsg(NewViewMsgInterface::Ptr _newViewMsg)
 void PBFTEngine::reachNewView()
 {
     // stop the timer when reach a new-view
-    m_timer->stop();
+    m_config->timer()->stop();
     // update the changeCycle
-    m_timer->resetChangeCycle();
+    m_config->timer()->resetChangeCycle();
     m_config->setView(m_config->toView());
     m_config->incToView(1);
     m_timeoutState.store(false);
@@ -585,9 +578,11 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
     reachNewView();
 }
 
-void PBFTEngine::finalizeConsensus()
+void PBFTEngine::finalizeConsensus(bcos::ledger::LedgerConfig::Ptr _ledgerConfig)
 {
+    PBFT_LOG(DEBUG) << LOG_DESC("^^^^^^^^Report") << LOG_KV("num", _ledgerConfig->blockNumber())
+                    << LOG_KV("nodeIdx", m_config->nodeIndex())
+                    << LOG_KV("hash", _ledgerConfig->hash().abridged());
     Guard l(m_mutex);
-    m_timer->stop();
-    // TODO: clear the expired caches
+    m_cacheProcessor->removeConsensusedCache(_ledgerConfig->blockNumber());
 }

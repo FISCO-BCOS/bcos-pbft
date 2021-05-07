@@ -13,25 +13,25 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief  Storage for the blockchain
- * @file BlockChainStorage.cpp
+ * @brief  Storage for the ledger
+ * @file LedgerStorage.h
  * @author: yujiechen
  * @date 2021-04-26
  */
 #pragma once
 #include "pbft/interfaces/PBFTStorage.h"
 #include <bcos-framework/interfaces/ledger/LedgerInterface.h>
-#include <bcos-framework/storage/StorageInterface.h>
+#include <bcos-framework/interfaces/storage/StorageInterface.h>
 
 namespace bcos
 {
 namespace consensus
 {
-class BlockChainStorage : public PBFTStorage
+class LedgerStorage : public PBFTStorage
 {
 public:
-    using Ptr = std::shared_ptr<BlockChainStorage>;
-    BlockChainStorage(std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
+    using Ptr = std::shared_ptr<LedgerStorage>;
+    LedgerStorage(std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
         bcos::storage::StorageInterface::Ptr _storage)
       : m_ledger(_ledger), m_storage(_storage)
     {}
@@ -39,11 +39,25 @@ public:
     // commit the precommit proposal into the kvstorage
     void storePrecommitProposal(PBFTProposalInterface::Ptr) override {}
     // commit the executed-block into the blockchain
-    void asyncCommitProposal(PBFTProposalInterface::Ptr) override {}
+    void asyncCommitProposal(PBFTProposalInterface::Ptr _proposal) override;
+
+    void registerConfigResetHandler(
+        std::function<void(bcos::ledger::LedgerConfig::Ptr)> _resetConfigHandler) override
+    {
+        m_resetConfigHandler = _resetConfigHandler;
+    }
+
+    void registerFinalizeHandler(
+        std::function<void(bcos::ledger::LedgerConfig::Ptr)> _finalizeHandler) override
+    {
+        m_finalizeHandler = _finalizeHandler;
+    }
 
 private:
     std::shared_ptr<bcos::ledger::LedgerInterface> m_ledger;
     bcos::storage::StorageInterface::Ptr m_storage;
+    std::function<void(bcos::ledger::LedgerConfig::Ptr)> m_resetConfigHandler;
+    std::function<void(bcos::ledger::LedgerConfig::Ptr)> m_finalizeHandler;
 };
 }  // namespace consensus
 }  // namespace bcos
