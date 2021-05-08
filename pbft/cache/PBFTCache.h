@@ -32,25 +32,8 @@ public:
     using Ptr = std::shared_ptr<PBFTCache>;
     PBFTCache(PBFTConfig::Ptr _config, bcos::protocol::BlockNumber _index);
     virtual ~PBFTCache() {}
-    bool existPrePrepare(PBFTMessageInterface::Ptr _prePrepareMsg)
-    {
-        if (!m_prePrepare)
-        {
-            return false;
-        }
-        return (_prePrepareMsg->hash() == m_prePrepare->hash()) &&
-               (m_prePrepare->view() >= _prePrepareMsg->view());
-    }
-
-    bool conflictWithProcessedReq(PBFTMessageInterface::Ptr _msg)
-    {
-        if (!m_prePrepare)
-        {
-            return false;
-        }
-        return (_msg->hash() != m_prePrepare->hash() || _msg->view() < m_prePrepare->view());
-    }
-
+    bool existPrePrepare(PBFTMessageInterface::Ptr _prePrepareMsg);
+    bool conflictWithProcessedReq(PBFTMessageInterface::Ptr _msg);
     bool conflictWithPrecommitReq(PBFTMessageInterface::Ptr _prePrepareMsg);
 
     virtual void addPrepareCache(PBFTMessageInterface::Ptr _prepareProposal)
@@ -70,63 +53,75 @@ public:
 
     bcos::protocol::BlockNumber index() const { return m_index; }
 
-    bool collectEnoughPrepareReq()
-    {
-        if (!checkPrePrepareProposalStatus())
-        {
-            return false;
-        }
-        return collectEnoughQuorum(m_prePrepare->hash(), m_prepareReqWeight);
-    }
+    bool collectEnoughPrepareReq();
 
-    bool collectEnoughCommitReq()
-    {
-        if (!checkPrePrepareProposalStatus())
-        {
-            return false;
-        }
-        return collectEnoughQuorum(m_prePrepare->hash(), m_commitReqWeight);
-    }
-    virtual void intoPrecommit()
-    {
-        m_precommit->setGeneratedFrom(m_config->nodeIndex());
-        m_precommit = m_prePrepare;
-        m_config->storage()->storePrecommitProposal(m_precommit->consensusProposal());
-    }
-
+    bool collectEnoughCommitReq();
+    virtual void intoPrecommit();
     virtual PBFTMessageInterface::Ptr preCommitCache() { return m_precommit; }
     virtual PBFTMessageInterface::Ptr preCommitWithoutData() { return m_precommitWithoutData; }
     virtual void setSignatureList();
     virtual bool checkAndPreCommit();
     virtual bool checkAndCommit();
+    // reset the cache after viewchange
+    virtual void resetCache(ViewType _curView);
 
 private:
-    inline bool checkPrePrepareProposalStatus()
-    {
-        if (m_prePrepare == nullptr)
-        {
-            return false;
-        }
-        if (m_prePrepare->view() != m_config->view())
-        {
-            return false;
-        }
-        return true;
-    }
-
+    bool checkPrePrepareProposalStatus();
     using CollectionCacheType =
         std::map<bcos::crypto::HashType, std::map<IndexType, PBFTMessageInterface::Ptr>>;
     using QuorumRecoderType = std::map<bcos::crypto::HashType, uint64_t>;
     void addCache(CollectionCacheType& _cachedReq, QuorumRecoderType& _weightInfo,
         PBFTMessageInterface::Ptr _proposal);
+    bool collectEnoughQuorum(bcos::crypto::HashType const& _hash, QuorumRecoderType& _weightInfo);
 
-    bool collectEnoughQuorum(bcos::crypto::HashType const& _hash, QuorumRecoderType& _weightInfo)
+    template <typename T>
+    void resetCacheAfterViewChange(T& _caches, ViewType _curView)
     {
-        if (!_weightInfo.count(_hash))
+        for (auto it = _caches.begin(); it != _caches.end();)
         {
-            return false;
+            auto cache = it->second;
+            for (auto pcache = cache.begin(); pcache != cache.end();)
+            {
+                auto pbftMsg = pcache->second;
+                if (pbftMsg->view() < _curView)
+                {
+                    pcache = cache.erase(pcache);
+                    continue;
+                }
+                pcache++;
+            }
+            if (cache.size() == 0)
+            {
+                it = _caches.erase(it);
+                continue;
+            }
+            it++;
         }
-        return (_weightInfo[_hash] >= m_config->minRequiredQuorum());
+    }
+
+    template <typename T>
+    void recalculateQuorum(QuorumRecoderType& _quorum, T const& _caches)
+    {
+        _quorum.clear();
+        for (auto const& it : _caches)
+        {
+            auto hash = it.first;
+            if (!_quorum.count(hash))
+            {
+                _quorum[hash] = 0;
+            }
+            auto cache = it.second;
+            for (auto pcache : cache)
+            {
+                auto generatedFrom = pcache.second->generatedFrom();
+                auto nodeInfo = m_config->getConsensusNodeByIndex(generatedFrom);
+                if (!nodeInfo)
+                {
+                    continue;
+                }
+                _quorum[hash] += nodeInfo->weight();
+            }
+        }
     }
 
 private:

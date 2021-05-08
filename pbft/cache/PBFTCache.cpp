@@ -29,9 +29,18 @@ PBFTCache::PBFTCache(PBFTConfig::Ptr _config, BlockNumber _index)
   : m_config(_config), m_index(_index)
 {}
 
+bool PBFTCache::existPrePrepare(PBFTMessageInterface::Ptr _prePrepareMsg)
+{
+    if (!m_prePrepare)
+    {
+        return false;
+    }
+    return (_prePrepareMsg->hash() == m_prePrepare->hash()) &&
+           (m_prePrepare->view() >= _prePrepareMsg->view());
+}
+
 void PBFTCache::addCache(CollectionCacheType& _cachedReq, QuorumRecoderType& _weightInfo,
     PBFTMessageInterface::Ptr _pbftCache)
-
 {
     if (_pbftCache->index() != m_index)
     {
@@ -57,6 +66,63 @@ void PBFTCache::addCache(CollectionCacheType& _cachedReq, QuorumRecoderType& _we
         _weightInfo[proposalHash] += nodeInfo->weight();
     }
     _cachedReq[proposalHash][generatedFrom] = _pbftCache;
+}
+
+bool PBFTCache::conflictWithProcessedReq(PBFTMessageInterface::Ptr _msg)
+{
+    if (!m_prePrepare)
+    {
+        return false;
+    }
+    return (_msg->hash() != m_prePrepare->hash() || _msg->view() < m_prePrepare->view());
+}
+
+bool PBFTCache::checkPrePrepareProposalStatus()
+{
+    if (m_prePrepare == nullptr)
+    {
+        return false;
+    }
+    if (m_prePrepare->view() != m_config->view())
+    {
+        return false;
+    }
+    return true;
+}
+
+bool PBFTCache::collectEnoughQuorum(
+    bcos::crypto::HashType const& _hash, QuorumRecoderType& _weightInfo)
+{
+    if (!_weightInfo.count(_hash))
+    {
+        return false;
+    }
+    return (_weightInfo[_hash] >= m_config->minRequiredQuorum());
+}
+
+bool PBFTCache::collectEnoughPrepareReq()
+{
+    if (!checkPrePrepareProposalStatus())
+    {
+        return false;
+    }
+    return collectEnoughQuorum(m_prePrepare->hash(), m_prepareReqWeight);
+}
+
+bool PBFTCache::collectEnoughCommitReq()
+{
+    if (!checkPrePrepareProposalStatus())
+    {
+        return false;
+    }
+    return collectEnoughQuorum(m_prePrepare->hash(), m_commitReqWeight);
+}
+
+void PBFTCache::intoPrecommit()
+{
+    m_precommit->setGeneratedFrom(m_config->nodeIndex());
+    m_precommit = m_prePrepare;
+    m_config->storage()->storePrecommitProposal(m_precommit->consensusProposal());
 }
 
 void PBFTCache::setSignatureList()
@@ -141,4 +207,30 @@ bool PBFTCache::checkAndCommit()
                     << printPBFTProposal(m_precommit->consensusProposal());
     m_submitting.store(true);
     return true;
+}
+
+
+void PBFTCache::resetCache(ViewType _curView)
+{
+    m_submitting = false;
+    // reset pre-prepare
+    if (m_prePrepare->view() < _curView)
+    {
+        m_prePrepare = nullptr;
+    }
+    // reset precommit
+    if (m_precommit->view() < _curView)
+    {
+        m_precommit = nullptr;
+        m_precommitWithoutData = nullptr;
+    }
+    // clear the expired prepare cache
+    resetCacheAfterViewChange(m_prepareCacheList, _curView);
+    // clear the expired commit cache
+    resetCacheAfterViewChange(m_commitCacheList, _curView);
+
+    // recalculate m_prepareReqWeight
+    recalculateQuorum(m_prepareReqWeight, m_prepareCacheList);
+    // recalculate m_commitReqWeight
+    recalculateQuorum(m_commitReqWeight, m_commitCacheList);
 }
