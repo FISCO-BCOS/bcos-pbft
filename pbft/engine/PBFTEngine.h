@@ -58,10 +58,19 @@ public:
     void start() override;
     void stop() override;
 
-protected:
+    virtual void asyncSubmitProposal(bytesConstRef _proposalData,
+        bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash,
+        std::function<void(Error::Ptr)> _onProposalSubmitted);
+
+    std::shared_ptr<PBFTConfig> pbftConfig() { return m_config; }
+
     // Receive PBFT message package from frontService
     virtual void onReceivePBFTMessage(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
         bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse);
+
+protected:
+    virtual void onRecvProposal(bytesConstRef _proposalData,
+        bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash);
 
     // PBFT main processing function
     void executeWorker() override;
@@ -110,6 +119,7 @@ private:
     // mainly maintains the node information, consensus configuration information
     // such as consensus node list, consensus weight, etc.
     std::shared_ptr<PBFTConfig> m_config;
+    ThreadPool::Ptr m_worker;
 
     // PBFT message cache queue
     PBFTMsgQueuePtr m_msgQueue;

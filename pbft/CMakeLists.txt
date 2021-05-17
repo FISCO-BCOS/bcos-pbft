@@ -7,6 +7,9 @@ set(PBFT_PROTO_GENERATE_DIR ${PBFT_PROTO_GENERATE_BASE_DIR}/${PBFT_PROTO_SUB_DIR
 include(GenerateSources)
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${MESSAGES_PROTOS} ${PROTO_PATH} "protocol/proto" ${PBFT_PROTO_GENERATE_BASE_DIR} ${PBFT_PROTO_GENERATE_DIR})
 
+aux_source_directory(. SRC_LIST)
+include_directories(.)
+
 aux_source_directory(./config SRC_LIST)
 include_directories(./config)
 
