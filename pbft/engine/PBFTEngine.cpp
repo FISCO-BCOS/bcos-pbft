@@ -24,14 +24,20 @@
 #include "pbft/cache/PBFTCacheProcessor.h"
 #include <bcos-framework/interfaces/ledger/LedgerConfig.h>
 #include <bcos-framework/interfaces/protocol/Protocol.h>
+#include <bcos-framework/libutilities/ThreadPool.h>
 
 using namespace bcos;
 using namespace bcos::consensus;
+using namespace bcos::ledger;
 using namespace bcos::front;
+using namespace bcos::crypto;
 using namespace bcos::protocol;
 
 PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
-  : ConsensusEngine("pbft", 0), m_config(_config), m_msgQueue(std::make_shared<PBFTMsgQueue>())
+  : ConsensusEngine("pbft", 0),
+    m_config(_config),
+    m_worker(std::make_shared<ThreadPool>("pbftWorker", 1)),
+    m_msgQueue(std::make_shared<PBFTMsgQueue>())
 {
     m_cacheProcessor = std::make_shared<PBFTCacheProcessor>(_config);
     m_logSync = std::make_shared<PBFTLogSync>(m_config, m_cacheProcessor);
@@ -43,9 +49,6 @@ PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
 
 void PBFTEngine::start()
 {
-    // register the message dispatcher callback to front service
-    m_config->frontService()->registerMessageDispatcher(
-        ModuleID::PBFT, boost::bind(&PBFTEngine::onReceivePBFTMessage, this, _1, _2, _3, _4));
     // TODO: init the storage state
     ConsensusEngine::start();
 }
@@ -55,8 +58,56 @@ void PBFTEngine::stop()
     ConsensusEngine::stop();
 }
 
-void PBFTEngine::onReceivePBFTMessage(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _fromNode,
-    bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponseCallback)
+void PBFTEngine::asyncSubmitProposal(bytesConstRef _proposalData, BlockNumber _proposalIndex,
+    HashType const& _proposalHash, std::function<void(Error::Ptr)> _onProposalSubmitted)
+{
+    auto self = std::weak_ptr<PBFTEngine>(shared_from_this());
+    m_worker->enqueue([self, _proposalData, _proposalIndex, _proposalHash]() {
+        try
+        {
+            auto pbftEngine = self.lock();
+            if (!pbftEngine)
+            {
+                return;
+            }
+            pbftEngine->onRecvProposal(_proposalData, _proposalIndex, _proposalHash);
+        }
+        catch (std::exception const& e)
+        {
+            PBFT_LOG(WARNING) << LOG_DESC("asyncSubmitProposal: onRecvProposal exception")
+                              << LOG_KV("error", boost::diagnostic_information(e));
+        }
+    });
+    _onProposalSubmitted(std::make_shared<Error>(CommonError::SUCCESS, "SUCCESS"));
+}
+
+void PBFTEngine::onRecvProposal(
+    bytesConstRef _proposalData, BlockNumber _proposalIndex, HashType const& _proposalHash)
+{
+    PBFT_LOG(DEBUG) << LOG_DESC("asyncSubmitProposal") << LOG_KV("index", _proposalIndex)
+                    << LOG_KV("hash", _proposalHash.abridged());
+    // generate the pre-prepare packet
+    auto pbftProposal = m_config->pbftMessageFactory()->createPBFTProposal();
+    pbftProposal->setData(_proposalData);
+    pbftProposal->setIndex(_proposalIndex);
+    pbftProposal->setHash(_proposalHash);
+
+    auto pbftMessage = m_config->pbftMessageFactory()->populateFrom(PacketType::PrePreparePacket,
+        m_config->pbftMsgDefaultVersion(), m_config->view(), utcTime(), m_config->nodeIndex(),
+        pbftProposal, m_config->cryptoSuite(), m_config->keyPair(), false);
+
+    // broadcast the pre-prepare packet
+    auto encodedData = m_config->codec()->encode(pbftMessage);
+    m_config->frontService()->asyncSendMessageByNodeIDs(
+        ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
+
+    // handle the pre-prepare packet
+    Guard l(m_mutex);
+    handlePrePrepareMsg(pbftMessage, true, false);
+}
+
+void PBFTEngine::onReceivePBFTMessage(Error::Ptr _error, NodeIDPtr _fromNode, bytesConstRef _data,
+    std::function<void(bytesConstRef _respData)> _sendResponseCallback)
 {
     try
     {
@@ -233,6 +284,7 @@ bool PBFTEngine::handlePrePrepareMsg(
     auto result = checkPrePrepareMsg(_prePrepareMsg);
     if (result == CheckResult::INVALID)
     {
+        m_config->validator()->asyncResetTxsFlag(_prePrepareMsg->consensusProposal(), false);
         return false;
     }
     if (!_generatedFromNewView)
@@ -241,12 +293,14 @@ bool PBFTEngine::handlePrePrepareMsg(
         // check the proposal is generated from the leader
         if (m_config->leaderIndex(_prePrepareMsg->index()) != _prePrepareMsg->generatedFrom())
         {
+            m_config->validator()->asyncResetTxsFlag(_prePrepareMsg->consensusProposal(), false);
             return false;
         }
         // check the signature
         result = checkSignature(_prePrepareMsg);
         if (result == CheckResult::INVALID)
         {
+            m_config->validator()->asyncResetTxsFlag(_prePrepareMsg->consensusProposal(), false);
             return false;
         }
     }
@@ -255,7 +309,7 @@ bool PBFTEngine::handlePrePrepareMsg(
     {
         // add the pre-prepare packet into the cache
         m_cacheProcessor->addPrePrepareCache(_prePrepareMsg);
-
+        m_config->timer()->start();
         // broadcast PrepareMsg the packet
         broadcastPrepareMsg(_prePrepareMsg);
         PBFT_LOG(DEBUG) << LOG_DESC("handlePrePrepareMsg") << printPBFTMsgInfo(_prePrepareMsg)
@@ -265,7 +319,7 @@ bool PBFTEngine::handlePrePrepareMsg(
     // verify the proposal
     auto self = std::weak_ptr<PBFTEngine>(shared_from_this());
     m_config->validator()->verifyProposal(m_config->nodeID(), _prePrepareMsg->consensusProposal(),
-        [self, _prePrepareMsg](bcos::Error::Ptr _error, bool _verifyResult) {
+        [self, _prePrepareMsg](Error::Ptr _error, bool _verifyResult) {
             try
             {
                 auto pbftEngine = self.lock();
@@ -298,7 +352,6 @@ bool PBFTEngine::handlePrePrepareMsg(
                                   << LOG_KV("error", boost::diagnostic_information(_e));
             }
         });
-    m_config->timer()->start();
     return true;
 }
 
@@ -580,7 +633,7 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
     reachNewView();
 }
 
-void PBFTEngine::finalizeConsensus(bcos::ledger::LedgerConfig::Ptr _ledgerConfig)
+void PBFTEngine::finalizeConsensus(LedgerConfig::Ptr _ledgerConfig)
 {
     PBFT_LOG(DEBUG) << LOG_DESC("^^^^^^^^Report") << LOG_KV("num", _ledgerConfig->blockNumber())
                     << LOG_KV("nodeIdx", m_config->nodeIndex()) << LOG_KV("view", m_config->view())

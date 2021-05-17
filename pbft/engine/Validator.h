@@ -21,7 +21,8 @@
 #pragma once
 #include "bcos-framework/interfaces/txpool/TxPoolInterface.h"
 #include "pbft/interfaces/PBFTProposalInterface.h"
-#include <bcos-framework/interfaces/protocol/CommonError.h>
+#include <bcos-framework/interfaces/protocol/BlockFactory.h>
+#include <bcos-framework/libutilities/ThreadPool.h>
 
 namespace bcos
 {
@@ -36,13 +37,21 @@ public:
     virtual void verifyProposal(bcos::crypto::PublicPtr _fromNode,
         PBFTProposalInterface::Ptr _proposal,
         std::function<void(Error::Ptr, bool)> _verifyFinishedHandler) = 0;
+
+    virtual void asyncResetTxsFlag(PBFTProposalInterface::Ptr _proposal, bool _flag) = 0;
 };
 
-class TxsValidator : public ValidatorInterface
+class TxsValidator : public ValidatorInterface, public std::enable_shared_from_this<TxsValidator>
 {
 public:
     using Ptr = std::shared_ptr<TxsValidator>;
-    explicit TxsValidator(bcos::txpool::TxPoolInterface::Ptr _txPool) : m_txPool(_txPool) {}
+    explicit TxsValidator(
+        bcos::txpool::TxPoolInterface::Ptr _txPool, bcos::protocol::BlockFactory::Ptr _blockFactory)
+      : m_txPool(_txPool),
+        m_blockFactory(_blockFactory),
+        m_worker(std::make_shared<ThreadPool>("validator", 1))
+    {}
+
     ~TxsValidator() override {}
 
     void verifyProposal(bcos::crypto::PublicPtr _fromNode, PBFTProposalInterface::Ptr _proposal,
@@ -51,8 +60,14 @@ public:
         m_txPool->asyncVerifyBlock(_fromNode, _proposal->data(), _verifyFinishedHandler);
     }
 
+    void asyncResetTxsFlag(PBFTProposalInterface::Ptr _proposal, bool _flag = false) override;
+
 protected:
+    virtual void asyncResetTxsFlag(bcos::crypto::HashListPtr _txsHashList, bool _flag);
+
     bcos::txpool::TxPoolInterface::Ptr m_txPool;
+    bcos::protocol::BlockFactory::Ptr m_blockFactory;
+    ThreadPool::Ptr m_worker;
 };
 }  // namespace consensus
 }  // namespace bcos

@@ -216,6 +216,7 @@ void PBFTCache::resetCache(ViewType _curView)
     // reset pre-prepare
     if (m_prePrepare->view() < _curView)
     {
+        m_config->validator()->asyncResetTxsFlag(m_prePrepare->consensusProposal(), false);
         m_prePrepare = nullptr;
     }
     // reset precommit

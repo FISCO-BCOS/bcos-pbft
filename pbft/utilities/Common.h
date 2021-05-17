@@ -27,7 +27,6 @@ namespace bcos
 {
 namespace consensus
 {
-using ViewType = uint64_t;
 enum PacketType : uint32_t
 {
     PrePreparePacket = 0x00,

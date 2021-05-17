@@ -36,7 +36,7 @@ public:
       : m_ledger(_ledger), m_storage(_storage)
     {}
 
-    // commit the precommit proposal into the kvstorage
+    // TODO: commit the precommit proposal into the kvstorage
     void storePrecommitProposal(PBFTProposalInterface::Ptr) override {}
     // commit the executed-block into the blockchain
     void asyncCommitProposal(PBFTProposalInterface::Ptr _proposal) override;
