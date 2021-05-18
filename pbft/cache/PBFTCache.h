@@ -48,22 +48,29 @@ public:
 
     virtual void addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepareMsg)
     {
+        if (m_stableCommitted || m_checkpointProposal)
+        {
+            return;
+        }
         m_prePrepare = _prePrepareMsg;
     }
 
     bcos::protocol::BlockNumber index() const { return m_index; }
 
-    bool collectEnoughPrepareReq();
-
-    bool collectEnoughCommitReq();
-    virtual void intoPrecommit();
     virtual PBFTMessageInterface::Ptr preCommitCache() { return m_precommit; }
     virtual PBFTMessageInterface::Ptr preCommitWithoutData() { return m_precommitWithoutData; }
-    virtual void setSignatureList();
     virtual bool checkAndPreCommit();
     virtual bool checkAndCommit();
     // reset the cache after viewchange
     virtual void resetCache(ViewType _curView);
+
+    virtual void setCheckPointProposal(PBFTProposalInterface::Ptr _proposal);
+    virtual void addCheckPointMsg(PBFTMessageInterface::Ptr _checkPointMsg)
+    {
+        addCache(m_checkpointCacheList, m_checkpointCacheWeight, _checkPointMsg);
+    }
+
+    virtual bool checkAndCommitStableCheckPoint();
 
 private:
     bool checkPrePrepareProposalStatus();
@@ -73,6 +80,13 @@ private:
     void addCache(CollectionCacheType& _cachedReq, QuorumRecoderType& _weightInfo,
         PBFTMessageInterface::Ptr _proposal);
     bool collectEnoughQuorum(bcos::crypto::HashType const& _hash, QuorumRecoderType& _weightInfo);
+
+    bool collectEnoughPrepareReq();
+    bool collectEnoughCommitReq();
+    bool collectEnoughCheckpoint();
+    void intoPrecommit();
+    virtual void setSignatureList(
+        PBFTProposalInterface::Ptr _proposal, CollectionCacheType& _cache);
 
     template <typename T>
     void resetCacheAfterViewChange(T& _caches, ViewType _curView)
@@ -126,17 +140,26 @@ private:
 
 private:
     PBFTConfig::Ptr m_config;
-    std::atomic_bool m_submitting = {false};
+    // avoid submitting the same committed proposal multiple times
+    std::atomic_bool m_submitted = {false};
+    // avoid submitting the same stable checkpoint multiple times
+    std::atomic_bool m_stableCommitted = {false};
     std::atomic<bcos::protocol::BlockNumber> m_index;
+    // prepareCacheList
     CollectionCacheType m_prepareCacheList;
     QuorumRecoderType m_prepareReqWeight;
 
+    // commitCache
     CollectionCacheType m_commitCacheList;
     QuorumRecoderType m_commitReqWeight;
 
     PBFTMessageInterface::Ptr m_prePrepare = nullptr;
     PBFTMessageInterface::Ptr m_precommit = nullptr;
     PBFTMessageInterface::Ptr m_precommitWithoutData = nullptr;
+
+    PBFTProposalInterface::Ptr m_checkpointProposal = nullptr;
+    CollectionCacheType m_checkpointCacheList;
+    QuorumRecoderType m_checkpointCacheWeight;
 };
 }  // namespace consensus
 }  // namespace bcos

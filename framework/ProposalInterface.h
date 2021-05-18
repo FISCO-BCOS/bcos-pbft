@@ -32,6 +32,9 @@ public:
     ProposalInterface() = default;
     virtual ~ProposalInterface() {}
 
+    virtual bytesPointer encode() const = 0;
+    virtual void decode(bytesConstRef _data) = 0;
+
     // the index of the proposal
     virtual bcos::protocol::BlockNumber index() const = 0;
     virtual void setIndex(bcos::protocol::BlockNumber _index) = 0;

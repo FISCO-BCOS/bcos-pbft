@@ -47,6 +47,7 @@ public:
     virtual NewViewMsgInterface::Ptr createNewViewMsg() = 0;
     virtual NewViewMsgInterface::Ptr createNewViewMsg(bytesConstRef _data) = 0;
     virtual PBFTProposalInterface::Ptr createPBFTProposal() = 0;
+    virtual PBFTProposalInterface::Ptr createPBFTProposal(bytesConstRef _data) = 0;
 
     virtual PBFTRequestInterface::Ptr createPBFTRequest() = 0;
     virtual PBFTRequestInterface::Ptr createPBFTRequest(bytesConstRef _data) = 0;

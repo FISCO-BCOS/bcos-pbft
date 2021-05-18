@@ -20,6 +20,7 @@
  */
 #pragma once
 #include "core/ConsensusConfig.h"
+#include "framework/StateMachineInterface.h"
 #include "pbft/engine/PBFTTimer.h"
 #include "pbft/engine/Validator.h"
 #include "pbft/interfaces/PBFTCodecInterface.h"
@@ -42,7 +43,8 @@ public:
         std::shared_ptr<PBFTMessageFactory> _pbftMessageFactory,
         std::shared_ptr<PBFTCodecInterface> _codec, std::shared_ptr<ValidatorInterface> _validator,
         std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
-        PBFTStorage::Ptr _storage, bool _needVerifyProposal)
+        StateMachineInterface::Ptr _stateMachine, PBFTStorage::Ptr _storage,
+        bool _needVerifyProposal)
       : ConsensusConfig(_keyPair)
     {
         m_cryptoSuite = _cryptoSuite;
@@ -50,6 +52,7 @@ public:
         m_codec = _codec;
         m_validator = _validator;
         m_frontService = _frontService;
+        m_stateMachine = _stateMachine;
         m_storage = _storage;
         m_needVerifyProposal = _needVerifyProposal;
         m_storage->registerConfigResetHandler(
@@ -100,6 +103,19 @@ public:
         m_timer->reset(_consensusTimeout);
     }
 
+    void setCommittedProposal(ProposalInterface::Ptr _committedProposal) override
+    {
+        ConsensusConfig::setCommittedProposal(_committedProposal);
+        m_expectedCheckPoint = m_progressedIndex;
+    }
+
+    int64_t expectedCheckPoint() { return m_expectedCheckPoint; }
+    void setExpectedCheckPoint(uint64_t _expectedCheckPoint)
+    {
+        m_expectedCheckPoint = _expectedCheckPoint;
+    }
+    StateMachineInterface::Ptr stateMachine() { return m_stateMachine; }
+
 protected:
     void updateQuorum() override;
 
@@ -113,6 +129,7 @@ private:
     std::shared_ptr<ValidatorInterface> m_validator;
     // FrontService, used to send/receive P2P message packages
     std::shared_ptr<bcos::front::FrontServiceInterface> m_frontService;
+    StateMachineInterface::Ptr m_stateMachine;
     PBFTStorage::Ptr m_storage;
     // Flag, used to indicate whether Proposal needs to be verified
     bool m_needVerifyProposal;
@@ -125,9 +142,9 @@ private:
     std::atomic<ViewType> m_view = {0};
     std::atomic<ViewType> m_toView = {0};
 
+    std::atomic<uint64_t> m_expectedCheckPoint;
 
     int64_t m_warterMarkLimit = 10;
-
     std::atomic<uint64_t> m_leaderSwitchPeriod = {1};
     const unsigned c_pbftMsgDefaultVersion = 0;
     const unsigned c_networkTimeoutInterval = 1000;

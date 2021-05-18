@@ -29,7 +29,16 @@ namespace bcos
 {
 namespace consensus
 {
-class PBFTCacheProcessor
+struct PBFTMessageCmp
+{
+    bool operator()(PBFTMessageInterface::Ptr _first, PBFTMessageInterface::Ptr _second)
+    {
+        // increase order
+        return _first->consensusProposal()->index() > _second->consensusProposal()->index();
+    }
+};
+
+class PBFTCacheProcessor : public std::enable_shared_from_this<PBFTCacheProcessor>
 {
 public:
     using Ptr = std::shared_ptr<PBFTCacheProcessor>;
@@ -106,6 +115,13 @@ public:
     virtual void removeInvalidViewChange(
         ViewType _view, bcos::protocol::BlockNumber _latestCommittedProposal);
 
+    virtual void setCheckPointProposal(PBFTProposalInterface::Ptr _proposal);
+    virtual void addCheckPointMsg(PBFTMessageInterface::Ptr _checkPointMsg);
+
+protected:
+    virtual void updateCommitQueue(PBFTMessageInterface::Ptr _committedMessage);
+    virtual void applyStateMachine(PBFTProposalInterface::Ptr _proposal);
+
 private:
     using PBFTCachesType = std::map<bcos::protocol::BlockNumber, PBFTCache::Ptr>;
     using UpdateCacheHandler =
@@ -129,6 +145,10 @@ private:
     // only needed for viewchange
     std::map<ViewType, int64_t> m_maxCommittedIndex;
     std::map<ViewType, int64_t> m_maxPrecommitIndex;
+
+    std::priority_queue<PBFTMessageInterface::Ptr, std::vector<PBFTMessageInterface::Ptr>,
+        PBFTMessageCmp>
+        m_committedQueue;
 };
 }  // namespace consensus
 }  // namespace bcos

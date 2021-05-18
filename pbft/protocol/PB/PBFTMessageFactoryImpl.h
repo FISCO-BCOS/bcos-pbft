@@ -70,6 +70,11 @@ public:
         return std::make_shared<PBFTProposal>();
     }
 
+    PBFTProposalInterface::Ptr createPBFTProposal(bytesConstRef _data) override
+    {
+        return std::make_shared<PBFTProposal>(_data);
+    }
+
     PBFTRequestInterface::Ptr createPBFTRequest() override
     {
         return std::make_shared<PBFTRequest>();

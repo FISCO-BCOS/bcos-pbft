@@ -21,26 +21,35 @@
 #pragma once
 #include "pbft/interfaces/PBFTStorage.h"
 #include <bcos-framework/interfaces/ledger/LedgerInterface.h>
+#include <bcos-framework/interfaces/protocol/BlockFactory.h>
+#include <bcos-framework/interfaces/protocol/CommonError.h>
 #include <bcos-framework/interfaces/storage/StorageInterface.h>
 
 namespace bcos
 {
 namespace consensus
 {
-class LedgerStorage : public PBFTStorage
+class LedgerStorage : public PBFTStorage, public std::enable_shared_from_this<LedgerStorage>
 {
 public:
     using Ptr = std::shared_ptr<LedgerStorage>;
     LedgerStorage(std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
-        bcos::storage::StorageInterface::Ptr _storage)
-      : m_ledger(_ledger), m_storage(_storage)
-    {}
+        bcos::storage::StorageInterface::Ptr _storage,
+        bcos::protocol::BlockFactory::Ptr _blockFactory)
+      : m_ledger(_ledger),
+        m_storage(_storage),
+        m_blockFactory(_blockFactory),
+        m_maxCommittedProposalKey(std::make_shared<std::string>()),
+        m_pbftCommitDB(std::make_shared<std::string>())
+    {
+        *m_maxCommittedProposalKey = "max_committed_proposal";
+        *m_pbftCommitDB = "pbftCommitDB";
+    }
 
-    // TODO: commit the precommit proposal into the kvstorage
-    void storePrecommitProposal(PBFTProposalInterface::Ptr) override {}
-    // commit the executed-block into the blockchain
+    // commit the committed proposal into the kv-storage
     void asyncCommitProposal(PBFTProposalInterface::Ptr _proposal) override;
-
+    // commit the executed-block into the blockchain
+    void asyncCommmitStableCheckPoint(PBFTProposalInterface::Ptr _stableProposal) override;
     void registerConfigResetHandler(
         std::function<void(bcos::ledger::LedgerConfig::Ptr)> _resetConfigHandler) override
     {
@@ -53,9 +62,27 @@ public:
         m_finalizeHandler = _finalizeHandler;
     }
 
-private:
+protected:
+    virtual void asyncPutProposal(std::shared_ptr<std::string> _dbName,
+        std::shared_ptr<std::string> _key, bytesPointer _committedData,
+        bcos::protocol::BlockNumber _proposalIndex);
+
+    virtual void asyncRemove(
+        std::shared_ptr<std::string> _dbName, std::shared_ptr<std::string> _key);
+    virtual void asyncRemoveStabledCheckPoint(size_t _stabledCheckPointIndex);
+
+    virtual void asyncCommitStableCheckPoint(bcos::protocol::BlockHeader::Ptr _blockHeader);
+
+protected:
     std::shared_ptr<bcos::ledger::LedgerInterface> m_ledger;
     bcos::storage::StorageInterface::Ptr m_storage;
+    bcos::protocol::BlockFactory::Ptr m_blockFactory;
+
+    std::shared_ptr<std::string> m_maxCommittedProposalKey;
+    std::shared_ptr<std::string> m_pbftCommitDB;
+
+
+    std::atomic<int64_t> m_maxCommittedProposalIndex = {0};
     std::function<void(bcos::ledger::LedgerConfig::Ptr)> m_resetConfigHandler;
     std::function<void(bcos::ledger::LedgerConfig::Ptr)> m_finalizeHandler;
 };
