@@ -112,7 +112,7 @@ void PBFTLogSync::onRecvCommittedProposalsResponse(
     auto proposals = proposalResponse->proposals();
     for (auto proposal : proposals)
     {
-        m_config->storage()->asyncCommitProposal(proposal->index(), proposal->data());
+        m_config->storage()->asyncCommitProposal(proposal);
     }
 }
 

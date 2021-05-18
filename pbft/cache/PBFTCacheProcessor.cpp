@@ -103,7 +103,12 @@ void PBFTCacheProcessor::checkAndPreCommit()
 {
     for (auto const& it : m_caches)
     {
-        it.second->checkAndPreCommit();
+        auto ret = it.second->checkAndPreCommit();
+        if (!ret)
+        {
+            continue;
+        }
+        updateCommitQueue(it.second->preCommitCache());
     }
 }
 
@@ -111,8 +116,94 @@ void PBFTCacheProcessor::checkAndCommit()
 {
     for (auto const& it : m_caches)
     {
-        it.second->checkAndCommit();
+        auto ret = it.second->checkAndCommit();
+        if (!ret)
+        {
+            continue;
+        }
+        updateCommitQueue(it.second->preCommitCache());
     }
+}
+
+void PBFTCacheProcessor::updateCommitQueue(PBFTMessageInterface::Ptr _committedMessage)
+{
+    assert(_committedMessage);
+    m_committedQueue.push(_committedMessage);
+    PBFT_LOG(DEBUG) << LOG_DESC("updateCommitQueue: push committed proposal into the commitQueue")
+                    << LOG_KV("index", _committedMessage->consensusProposal()->index());
+
+    while (m_committedQueue.top()->consensusProposal()->index() < m_config->expectedCheckPoint())
+    {
+        PBFT_LOG(DEBUG) << LOG_DESC("updateCommitQueue: remove invalid proposal")
+                        << LOG_KV("index", m_committedQueue.top()->consensusProposal()->index());
+        m_committedQueue.pop();
+    }
+    // try to execute the proposal
+    while (m_committedQueue.top()->consensusProposal()->index() == m_config->expectedCheckPoint())
+    {
+        auto proposal = m_committedQueue.top()->consensusProposal();
+        applyStateMachine(proposal);
+        m_config->setExpectedCheckPoint(proposal->index() + 1);
+        // commit the proposal
+        m_config->storage()->asyncCommitProposal(proposal);
+        m_committedQueue.pop();
+    }
+}
+
+// execute the proposal and broadcast checkpoint message
+void PBFTCacheProcessor::applyStateMachine(PBFTProposalInterface::Ptr _proposal)
+{
+    auto committedProposal = m_config->committedProposal();
+    auto executedProposal = m_config->pbftMessageFactory()->createPBFTProposal();
+    auto self = std::weak_ptr<PBFTCacheProcessor>(shared_from_this());
+    m_config->stateMachine()->asyncApply(
+        committedProposal, _proposal, executedProposal, [self, executedProposal]() {
+            try
+            {
+                auto cache = self.lock();
+                if (!cache)
+                {
+                    return;
+                }
+                auto config = cache->m_config;
+                auto checkPointMsg = config->pbftMessageFactory()->populateFrom(
+                    PacketType::CheckPoint, config->pbftMsgDefaultVersion(), config->view(),
+                    utcTime(), config->nodeIndex(), executedProposal, config->cryptoSuite(),
+                    config->keyPair(), true);
+
+                auto encodedData = config->codec()->encode(checkPointMsg);
+                config->frontService()->asyncSendMessageByNodeIDs(
+                    ModuleID::PBFT, config->consensusNodeIDList(), ref(*encodedData));
+
+                cache->addCheckPointMsg(checkPointMsg);
+                cache->setCheckPointProposal(executedProposal);
+                PBFT_LOG(DEBUG) << LOG_DESC("applyStateMachine: broadcast checkpoint message")
+                                << printPBFTMsgInfo(checkPointMsg);
+            }
+            catch (std::exception const& e)
+            {
+                PBFT_LOG(WARNING) << LOG_DESC("applyStateMachine failed")
+                                  << LOG_KV("error", boost::diagnostic_information(e));
+            }
+        });
+}
+
+void PBFTCacheProcessor::setCheckPointProposal(PBFTProposalInterface::Ptr _proposal)
+{
+    auto index = _proposal->index();
+    if (!(m_caches.count(index)))
+    {
+        m_caches[index] = std::make_shared<PBFTCache>(m_config, index);
+    }
+    (m_caches[index])->setCheckPointProposal(_proposal);
+}
+
+void PBFTCacheProcessor::addCheckPointMsg(PBFTMessageInterface::Ptr _checkPointMsg)
+{
+    addCache(m_caches, _checkPointMsg,
+        [](PBFTCache::Ptr _pbftCache, PBFTMessageInterface::Ptr _checkPointMsg) {
+            _pbftCache->addCheckPointMsg(_checkPointMsg);
+        });
 }
 
 void PBFTCacheProcessor::addViewChangeReq(ViewChangeMsgInterface::Ptr _viewChange)

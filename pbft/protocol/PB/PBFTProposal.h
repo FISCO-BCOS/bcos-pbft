@@ -34,7 +34,11 @@ public:
         m_pbftRawProposal = std::make_shared<PBFTRawProposal>();
         m_pbftRawProposal->set_allocated_proposal(rawProposal().get());
     }
-
+    explicit PBFTProposal(bytesConstRef _data) : Proposal()
+    {
+        m_pbftRawProposal = std::make_shared<PBFTRawProposal>();
+        decode(_data);
+    }
     explicit PBFTProposal(std::shared_ptr<PBFTRawProposal> _pbftRawProposal)
       : Proposal(std::shared_ptr<RawProposal>(_pbftRawProposal->mutable_proposal()))
     {
@@ -60,7 +64,7 @@ public:
         m_pbftRawProposal->add_nodelist(_nodeIdx);
         m_pbftRawProposal->add_signaturelist(_signatureData.data(), _signatureData.size());
     }
-    
+
     bool operator==(PBFTProposal const& _proposal)
     {
         if (!Proposal::operator==(_proposal))
@@ -87,6 +91,17 @@ public:
     }
 
     bool operator!=(PBFTProposal const& _proposal) { return !(operator==(_proposal)); }
+
+
+    bytesPointer encode() const override
+    {
+        return bcos::protocol::encodePBObject(m_pbftRawProposal);
+    }
+    void decode(bytesConstRef _data) override
+    {
+        bcos::protocol::decodePBObject(m_pbftRawProposal, _data);
+        setRawProposal(std::shared_ptr<RawProposal>(m_pbftRawProposal->mutable_proposal()));
+    }
 
 private:
     std::shared_ptr<PBFTRawProposal> m_pbftRawProposal;

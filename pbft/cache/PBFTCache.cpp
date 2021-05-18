@@ -122,15 +122,14 @@ void PBFTCache::intoPrecommit()
 {
     m_precommit->setGeneratedFrom(m_config->nodeIndex());
     m_precommit = m_prePrepare;
-    m_config->storage()->storePrecommitProposal(m_precommit->consensusProposal());
 }
 
-void PBFTCache::setSignatureList()
+void PBFTCache::setSignatureList(PBFTProposalInterface::Ptr _proposal, CollectionCacheType& _cache)
 {
-    for (auto const& it : m_commitCacheList[m_precommit->hash()])
+    assert(_cache.count(_proposal->hash()));
+    for (auto const& it : _cache[_proposal->hash()])
     {
-        m_precommit->consensusProposal()->appendSignatureProof(
-            it.first, it.second->consensusProposal()->signature());
+        _proposal->appendSignatureProof(it.first, it.second->consensusProposal()->signature());
     }
 }
 
@@ -158,7 +157,7 @@ bool PBFTCache::conflictWithPrecommitReq(PBFTMessageInterface::Ptr _prePrepareMs
 bool PBFTCache::checkAndPreCommit()
 {
     // already precommitted
-    if (m_precommit != nullptr)
+    if (m_precommit != nullptr || m_checkpointProposal)
     {
         return false;
     }
@@ -192,7 +191,7 @@ bool PBFTCache::checkAndPreCommit()
 
 bool PBFTCache::checkAndCommit()
 {
-    if (m_submitting == true)
+    if (m_submitted == true || m_checkpointProposal)
     {
         return false;
     }
@@ -200,19 +199,17 @@ bool PBFTCache::checkAndCommit()
     {
         return false;
     }
-    setSignatureList();
-    // commit the proposal
-    m_config->storage()->asyncCommitProposal(m_precommit->consensusProposal());
-    PBFT_LOG(DEBUG) << LOG_DESC("checkAndCommit: commitProposal")
+    setSignatureList(m_precommit->consensusProposal(), m_commitCacheList);
+    PBFT_LOG(DEBUG) << LOG_DESC("checkAndCommit")
                     << printPBFTProposal(m_precommit->consensusProposal());
-    m_submitting.store(true);
+    m_submitted.store(true);
     return true;
 }
 
 
 void PBFTCache::resetCache(ViewType _curView)
 {
-    m_submitting = false;
+    m_submitted = false;
     // reset pre-prepare
     if (m_prePrepare->view() < _curView)
     {
@@ -234,4 +231,49 @@ void PBFTCache::resetCache(ViewType _curView)
     recalculateQuorum(m_prepareReqWeight, m_prepareCacheList);
     // recalculate m_commitReqWeight
     recalculateQuorum(m_commitReqWeight, m_commitCacheList);
+}
+
+void PBFTCache::setCheckPointProposal(PBFTProposalInterface::Ptr _proposal)
+{
+    // expired checkpoint proposal
+    if (_proposal->index() <= m_config->committedProposal()->index())
+    {
+        return;
+    }
+    if (m_checkpointProposal || _proposal->index() != index())
+    {
+        return;
+    }
+    m_checkpointProposal = _proposal;
+}
+
+bool PBFTCache::collectEnoughCheckpoint()
+{
+    if (!m_checkpointProposal)
+    {
+        return false;
+    }
+    return collectEnoughQuorum(m_checkpointProposal->hash(), m_checkpointCacheWeight);
+}
+
+bool PBFTCache::checkAndCommitStableCheckPoint()
+{
+    if (m_stableCommitted || !collectEnoughCheckpoint())
+    {
+        return false;
+    }
+    setSignatureList(m_checkpointProposal, m_checkpointCacheList);
+    m_stableCommitted = true;
+    PBFT_LOG(INFO) << LOG_DESC("checkAndCommitStableCheckPoint")
+                   << LOG_KV("index", m_checkpointProposal->index())
+                   << LOG_KV("hash", m_checkpointProposal->hash().abridged());
+    if (m_config->committedProposal()->index() >= m_checkpointProposal->index())
+    {
+        PBFT_LOG(WARNING) << LOG_DESC("checkAndCommitStableCheckPoint: expired checkpointProposal")
+                          << LOG_KV("committedIndex", m_config->committedProposal()->index())
+                          << LOG_KV("checkPointIndex", m_checkpointProposal->index());
+        return false;
+    }
+    m_config->storage()->asyncCommmitStableCheckPoint(m_checkpointProposal);
+    return true;
 }

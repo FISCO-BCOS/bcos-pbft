@@ -34,9 +34,11 @@ public:
     PBFTStorage() = default;
     virtual ~PBFTStorage() {}
 
-    virtual void storePrecommitProposal(PBFTProposalInterface::Ptr _preCommitProposal) = 0;
     virtual void asyncCommitProposal(PBFTProposalInterface::Ptr _commitProposal) = 0;
-    virtual void asyncCommitProposal(int64_t _index, bytesConstRef _data) = 0;
+    virtual void asyncCommmitStableCheckPoint(PBFTProposalInterface::Ptr _stableProposal) = 0;
+
+    // TODO: get the latest precommited proposal from the storage
+    // TODO: get the latest committed proposal from the storage
     virtual PBFTMessageInterface::Ptr asyncGetCommittedProposals(
         bcos::protocol::BlockNumber _startIndex, int64_t _offset,
         std::function<void(PBFTProposalList const&)> _callback) = 0;

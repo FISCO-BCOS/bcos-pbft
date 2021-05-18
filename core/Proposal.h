@@ -22,6 +22,7 @@
 #include "core/proto/Consensus.pb.h"
 #include "framework/ProposalInterface.h"
 #include <bcos-framework/interfaces/protocol/BlockHeader.h>
+#include <bcos-framework/libprotocol/Common.h>
 
 namespace bcos
 {
@@ -33,16 +34,10 @@ class Proposal : virtual public ProposalInterface
 public:
     using Ptr = std::shared_ptr<Proposal>;
     Proposal() : m_rawProposal(std::make_shared<RawProposal>()) {}
-
+    explicit Proposal(bytesConstRef _data) : Proposal() { decode(_data); }
     explicit Proposal(std::shared_ptr<RawProposal> _rawProposal) : m_rawProposal(_rawProposal)
     {
-        auto const& hashData = _rawProposal->hash();
-        if (hashData.size() < bcos::crypto::HashType::size)
-        {
-            return;
-        }
-        m_hash =
-            bcos::crypto::HashType((byte const*)hashData.c_str(), bcos::crypto::HashType::size);
+        deserializeObject();
     }
     ~Proposal() override {}
 
@@ -98,6 +93,30 @@ public:
     bool operator!=(Proposal const _proposal) { return !(operator==(_proposal)); }
 
     std::shared_ptr<RawProposal> rawProposal() { return m_rawProposal; }
+
+    bytesPointer encode() const override { return bcos::protocol::encodePBObject(m_rawProposal); }
+    void decode(bytesConstRef _data) override
+    {
+        bcos::protocol::decodePBObject(m_rawProposal, _data);
+        deserializeObject();
+    }
+
+protected:
+    void setRawProposal(std::shared_ptr<RawProposal> _rawProposal)
+    {
+        m_rawProposal = _rawProposal;
+        deserializeObject();
+    }
+    virtual void deserializeObject()
+    {
+        auto const& hashData = m_rawProposal->hash();
+        if (hashData.size() < bcos::crypto::HashType::size)
+        {
+            return;
+        }
+        m_hash =
+            bcos::crypto::HashType((byte const*)hashData.c_str(), bcos::crypto::HashType::size);
+    }
 
 protected:
     std::shared_ptr<RawProposal> m_rawProposal;

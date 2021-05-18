@@ -60,7 +60,14 @@ public:
         {
             pbftProposal->appendSignatureProof(_nodeList[i], ref(_signatureData[i]));
         }
-        return pbftProposal;
+        // test proposal encode/decode
+        auto encodedData = pbftProposal->encode();
+        auto decodedProposal = std::make_shared<PBFTProposal>(ref(*encodedData));
+        BOOST_CHECK(decodedProposal->index() == pbftProposal->index());
+        BOOST_CHECK(decodedProposal->hash() == pbftProposal->hash());
+        BOOST_CHECK(decodedProposal->data().toBytes() == pbftProposal->data().toBytes());
+        BOOST_CHECK(decodedProposal->signatureProofSize() == pbftProposal->signatureProofSize());
+        return decodedProposal;
     }
 
     void fakeBasePBFTMessage(PBFTBaseMessageInterface::Ptr pfbtMessage, int64_t _timestamp,
