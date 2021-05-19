@@ -177,6 +177,7 @@ void PBFTCacheProcessor::applyStateMachine(PBFTProposalInterface::Ptr _proposal)
 
                 cache->addCheckPointMsg(checkPointMsg);
                 cache->setCheckPointProposal(executedProposal);
+                cache->checkAndCommitStableCheckPoint();
                 PBFT_LOG(DEBUG) << LOG_DESC("applyStateMachine: broadcast checkpoint message")
                                 << printPBFTMsgInfo(checkPointMsg);
             }
@@ -489,5 +490,13 @@ void PBFTCacheProcessor::reCalculateViewChangeWeight()
             }
             m_viewChangeWeight[view] += nodeInfo->weight();
         }
+    }
+}
+
+void PBFTCacheProcessor::checkAndCommitStableCheckPoint()
+{
+    for (auto const& it : m_caches)
+    {
+        it.second->checkAndCommitStableCheckPoint();
     }
 }

@@ -41,6 +41,7 @@ BOOST_AUTO_TEST_CASE(testNormalPBFTMessage)
     testPBFTMessage(PacketType::CommitPacket, cryptoSuite);
     testPBFTMessage(PacketType::CommittedProposalResponse, cryptoSuite);
     testPBFTMessage(PacketType::PreparedProposalResponse, cryptoSuite);
+    testPBFTMessage(PacketType::CheckPoint, cryptoSuite);
 }
 
 BOOST_AUTO_TEST_CASE(testSMPBFTMessage)
@@ -51,6 +52,9 @@ BOOST_AUTO_TEST_CASE(testSMPBFTMessage)
     testPBFTMessage(PacketType::PrePreparePacket, cryptoSuite);
     testPBFTMessage(PacketType::PreparePacket, cryptoSuite);
     testPBFTMessage(PacketType::CommitPacket, cryptoSuite);
+    testPBFTMessage(PacketType::CommittedProposalResponse, cryptoSuite);
+    testPBFTMessage(PacketType::PreparedProposalResponse, cryptoSuite);
+    testPBFTMessage(PacketType::CheckPoint, cryptoSuite);
 }
 
 BOOST_AUTO_TEST_CASE(testNormalViewChangeMessage)
