@@ -29,12 +29,14 @@
 #include "pbft/utilities/Common.h"
 #include <bcos-framework/interfaces/crypto/CryptoSuite.h>
 #include <bcos-framework/interfaces/front/FrontServiceInterface.h>
+#include <bcos-framework/interfaces/sealer/SealerInterface.h>
 
 namespace bcos
 {
 namespace consensus
 {
-class PBFTConfig : public ConsensusConfig
+const IndexType InvalidNodeIndex = -1;
+class PBFTConfig : public ConsensusConfig, std::enable_shared_from_this<PBFTConfig>
 {
 public:
     using Ptr = std::shared_ptr<PBFTConfig>;
@@ -43,8 +45,8 @@ public:
         std::shared_ptr<PBFTMessageFactory> _pbftMessageFactory,
         std::shared_ptr<PBFTCodecInterface> _codec, std::shared_ptr<ValidatorInterface> _validator,
         std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
-        StateMachineInterface::Ptr _stateMachine, PBFTStorage::Ptr _storage,
-        bool _needVerifyProposal)
+        bcos::sealer::SealerInterface::Ptr _sealer, StateMachineInterface::Ptr _stateMachine,
+        PBFTStorage::Ptr _storage)
       : ConsensusConfig(_keyPair)
     {
         m_cryptoSuite = _cryptoSuite;
@@ -52,9 +54,9 @@ public:
         m_codec = _codec;
         m_validator = _validator;
         m_frontService = _frontService;
+        m_sealer = _sealer;
         m_stateMachine = _stateMachine;
         m_storage = _storage;
-        m_needVerifyProposal = _needVerifyProposal;
         m_storage->registerConfigResetHandler(
             [this](bcos::ledger::LedgerConfig::Ptr _ledgerConfig) { resetConfig(_ledgerConfig); });
         m_timer = std::make_shared<PBFTTimer>(consensusTimeout());
@@ -90,7 +92,6 @@ public:
     unsigned networkTimeoutInterval() const { return c_networkTimeoutInterval; }
     std::shared_ptr<ValidatorInterface> validator() { return m_validator; }
     PBFTStorage::Ptr storage() { return m_storage; }
-    bool needVerifyProposal() const { return m_needVerifyProposal; }
 
     std::string printCurrentState();
     int64_t highWaterMark() { return m_progressedIndex + m_warterMarkLimit; }
@@ -116,8 +117,13 @@ public:
     }
     StateMachineInterface::Ptr stateMachine() { return m_stateMachine; }
 
+    bcos::sealer::SealerInterface::Ptr sealer() { return m_sealer; }
+
 protected:
     void updateQuorum() override;
+    virtual void notifySealer(bcos::protocol::BlockNumber _committedIndex, uint64_t _maxTxsToSeal);
+    virtual void asyncNotifySealProposal(
+        size_t _proposalIndex, size_t _proposalEndIndex, size_t _maxTxsToSeal);
 
 private:
     bcos::crypto::CryptoSuite::Ptr m_cryptoSuite;
@@ -129,10 +135,9 @@ private:
     std::shared_ptr<ValidatorInterface> m_validator;
     // FrontService, used to send/receive P2P message packages
     std::shared_ptr<bcos::front::FrontServiceInterface> m_frontService;
+    bcos::sealer::SealerInterface::Ptr m_sealer;
     StateMachineInterface::Ptr m_stateMachine;
     PBFTStorage::Ptr m_storage;
-    // Flag, used to indicate whether Proposal needs to be verified
-    bool m_needVerifyProposal;
     // Timer
     PBFTTimer::Ptr m_timer;
 
@@ -141,6 +146,8 @@ private:
     std::atomic<uint64_t> m_minRequiredQuorum;
     std::atomic<ViewType> m_view = {0};
     std::atomic<ViewType> m_toView = {0};
+    // invalid leaderIndex
+    std::atomic<IndexType> m_leaderIndex = InvalidNodeIndex;
 
     std::atomic<uint64_t> m_expectedCheckPoint;
 

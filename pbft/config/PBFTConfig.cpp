@@ -19,11 +19,14 @@
  * @date 2021-04-12
  */
 #include "PBFTConfig.h"
+#include <bcos-framework/interfaces/protocol/CommonError.h>
 
 using namespace bcos;
 using namespace bcos::consensus;
+using namespace bcos::protocol;
+using namespace bcos::ledger;
 
-void PBFTConfig::resetConfig(bcos::ledger::LedgerConfig::Ptr _ledgerConfig)
+void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
 {
     PBFT_LOG(INFO) << LOG_DESC("resetConfig")
                    << LOG_KV("committedProp", _ledgerConfig->blockNumber())
@@ -44,6 +47,62 @@ void PBFTConfig::resetConfig(bcos::ledger::LedgerConfig::Ptr _ledgerConfig)
     setConsensusNodeList(consensusList);
     // stop the timer
     m_timer->stop();
+    notifySealer(_ledgerConfig->blockNumber(), _ledgerConfig->blockTxCountLimit());
+}
+
+void PBFTConfig::notifySealer(BlockNumber _committedIndex, uint64_t _maxTxsToSeal)
+{
+    auto leaderIdx = leaderIndex(_committedIndex);
+    if (m_leaderIndex != leaderIdx || m_leaderIndex == InvalidNodeIndex)
+    {
+        if (m_leaderIndex == nodeIndex())
+        {
+            auto endProposalIndex = (leaderIdx + 1) * m_leaderSwitchPeriod - 1;
+            PBFT_LOG(INFO) << LOG_DESC(
+                                  "setCommittedProposal for new block submitted, notify the new "
+                                  "leader to seal block")
+                           << LOG_KV("preLeader", m_leaderIndex) << LOG_KV("curLeader", leaderIdx)
+                           << LOG_KV("startIndex", m_progressedIndex)
+                           << LOG_KV("endIndex", endProposalIndex)
+                           << LOG_KV("maxTxsToSeal", _maxTxsToSeal);
+            asyncNotifySealProposal(m_progressedIndex, endProposalIndex, _maxTxsToSeal);
+        }
+
+        m_leaderIndex = leaderIdx;
+    }
+}
+
+void PBFTConfig::asyncNotifySealProposal(
+    size_t _proposalIndex, size_t _proposalEndIndex, size_t _maxTxsToSeal)
+{
+    auto self = std::weak_ptr<PBFTConfig>(shared_from_this());
+    m_sealer->asyncNotifySealProposal(_proposalIndex, _proposalEndIndex, _maxTxsToSeal,
+        [_proposalIndex, _proposalEndIndex, _maxTxsToSeal, self](Error::Ptr _error) {
+            if (_error->errorCode() == CommonError::SUCCESS)
+            {
+                PBFT_LOG(INFO) << LOG_DESC("asyncNotifySealProposal success")
+                               << LOG_KV("startIndex", _proposalIndex)
+                               << LOG_KV("endIndex", _proposalEndIndex)
+                               << LOG_KV("maxTxsToSeal", _maxTxsToSeal);
+                return;
+            }
+            try
+            {
+                auto pbftConfig = self.lock();
+                if (!pbftConfig)
+                {
+                    return;
+                }
+                // retry when send failed
+                pbftConfig->asyncNotifySealProposal(
+                    _proposalIndex, _proposalEndIndex, _maxTxsToSeal);
+            }
+            catch (std::exception const& e)
+            {
+                PBFT_LOG(WARNING) << LOG_DESC("asyncNotifySealProposal exception")
+                                  << LOG_KV("error", boost::diagnostic_information(e));
+            }
+        });
 }
 
 uint64_t PBFTConfig::minRequiredQuorum() const
@@ -64,7 +123,7 @@ void PBFTConfig::updateQuorum()
     m_minRequiredQuorum = m_totalQuorum - m_maxFaultyQuorum;
 }
 
-IndexType PBFTConfig::leaderIndex(bcos::protocol::BlockNumber _proposalIndex)
+IndexType PBFTConfig::leaderIndex(BlockNumber _proposalIndex)
 {
     return (_proposalIndex / m_leaderSwitchPeriod + m_view) % m_consensusNodeNum;
 }

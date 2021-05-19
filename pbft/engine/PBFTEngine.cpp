@@ -101,6 +101,11 @@ void PBFTEngine::onRecvProposal(
     m_config->frontService()->asyncSendMessageByNodeIDs(
         ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
 
+    PBFT_LOG(INFO) << LOG_DESC("++++++++++++++++ Generating seal on")
+                   << LOG_KV("index", pbftMessage->index())
+                   << LOG_KV("nodeIdx", m_config->nodeIndex())
+                   << LOG_KV("hash", pbftMessage->hash().abridged());
+
     // handle the pre-prepare packet
     Guard l(m_mutex);
     handlePrePrepareMsg(pbftMessage, true, false);
@@ -194,7 +199,7 @@ void PBFTEngine::handleMsg(std::shared_ptr<PBFTBaseMessageInterface> _msg)
     case PacketType::PrePreparePacket:
     {
         auto prePrepareMsg = std::dynamic_pointer_cast<PBFTMessageInterface>(_msg);
-        handlePrePrepareMsg(prePrepareMsg, m_config->needVerifyProposal());
+        handlePrePrepareMsg(prePrepareMsg, true);
         break;
     }
     case PacketType::PreparePacket:
@@ -219,6 +224,12 @@ void PBFTEngine::handleMsg(std::shared_ptr<PBFTBaseMessageInterface> _msg)
     {
         auto newViewMsg = std::dynamic_pointer_cast<NewViewMsgInterface>(_msg);
         handleNewViewMsg(newViewMsg);
+        break;
+    }
+    case PacketType::CheckPoint:
+    {
+        auto checkPointMsg = std::dynamic_pointer_cast<PBFTMessageInterface>(_msg);
+        handleCheckPointMsg(checkPointMsg);
         break;
     }
     default:
@@ -640,4 +651,30 @@ void PBFTEngine::finalizeConsensus(LedgerConfig::Ptr _ledgerConfig)
                     << LOG_KV("hash", _ledgerConfig->hash().abridged());
     Guard l(m_mutex);
     m_cacheProcessor->removeConsensusedCache(m_config->view(), _ledgerConfig->blockNumber());
+}
+
+bool PBFTEngine::handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _checkPointMsg)
+{
+    // check index
+    if (_checkPointMsg->index() <= m_config->committedProposal()->index())
+    {
+        PBFT_LOG(WARNING) << LOG_DESC("handleCheckPointMsg: Invalid expired checkpoint msg")
+                          << LOG_KV("committedIndex", m_config->committedProposal()->index())
+                          << LOG_KV("recvIndex", _checkPointMsg->index())
+                          << LOG_KV("hash", _checkPointMsg->hash().abridged());
+        return false;
+    }
+    // check signature
+    auto result = checkSignature(_checkPointMsg);
+    if (result == CheckResult::INVALID)
+    {
+        PBFT_LOG(WARNING) << LOG_DESC("handleCheckPointMsg: invalid signature")
+                          << printPBFTMsgInfo(_checkPointMsg);
+        return false;
+    }
+    PBFT_LOG(INFO) << LOG_DESC(
+        "handleCheckPointMsg: try to add the checkpoint message into the cache");
+    m_cacheProcessor->addCheckPointMsg(_checkPointMsg);
+    m_cacheProcessor->checkAndCommitStableCheckPoint();
+    return true;
 }

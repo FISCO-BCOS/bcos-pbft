@@ -117,6 +117,7 @@ public:
 
     virtual void setCheckPointProposal(PBFTProposalInterface::Ptr _proposal);
     virtual void addCheckPointMsg(PBFTMessageInterface::Ptr _checkPointMsg);
+    virtual void checkAndCommitStableCheckPoint();
 
 protected:
     virtual void updateCommitQueue(PBFTMessageInterface::Ptr _committedMessage);

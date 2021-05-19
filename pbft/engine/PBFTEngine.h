@@ -103,6 +103,9 @@ protected:
     virtual bool isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
     virtual void reachNewView();
 
+    // handle the checkpoint message
+    virtual bool handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _checkPointMsg);
+
     // function called after reaching a consensus
     virtual void finalizeConsensus(std::shared_ptr<bcos::ledger::LedgerConfig> _ledgerConfig);
 
