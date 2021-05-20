@@ -32,4 +32,4 @@ add_library(${BCOS_PBFT_TARGET} ${SRC_LIST} ${PROTO_SRCS} ${HEADERS} ${PROTO_HDR
 
 target_compile_options(${BCOS_PBFT_TARGET} PRIVATE -Wno-error -Wno-unused-variable)
 find_package(Protobuf CONFIG REQUIRED)
-target_link_libraries(${BCOS_PBFT_TARGET} PUBLIC ${BCOS_CONSENSUS_CORE_TARGET} protobuf::libprotobuf)
+target_link_libraries(${BCOS_PBFT_TARGET} PUBLIC ${BCOS_CONSENSUS_CORE_TARGET} protobuf::libprotobuf bcos-framework::tool)

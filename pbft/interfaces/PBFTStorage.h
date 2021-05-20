@@ -40,8 +40,10 @@ public:
     // TODO: get the latest precommited proposal from the storage
     // TODO: get the latest committed proposal from the storage
     virtual PBFTMessageInterface::Ptr asyncGetCommittedProposals(
-        bcos::protocol::BlockNumber _startIndex, int64_t _offset,
-        std::function<void(PBFTProposalList const&)> _callback) = 0;
+        bcos::protocol::BlockNumber, int64_t, std::function<void(PBFTProposalList const&)>)
+    {
+        return nullptr;
+    }
 
     virtual void registerConfigResetHandler(
         std::function<void(bcos::ledger::LedgerConfig::Ptr)> _resetConfigHandler) = 0;

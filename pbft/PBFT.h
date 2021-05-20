@@ -29,9 +29,12 @@ namespace consensus
 class PBFT : public ConsensusInterface
 {
 public:
-    using Ptr = std::make_shared<PBFT>;
+    using Ptr = std::shared_ptr<PBFT>;
     explicit PBFT(PBFTEngine::Ptr _pbftEngine) : m_pbftEngine(_pbftEngine) {}
-    virtual ~PBFT() {}
+    virtual ~PBFT() { stop(); }
+
+    void start() override { m_pbftEngine->start(); }
+    void stop() override { m_pbftEngine->stop(); }
 
     void asyncSubmitProposal(bytesConstRef _proposalData,
         bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash,
@@ -52,11 +55,11 @@ public:
         std::function<void(Error::Ptr _error)> _onRecv) override
     {
         m_pbftEngine->onReceivePBFTMessage(_error, _nodeID, _data, _sendResponse);
-        _onRecv(std::make_shared<Error>(bcos::protocol::CommonError::SUCCESS, "success");
+        _onRecv(std::make_shared<Error>(bcos::protocol::CommonError::SUCCESS, "success"));
     }
 
 private:
     PBFTEngine::Ptr m_pbftEngine;
-}
+};
 }  // namespace consensus
 }  // namespace bcos

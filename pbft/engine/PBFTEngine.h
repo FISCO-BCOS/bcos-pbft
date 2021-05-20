@@ -52,6 +52,7 @@ enum CheckResult
 class PBFTEngine : public ConsensusEngine, public std::enable_shared_from_this<PBFTEngine>
 {
 public:
+    using Ptr = std::shared_ptr<PBFTEngine>;
     explicit PBFTEngine(std::shared_ptr<PBFTConfig> _config);
     ~PBFTEngine() override { stop(); }
 
