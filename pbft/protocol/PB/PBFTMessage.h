@@ -75,7 +75,7 @@ public:
     PBFTProposalList const& proposals() const override { return *m_proposals; }
 
     void setConsensusProposal(PBFTProposalInterface::Ptr _consensusProposal) override;
-    PBFTProposalInterface::Ptr consensusProposal() override { return m_consensusProposal;}
+    PBFTProposalInterface::Ptr consensusProposal() override { return m_consensusProposal; }
 
     virtual void decodeAndSetSignature(
         bcos::crypto::CryptoSuite::Ptr _pbftConfig, bytesConstRef _data);

@@ -20,7 +20,6 @@
  */
 #include "PBFTFactory.h"
 #include "core/StateMachine.h"
-#include "pbft/PBFT.h"
 #include "pbft/engine/Validator.h"
 #include "pbft/protocol/PB/PBFTCodec.h"
 #include "pbft/protocol/PB/PBFTMessageFactoryImpl.h"
@@ -48,20 +47,26 @@ PBFTFactory::PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
     auto pbftMessageFactory = std::make_shared<PBFTMessageFactoryImpl>();
     PBFT_LOG(DEBUG) << LOG_DESC("create PBFTCodec");
     auto pbftCodec = std::make_shared<PBFTCodec>(_keyPair, _cryptoSuite, pbftMessageFactory);
+
     PBFT_LOG(DEBUG) << LOG_DESC("create PBFT validator");
     auto validator = std::make_shared<TxsValidator>(_txpool, _blockFactory);
+
     PBFT_LOG(DEBUG) << LOG_DESC("create StateMachine");
     auto stateMachine = std::make_shared<StateMachine>(_dispatcher, _blockFactory);
+
     PBFT_LOG(DEBUG) << LOG_DESC("create pbftStorage");
-    auto pbftStorage = std::make_shared<LedgerStorage>(_ledger, _storage, _blockFactory);
+    auto pbftStorage =
+        std::make_shared<LedgerStorage>(_ledger, _storage, _blockFactory, pbftMessageFactory);
 
     PBFT_LOG(DEBUG) << LOG_DESC("create pbftConfig");
     m_pbftConfig = std::make_shared<PBFTConfig>(_cryptoSuite, _keyPair, pbftMessageFactory,
         pbftCodec, validator, _frontService, _sealer, stateMachine, pbftStorage);
+
     PBFT_LOG(DEBUG) << LOG_DESC("create PBFTEngine");
-    auto pbftEngine = std::make_shared<PBFTEngine>(m_pbftConfig);
+    m_pbftEngine = std::make_shared<PBFTEngine>(m_pbftConfig);
+
     PBFT_LOG(INFO) << LOG_DESC("create PBFT");
-    m_pbft = std::make_shared<PBFT>(pbftEngine);
+    m_pbft = std::make_shared<PBFT>(m_pbftEngine);
     PBFT_LOG(INFO) << LOG_DESC("create PBFT success");
 }
 
@@ -81,5 +86,16 @@ void PBFTFactory::init()
                    << LOG_KV(
                           "maxTxsPerBlock", m_ledgerFetcher->ledgerConfig()->blockTxCountLimit());
     m_pbftConfig->resetConfig(m_ledgerFetcher->ledgerConfig());
-    // TODO: init the PBFTState
+
+    PBFT_LOG(INFO) << LOG_DESC("fetch PBFT state");
+    auto stateProposals =
+        m_pbftConfig->storage()->loadState(m_ledgerFetcher->ledgerConfig()->blockNumber());
+    if (stateProposals)
+    {
+        PBFT_LOG(INFO) << LOG_DESC("init PBFT state")
+                       << LOG_KV("stateProposals", stateProposals->size());
+        m_pbftConfig->setProgressedIndex(m_pbftConfig->storage()->maxCommittedProposalIndex() + 1);
+        m_pbftEngine->initState(stateProposals);
+    }
+    PBFT_LOG(INFO) << LOG_DESC("init PBFT success");
 }

@@ -34,17 +34,14 @@ public:
     PBFTStorage() = default;
     virtual ~PBFTStorage() {}
 
+    virtual PBFTProposalListPtr loadState(bcos::protocol::BlockNumber _stabledIndex) = 0;
+    virtual int64_t maxCommittedProposalIndex() = 0;
     virtual void asyncCommitProposal(PBFTProposalInterface::Ptr _commitProposal) = 0;
     virtual void asyncCommmitStableCheckPoint(PBFTProposalInterface::Ptr _stableProposal) = 0;
 
-    // TODO: get the latest precommited proposal from the storage
-    // TODO: get the latest committed proposal from the storage
-    virtual PBFTMessageInterface::Ptr asyncGetCommittedProposals(
-        bcos::protocol::BlockNumber, int64_t, std::function<void(PBFTProposalList const&)>)
-    {
-        return nullptr;
-    }
-
+    // get the latest committed proposal from the storage
+    virtual void asyncGetCommittedProposals(bcos::protocol::BlockNumber _start, size_t _offset,
+        std::function<void(PBFTProposalListPtr)> _onSuccess) = 0;
     virtual void registerConfigResetHandler(
         std::function<void(bcos::ledger::LedgerConfig::Ptr)> _resetConfigHandler) = 0;
 

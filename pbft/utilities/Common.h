@@ -23,6 +23,9 @@
 #include <stdint.h>
 
 #define PBFT_LOG(LEVEL) LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("PBFT")
+#define PBFT_STORAGE_LOG(LEVEL) \
+    LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("PBFT") << LOG_BADGE("STORAGE")
+
 namespace bcos
 {
 namespace consensus
@@ -41,5 +44,6 @@ enum PacketType : uint32_t
     CheckPoint = 0x9,
 };
 DERIVE_BCOS_EXCEPTION(UnknownPBFTMsgType);
+DERIVE_BCOS_EXCEPTION(InitPBFTException);
 }  // namespace consensus
 }  // namespace bcos

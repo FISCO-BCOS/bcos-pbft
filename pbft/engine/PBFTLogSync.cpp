@@ -157,10 +157,10 @@ void PBFTLogSync::onReceiveCommittedProposalRequest(
                     << LOG_KV("fromIndex", pbftRequest->index())
                     << LOG_KV("size", pbftRequest->size());
     m_config->storage()->asyncGetCommittedProposals(pbftRequest->index(), pbftRequest->size(),
-        [this, _sendResponse](PBFTProposalList const& _proposalList) {
+        [this, _sendResponse](PBFTProposalListPtr _proposalList) {
             auto pbftMessage = m_config->pbftMessageFactory()->createPBFTMsg();
             pbftMessage->setPacketType(PacketType::CommittedProposalResponse);
-            pbftMessage->setProposals(_proposalList);
+            pbftMessage->setProposals(*_proposalList);
             auto encodedData = m_config->codec()->encode(pbftMessage);
             _sendResponse(ref(*encodedData));
         });

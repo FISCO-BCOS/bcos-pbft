@@ -50,6 +50,7 @@ public:
 
 private:
     ConsensusInterface::Ptr m_pbft;
+    PBFTEngine::Ptr m_pbftEngine;
     PBFTConfig::Ptr m_pbftConfig;
     bcos::tool::LedgerConfigFetcher::Ptr m_ledgerFetcher;
 };
