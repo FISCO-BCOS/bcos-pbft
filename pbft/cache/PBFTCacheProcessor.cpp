@@ -24,6 +24,13 @@
 using namespace bcos;
 using namespace bcos::consensus;
 using namespace bcos::protocol;
+void PBFTCacheProcessor::initState(PBFTProposalListPtr _proposals)
+{
+    for (auto proposal : *_proposals)
+    {
+        updateCommitQueue(proposal);
+    }
+}
 // Note: please ensure the passed in _prePrepareMsg not be modified after addPrePrepareCache
 void PBFTCacheProcessor::addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepareMsg)
 {
@@ -108,7 +115,7 @@ void PBFTCacheProcessor::checkAndPreCommit()
         {
             continue;
         }
-        updateCommitQueue(it.second->preCommitCache());
+        updateCommitQueue(it.second->preCommitCache()->consensusProposal());
     }
 }
 
@@ -121,27 +128,27 @@ void PBFTCacheProcessor::checkAndCommit()
         {
             continue;
         }
-        updateCommitQueue(it.second->preCommitCache());
+        updateCommitQueue(it.second->preCommitCache()->consensusProposal());
     }
 }
 
-void PBFTCacheProcessor::updateCommitQueue(PBFTMessageInterface::Ptr _committedMessage)
+void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal)
 {
-    assert(_committedMessage);
-    m_committedQueue.push(_committedMessage);
+    assert(_committedProposal);
+    m_committedQueue.push(_committedProposal);
     PBFT_LOG(DEBUG) << LOG_DESC("updateCommitQueue: push committed proposal into the commitQueue")
-                    << LOG_KV("index", _committedMessage->consensusProposal()->index());
+                    << LOG_KV("index", _committedProposal->index());
 
-    while (m_committedQueue.top()->consensusProposal()->index() < m_config->expectedCheckPoint())
+    while (m_committedQueue.top()->index() < m_config->expectedCheckPoint())
     {
         PBFT_LOG(DEBUG) << LOG_DESC("updateCommitQueue: remove invalid proposal")
-                        << LOG_KV("index", m_committedQueue.top()->consensusProposal()->index());
+                        << LOG_KV("index", m_committedQueue.top()->index());
         m_committedQueue.pop();
     }
     // try to execute the proposal
-    while (m_committedQueue.top()->consensusProposal()->index() == m_config->expectedCheckPoint())
+    while (m_committedQueue.top()->index() == m_config->expectedCheckPoint())
     {
-        auto proposal = m_committedQueue.top()->consensusProposal();
+        auto proposal = m_committedQueue.top();
         applyStateMachine(proposal);
         m_config->setExpectedCheckPoint(proposal->index() + 1);
         // commit the proposal

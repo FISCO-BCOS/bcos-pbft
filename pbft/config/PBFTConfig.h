@@ -107,7 +107,7 @@ public:
     void setCommittedProposal(ProposalInterface::Ptr _committedProposal) override
     {
         ConsensusConfig::setCommittedProposal(_committedProposal);
-        m_expectedCheckPoint = m_progressedIndex;
+        m_expectedCheckPoint = _committedProposal->index() + 1;
     }
 
     int64_t expectedCheckPoint() { return m_expectedCheckPoint; }

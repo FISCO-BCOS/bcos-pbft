@@ -71,6 +71,7 @@ public:
     }
 
     virtual bool checkAndCommitStableCheckPoint();
+    virtual void onCheckPointTimeout();
 
 private:
     bool checkPrePrepareProposalStatus();
@@ -160,6 +161,8 @@ private:
     PBFTProposalInterface::Ptr m_checkpointProposal = nullptr;
     CollectionCacheType m_checkpointCacheList;
     QuorumRecoderType m_checkpointCacheWeight;
+
+    PBFTTimer::Ptr m_timer;
 };
 }  // namespace consensus
 }  // namespace bcos

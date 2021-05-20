@@ -27,7 +27,28 @@ using namespace bcos::crypto;
 
 PBFTCache::PBFTCache(PBFTConfig::Ptr _config, BlockNumber _index)
   : m_config(_config), m_index(_index)
-{}
+{
+    // Timer is used to manage checkpoint timeout
+    // TODO: adjust the timer to configurable
+    m_timer = std::make_shared<PBFTTimer>(3000);
+    // register the timeout function
+    m_timer->registerTimeoutHandler(boost::bind(&PBFTCache::onCheckPointTimeout, this));
+}
+
+void PBFTCache::onCheckPointTimeout()
+{
+    PBFT_LOG(WARNING) << LOG_DESC("onCheckPointTimeout: resend the checkpoint message package")
+                      << LOG_KV("index", m_checkpointProposal->index())
+                      << LOG_KV("hash", m_checkpointProposal->hash().abridged());
+    auto checkPointMsg = m_config->pbftMessageFactory()->populateFrom(PacketType::CheckPoint,
+        m_config->pbftMsgDefaultVersion(), m_config->view(), utcTime(), m_config->nodeIndex(),
+        m_checkpointProposal, m_config->cryptoSuite(), m_config->keyPair(), true);
+    auto encodedData = m_config->codec()->encode(checkPointMsg);
+    m_config->frontService()->asyncSendMessageByNodeIDs(
+        ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
+    checkAndCommitStableCheckPoint();
+    m_timer->restart();
+}
 
 bool PBFTCache::existPrePrepare(PBFTMessageInterface::Ptr _prePrepareMsg)
 {
@@ -235,6 +256,7 @@ void PBFTCache::resetCache(ViewType _curView)
 
 void PBFTCache::setCheckPointProposal(PBFTProposalInterface::Ptr _proposal)
 {
+    m_timer->start();
     // expired checkpoint proposal
     if (_proposal->index() <= m_config->committedProposal()->index())
     {
@@ -264,6 +286,7 @@ bool PBFTCache::checkAndCommitStableCheckPoint()
     }
     setSignatureList(m_checkpointProposal, m_checkpointCacheList);
     m_stableCommitted = true;
+    m_timer->stop();
     PBFT_LOG(INFO) << LOG_DESC("checkAndCommitStableCheckPoint")
                    << LOG_KV("index", m_checkpointProposal->index())
                    << LOG_KV("hash", m_checkpointProposal->hash().abridged());

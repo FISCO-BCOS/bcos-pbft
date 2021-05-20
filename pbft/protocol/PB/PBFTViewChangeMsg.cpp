@@ -19,8 +19,8 @@
  * @date 2021-04-15
  */
 #include "PBFTViewChangeMsg.h"
-#include "PBFTProposal.h"
 #include "PBFTMessage.h"
+#include "PBFTProposal.h"
 #include "pbft/protocol/proto/PBFT.pb.h"
 #include <bcos-framework/libprotocol/Common.h>
 
@@ -78,8 +78,7 @@ void PBFTViewChangeMsg::deserializeToObject()
     m_committedProposal = std::make_shared<PBFTProposal>(rawCommittedProposal);
     for (int i = 0; i < m_rawViewChange->preparedproposals_size(); i++)
     {
-        std::shared_ptr<PBFTRawMessage> preparedMsg(
-            m_rawViewChange->mutable_preparedproposals(i));
+        std::shared_ptr<PBFTRawMessage> preparedMsg(m_rawViewChange->mutable_preparedproposals(i));
         m_preparedProposalList->push_back(std::make_shared<PBFTMessage>(preparedMsg));
     }
 }

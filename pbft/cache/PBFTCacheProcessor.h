@@ -29,12 +29,12 @@ namespace bcos
 {
 namespace consensus
 {
-struct PBFTMessageCmp
+struct PBFTProposalCmp
 {
-    bool operator()(PBFTMessageInterface::Ptr _first, PBFTMessageInterface::Ptr _second)
+    bool operator()(PBFTProposalInterface::Ptr _first, PBFTProposalInterface::Ptr _second)
     {
         // increase order
-        return _first->consensusProposal()->index() > _second->consensusProposal()->index();
+        return _first->index() > _second->index();
     }
 };
 
@@ -45,6 +45,7 @@ public:
     explicit PBFTCacheProcessor(PBFTConfig::Ptr _config) : m_config(_config) {}
 
     virtual ~PBFTCacheProcessor() {}
+    virtual void initState(PBFTProposalListPtr _committedProposals);
 
     virtual void addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepareMsg);
     virtual bool existPrePrepare(PBFTMessageInterface::Ptr _prePrepareMsg);
@@ -120,7 +121,7 @@ public:
     virtual void checkAndCommitStableCheckPoint();
 
 protected:
-    virtual void updateCommitQueue(PBFTMessageInterface::Ptr _committedMessage);
+    virtual void updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal);
     virtual void applyStateMachine(PBFTProposalInterface::Ptr _proposal);
 
 private:
@@ -147,8 +148,8 @@ private:
     std::map<ViewType, int64_t> m_maxCommittedIndex;
     std::map<ViewType, int64_t> m_maxPrecommitIndex;
 
-    std::priority_queue<PBFTMessageInterface::Ptr, std::vector<PBFTMessageInterface::Ptr>,
-        PBFTMessageCmp>
+    std::priority_queue<PBFTProposalInterface::Ptr, std::vector<PBFTProposalInterface::Ptr>,
+        PBFTProposalCmp>
         m_committedQueue;
 };
 }  // namespace consensus

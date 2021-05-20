@@ -19,6 +19,7 @@
  * @date 2021-04-26
  */
 #pragma once
+#include "pbft/interfaces/PBFTMessageFactory.h"
 #include "pbft/interfaces/PBFTStorage.h"
 #include <bcos-framework/interfaces/ledger/LedgerInterface.h>
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
@@ -35,16 +36,18 @@ public:
     using Ptr = std::shared_ptr<LedgerStorage>;
     LedgerStorage(std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
         bcos::storage::StorageInterface::Ptr _storage,
-        bcos::protocol::BlockFactory::Ptr _blockFactory)
+        bcos::protocol::BlockFactory::Ptr _blockFactory, PBFTMessageFactory::Ptr _messageFactory)
       : m_ledger(_ledger),
         m_storage(_storage),
         m_blockFactory(_blockFactory),
+        m_messageFactory(_messageFactory),
         m_maxCommittedProposalKey(std::make_shared<std::string>()),
         m_pbftCommitDB(std::make_shared<std::string>())
     {
         *m_maxCommittedProposalKey = "max_committed_proposal";
         *m_pbftCommitDB = "pbftCommitDB";
     }
+    PBFTProposalListPtr loadState(bcos::protocol::BlockNumber _stabledIndex) override;
 
     // commit the committed proposal into the kv-storage
     void asyncCommitProposal(PBFTProposalInterface::Ptr _proposal) override;
@@ -62,6 +65,11 @@ public:
         m_finalizeHandler = _finalizeHandler;
     }
 
+    void asyncGetCommittedProposals(bcos::protocol::BlockNumber _start, size_t _offset,
+        std::function<void(PBFTProposalListPtr)> _onSuccess) override;
+
+    int64_t maxCommittedProposalIndex() override { return m_maxCommittedProposalIndex; }
+
 protected:
     virtual void asyncPutProposal(std::shared_ptr<std::string> _dbName,
         std::shared_ptr<std::string> _key, bytesPointer _committedData,
@@ -72,17 +80,27 @@ protected:
     virtual void asyncRemoveStabledCheckPoint(size_t _stabledCheckPointIndex);
 
     virtual void asyncCommitStableCheckPoint(bcos::protocol::BlockHeader::Ptr _blockHeader);
+    virtual void asyncGetLatestCommittedProposalIndex();
 
 protected:
     std::shared_ptr<bcos::ledger::LedgerInterface> m_ledger;
     bcos::storage::StorageInterface::Ptr m_storage;
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
+    PBFTMessageFactory::Ptr m_messageFactory;
 
     std::shared_ptr<std::string> m_maxCommittedProposalKey;
     std::shared_ptr<std::string> m_pbftCommitDB;
 
 
     std::atomic<int64_t> m_maxCommittedProposalIndex = {0};
+    std::atomic_bool m_maxCommittedProposalIndexFetched = {false};
+
+    PBFTProposalListPtr m_stateProposals = nullptr;
+    std::atomic_bool m_stateFetched = {false};
+    size_t m_timeout = 10000;
+    boost::condition_variable m_signalled;
+    boost::mutex x_signalled;
+
     std::function<void(bcos::ledger::LedgerConfig::Ptr)> m_resetConfigHandler;
     std::function<void(bcos::ledger::LedgerConfig::Ptr)> m_finalizeHandler;
 };

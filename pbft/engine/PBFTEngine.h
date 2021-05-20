@@ -69,6 +69,11 @@ public:
     virtual void onReceivePBFTMessage(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
         bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse);
 
+    virtual void initState(PBFTProposalListPtr _proposals)
+    {
+        m_cacheProcessor->initState(_proposals);
+    }
+
 protected:
     virtual void onRecvProposal(bytesConstRef _proposalData,
         bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash);

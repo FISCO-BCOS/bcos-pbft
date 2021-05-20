@@ -63,7 +63,11 @@ public:
     {
         WriteGuard l(x_committedProposal);
         m_committedProposal = _committedProposal;
-        m_progressedIndex = m_committedProposal->index() + 1;
+        auto index = m_committedProposal->index() + 1;
+        if (m_progressedIndex < index)
+        {
+            m_progressedIndex = index;
+        }
     }
 
     ProposalInterface::ConstPtr committedProposal() override
@@ -73,6 +77,10 @@ public:
     }
 
     virtual bcos::protocol::BlockNumber progressedIndex() { return m_progressedIndex; }
+    virtual void setProgressedIndex(bcos::protocol::BlockNumber _progressedIndex)
+    {
+        m_progressedIndex = _progressedIndex;
+    }
 
     virtual void updateQuorum() = 0;
     IndexType getNodeIndexByNodeID(bcos::crypto::PublicPtr _nodeID);
