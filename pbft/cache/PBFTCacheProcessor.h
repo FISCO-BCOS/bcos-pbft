@@ -119,10 +119,12 @@ public:
     virtual void setCheckPointProposal(PBFTProposalInterface::Ptr _proposal);
     virtual void addCheckPointMsg(PBFTMessageInterface::Ptr _checkPointMsg);
     virtual void checkAndCommitStableCheckPoint();
+    virtual void tryToCommitStableCheckPoint();
 
 protected:
     virtual void updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal);
     virtual void applyStateMachine(PBFTProposalInterface::Ptr _proposal);
+    virtual void updateStableCheckPointQueue(PBFTProposalInterface::Ptr _stableCheckPoint);
 
 private:
     using PBFTCachesType = std::map<bcos::protocol::BlockNumber, PBFTCache::Ptr>;
@@ -151,6 +153,10 @@ private:
     std::priority_queue<PBFTProposalInterface::Ptr, std::vector<PBFTProposalInterface::Ptr>,
         PBFTProposalCmp>
         m_committedQueue;
+
+    std::priority_queue<PBFTProposalInterface::Ptr, std::vector<PBFTProposalInterface::Ptr>,
+        PBFTProposalCmp>
+        m_stableCheckPointQueue;
 };
 }  // namespace consensus
 }  // namespace bcos

@@ -65,6 +65,8 @@ public:
     virtual void resetCache(ViewType _curView);
 
     virtual void setCheckPointProposal(PBFTProposalInterface::Ptr _proposal);
+    PBFTProposalInterface::Ptr checkPointProposal() { return m_checkpointProposal; }
+
     virtual void addCheckPointMsg(PBFTMessageInterface::Ptr _checkPointMsg)
     {
         addCache(m_checkpointCacheList, m_checkpointCacheWeight, _checkPointMsg);

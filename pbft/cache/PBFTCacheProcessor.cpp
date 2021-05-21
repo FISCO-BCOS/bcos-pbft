@@ -504,6 +504,43 @@ void PBFTCacheProcessor::checkAndCommitStableCheckPoint()
 {
     for (auto const& it : m_caches)
     {
-        it.second->checkAndCommitStableCheckPoint();
+        auto ret = it.second->checkAndCommitStableCheckPoint();
+        if (!ret)
+        {
+            continue;
+        }
+        updateStableCheckPointQueue(it.second->checkPointProposal());
+    }
+}
+
+void PBFTCacheProcessor::updateStableCheckPointQueue(PBFTProposalInterface::Ptr _stableCheckPoint)
+{
+    assert(_stableCheckPoint);
+    m_stableCheckPointQueue.push(_stableCheckPoint);
+    PBFT_LOG(DEBUG) << LOG_DESC("updateStableCheckPointQueue: insert new checkpoint proposal")
+                    << LOG_KV("index", _stableCheckPoint->index())
+                    << LOG_KV("hash", _stableCheckPoint->hash().abridged())
+                    << LOG_KV("curCommittedIndex", m_config->committedProposal()->index());
+    tryToCommitStableCheckPoint();
+}
+
+void PBFTCacheProcessor::tryToCommitStableCheckPoint()
+{
+    // remove the invalid checkpoint
+    while (m_stableCheckPointQueue.top()->index() <= m_config->committedProposal()->index())
+    {
+        PBFT_LOG(DEBUG) << LOG_DESC("updateStableCheckPointQueue: remove invalid checkpoint")
+                        << LOG_KV("index", m_stableCheckPointQueue.top()->index())
+                        << LOG_KV("committedIndex", m_config->committedProposal()->index());
+        m_stableCheckPointQueue.pop();
+    }
+    // submit stable-checkpoint to ledger in ordeer
+    if (m_stableCheckPointQueue.top()->index() == m_config->committedProposal()->index() + 1)
+    {
+        PBFT_LOG(DEBUG) << LOG_DESC("updateStableCheckPointQueue: commit stable checkpoint")
+                        << LOG_KV("index", m_stableCheckPointQueue.top()->index())
+                        << LOG_KV("committedIndex", m_config->committedProposal()->index());
+        m_config->storage()->asyncCommmitStableCheckPoint(m_stableCheckPointQueue.top());
+        m_stableCheckPointQueue.pop();
     }
 }

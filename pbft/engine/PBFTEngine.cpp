@@ -650,6 +650,8 @@ void PBFTEngine::finalizeConsensus(LedgerConfig::Ptr _ledgerConfig)
                     << LOG_KV("nodeIdx", m_config->nodeIndex()) << LOG_KV("view", m_config->view())
                     << LOG_KV("hash", _ledgerConfig->hash().abridged());
     Guard l(m_mutex);
+    // tried to commit the stable checkpoint
+    m_cacheProcessor->tryToCommitStableCheckPoint();
     m_cacheProcessor->removeConsensusedCache(m_config->view(), _ledgerConfig->blockNumber());
 }
 
