@@ -128,7 +128,7 @@ void LedgerStorage::asyncGetCommittedProposals(bcos::protocol::BlockNumber _star
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
     m_storage->asyncGetBatch(m_pbftCommitDB, keys,
         [self, _onSuccess](Error::Ptr _error, std::shared_ptr<std::vector<std::string>> _values) {
-            if (_error->errorCode() != CommonError::SUCCESS)
+            if (_error != nullptr)
             {
                 PBFT_STORAGE_LOG(WARNING)
                     << LOG_DESC("asyncGetCommittedProposals: get proposals failed")
@@ -168,7 +168,7 @@ void LedgerStorage::asyncGetLatestCommittedProposalIndex()
     m_storage->asyncGet(m_pbftCommitDB, m_maxCommittedProposalKey,
         [self](Error::Ptr _error, const std::string& _value) {
             // TODO: Run different processing logic according to different error codes
-            if (_error->errorCode() != CommonError::SUCCESS)
+            if (_error != nullptr)
             {
                 PBFT_STORAGE_LOG(WARNING) << LOG_DESC("asyncGetLatestCommittedProposalIndex failed")
                                           << LOG_KV("errorCode", _error->errorCode())
@@ -230,7 +230,7 @@ void LedgerStorage::asyncPutProposal(std::shared_ptr<std::string> _dbName,
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
     m_storage->asyncPut(_dbName, _key, _committedData,
         [_dbName, _committedData, _key, _proposalIndex, self](Error::Ptr _error) {
-            if (_error->errorCode() == bcos::protocol::CommonError::SUCCESS)
+            if (_error == nullptr)
             {
                 PBFT_STORAGE_LOG(INFO)
                     << LOG_DESC("asyncPutProposal: commit success") << LOG_KV("dbName", _dbName)
@@ -289,7 +289,7 @@ void LedgerStorage::asyncCommitStableCheckPoint(BlockHeader::Ptr _blockHeader)
                 {
                     return;
                 }
-                if (_error->errorCode() != CommonError::SUCCESS)
+                if (_error != nullptr)
                 {
                     PBFT_STORAGE_LOG(ERROR) << LOG_DESC("asyncCommitStableCheckPoint failed")
                                             << LOG_KV("errorCode", _error->errorCode())
@@ -335,7 +335,7 @@ void LedgerStorage::asyncRemove(
     std::shared_ptr<std::string> _dbName, std::shared_ptr<std::string> _key)
 {
     m_storage->asyncRemove(_dbName, _key, [_dbName, _key](Error::Ptr _error) {
-        if (_error->errorCode() == bcos::protocol::CommonError::SUCCESS)
+        if (_error == nullptr)
         {
             PBFT_STORAGE_LOG(INFO) << LOG_DESC("asyncRemove success") << LOG_KV("dbName", _dbName)
                                    << LOG_KV("key", _key);

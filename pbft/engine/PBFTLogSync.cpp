@@ -19,7 +19,6 @@
  * @date 2021-04-28
  */
 #include "PBFTLogSync.h"
-#include <bcos-framework/interfaces/protocol/CommonError.h>
 #include <bcos-framework/interfaces/protocol/Protocol.h>
 
 using namespace bcos;
@@ -94,7 +93,7 @@ void PBFTLogSync::requestPBFTData(
 void PBFTLogSync::onRecvCommittedProposalsResponse(
     Error::Ptr _error, NodeIDPtr _nodeID, bytesConstRef _data, SendResponseCallback)
 {
-    if (_error->errorCode() != CommonError::SUCCESS)
+    if (_error != nullptr)
     {
         PBFT_LOG(WARNING) << LOG_DESC("onRecvCommittedProposalResponse error")
                           << LOG_KV("from", _nodeID->shortHex())
@@ -171,7 +170,7 @@ void PBFTLogSync::onRecvPrecommitResponse(Error::Ptr _error, bcos::crypto::NodeI
     bytesConstRef _data, PBFTMessageInterface::Ptr _prePrepareMsg,
     HandlePrePrepareCallback _prePrepareCallback, SendResponseCallback)
 {
-    if (_error->errorCode() != CommonError::SUCCESS)
+    if (_error != nullptr)
     {
         PBFT_LOG(WARNING) << LOG_DESC("onRecvPrecommitResponse error")
                           << LOG_KV("from", _nodeID->shortHex())

@@ -20,7 +20,6 @@
  */
 #include "StateMachine.h"
 #include "Common.h"
-#include <bcos-framework/interfaces/protocol/CommonError.h>
 
 using namespace bcos;
 using namespace bcos::consensus;
@@ -60,7 +59,7 @@ void StateMachine::asyncApply(ProposalInterface::ConstPtr _committedProposal,
             {
                 return;
             }
-            if (_error->errorCode() != CommonError::SUCCESS)
+            if (_error != nullptr)
             {
                 CONSENSUS_LOG(WARNING)
                     << LOG_DESC("asyncExecuteBlock failed") << LOG_KV("number", blockNumber)

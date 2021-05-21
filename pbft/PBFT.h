@@ -21,7 +21,6 @@
 #pragma once
 #include "pbft/engine/PBFTEngine.h"
 #include <bcos-framework/interfaces/consensus/ConsensusInterface.h>
-#include <bcos-framework/interfaces/protocol/CommonError.h>
 namespace bcos
 {
 namespace consensus
@@ -47,7 +46,7 @@ public:
     void asyncGetPBFTView(std::function<void(Error::Ptr, ViewType)> _onGetView) override
     {
         auto view = m_pbftEngine->pbftConfig()->view();
-        _onGetView(std::make_shared<Error>(bcos::protocol::CommonError::SUCCESS, "success"), view);
+        _onGetView(nullptr, view);
     }
 
     void asyncNotifyConsensusMessage(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
@@ -55,7 +54,7 @@ public:
         std::function<void(Error::Ptr _error)> _onRecv) override
     {
         m_pbftEngine->onReceivePBFTMessage(_error, _nodeID, _data, _sendResponse);
-        _onRecv(std::make_shared<Error>(bcos::protocol::CommonError::SUCCESS, "success"));
+        _onRecv(nullptr);
     }
 
 private:

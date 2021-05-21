@@ -19,7 +19,6 @@
  * @date 2021-04-21
  */
 #include "Validator.h"
-#include <bcos-framework/interfaces/protocol/CommonError.h>
 using namespace bcos;
 using namespace bcos::consensus;
 using namespace bcos::crypto;
@@ -59,7 +58,7 @@ void TxsValidator::asyncResetTxsFlag(PBFTProposalInterface::Ptr _proposal, bool 
 void TxsValidator::asyncResetTxsFlag(HashListPtr _txsHashList, bool _flag)
 {
     m_txPool->asyncMarkTxs(_txsHashList, _flag, [this, _txsHashList, _flag](Error::Ptr _error) {
-        if (_error->errorCode() == CommonError::SUCCESS)
+        if (_error == nullptr)
         {
             PBFT_LOG(DEBUG) << LOG_DESC("asyncMarkTxs success");
             return;

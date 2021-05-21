@@ -25,7 +25,6 @@
 #include "pbft/protocol/PB/PBFTMessageFactoryImpl.h"
 #include "pbft/storage/LedgerStorage.h"
 #include "pbft/utilities/Common.h"
-#include <bcos-framework/interfaces/protocol/CommonError.h>
 #include <bcos-framework/libsealer/Sealer.h>
 
 using namespace bcos;
