@@ -297,6 +297,5 @@ bool PBFTCache::checkAndCommitStableCheckPoint()
                           << LOG_KV("checkPointIndex", m_checkpointProposal->index());
         return false;
     }
-    m_config->storage()->asyncCommmitStableCheckPoint(m_checkpointProposal);
     return true;
 }
