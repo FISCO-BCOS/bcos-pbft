@@ -20,7 +20,6 @@
  */
 #include "PBFTEngine.h"
 #include "boost/bind.hpp"
-#include "interfaces/protocol/CommonError.h"
 #include "pbft/cache/PBFTCacheProcessor.h"
 #include <bcos-framework/interfaces/ledger/LedgerConfig.h>
 #include <bcos-framework/interfaces/protocol/Protocol.h>
@@ -78,7 +77,7 @@ void PBFTEngine::asyncSubmitProposal(bytesConstRef _proposalData, BlockNumber _p
                               << LOG_KV("error", boost::diagnostic_information(e));
         }
     });
-    _onProposalSubmitted(std::make_shared<Error>(CommonError::SUCCESS, "SUCCESS"));
+    _onProposalSubmitted(nullptr);
 }
 
 void PBFTEngine::onRecvProposal(
@@ -116,7 +115,7 @@ void PBFTEngine::onReceivePBFTMessage(Error::Ptr _error, NodeIDPtr _fromNode, by
 {
     try
     {
-        if (_error->errorCode() != CommonError::SUCCESS)
+        if (_error != nullptr)
         {
             return;
         }
@@ -339,7 +338,7 @@ bool PBFTEngine::handlePrePrepareMsg(
                     return;
                 }
                 // verify exceptioned
-                if (_error->errorCode() != CommonError::SUCCESS)
+                if (_error != nullptr)
                 {
                     PBFT_LOG(WARNING) << LOG_DESC("verify proposal exceptioned")
                                       << printPBFTMsgInfo(_prePrepareMsg)

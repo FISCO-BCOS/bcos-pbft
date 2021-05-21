@@ -19,7 +19,6 @@
  * @date 2021-04-12
  */
 #include "PBFTConfig.h"
-#include <bcos-framework/interfaces/protocol/CommonError.h>
 
 using namespace bcos;
 using namespace bcos::consensus;
@@ -78,7 +77,7 @@ void PBFTConfig::asyncNotifySealProposal(
     auto self = std::weak_ptr<PBFTConfig>(shared_from_this());
     m_sealer->asyncNotifySealProposal(_proposalIndex, _proposalEndIndex, _maxTxsToSeal,
         [_proposalIndex, _proposalEndIndex, _maxTxsToSeal, self](Error::Ptr _error) {
-            if (_error->errorCode() == CommonError::SUCCESS)
+            if (_error == nullptr)
             {
                 PBFT_LOG(INFO) << LOG_DESC("asyncNotifySealProposal success")
                                << LOG_KV("startIndex", _proposalIndex)
