@@ -18,7 +18,7 @@
  * @author: yujiechen
  * @date 2021-04-26
  */
-#include "core/Timer.h"
+#include <bcos-framework/libutilities/Timer.h>
 #include <bcos-framework/testutils/TestPromptFixture.h>
 #include <pbft/engine/PBFTTimer.h>
 #include <boost/test/unit_test.hpp>
