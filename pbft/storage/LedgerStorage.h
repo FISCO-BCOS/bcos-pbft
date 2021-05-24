@@ -39,13 +39,9 @@ public:
       : m_ledger(_ledger),
         m_storage(_storage),
         m_blockFactory(_blockFactory),
-        m_messageFactory(_messageFactory),
-        m_maxCommittedProposalKey(std::make_shared<std::string>()),
-        m_pbftCommitDB(std::make_shared<std::string>())
-    {
-        *m_maxCommittedProposalKey = "max_committed_proposal";
-        *m_pbftCommitDB = "pbftCommitDB";
-    }
+        m_messageFactory(_messageFactory)
+    {}
+
     PBFTProposalListPtr loadState(bcos::protocol::BlockNumber _stabledIndex) override;
 
     // commit the committed proposal into the kv-storage
@@ -70,12 +66,10 @@ public:
     int64_t maxCommittedProposalIndex() override { return m_maxCommittedProposalIndex; }
 
 protected:
-    virtual void asyncPutProposal(std::shared_ptr<std::string> _dbName,
-        std::shared_ptr<std::string> _key, bytesPointer _committedData,
-        bcos::protocol::BlockNumber _proposalIndex);
+    virtual void asyncPutProposal(std::string const& _dbName, std::string const& _key,
+        bytesPointer _committedData, bcos::protocol::BlockNumber _proposalIndex);
 
-    virtual void asyncRemove(
-        std::shared_ptr<std::string> _dbName, std::shared_ptr<std::string> _key);
+    virtual void asyncRemove(std::string const& _dbName, std::string const& _key);
     virtual void asyncRemoveStabledCheckPoint(size_t _stabledCheckPointIndex);
 
     virtual void asyncCommitStableCheckPoint(bcos::protocol::BlockHeader::Ptr _blockHeader);
@@ -87,8 +81,8 @@ protected:
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
     PBFTMessageFactory::Ptr m_messageFactory;
 
-    std::shared_ptr<std::string> m_maxCommittedProposalKey;
-    std::shared_ptr<std::string> m_pbftCommitDB;
+    std::string m_maxCommittedProposalKey = "max_committed_proposal";
+    std::string m_pbftCommitDB = "pbftCommitDB";
 
 
     std::atomic<int64_t> m_maxCommittedProposalIndex = {0};

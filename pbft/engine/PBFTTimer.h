@@ -32,26 +32,12 @@ public:
 
     ~PBFTTimer() override {}
 
-    void registerTimeoutHandler(std::function<void()> _timeoutHandler) override
-    {
-        m_timeoutHandler = _timeoutHandler;
-    }
-
     void updateChangeCycle(int64_t _changeCycle) { m_changeCycle = _changeCycle; }
     void incChangeCycle(int64_t _increasedValue) { m_changeCycle += _increasedValue; }
     void resetChangeCycle() { m_changeCycle = 0; }
     uint64_t changeCycle() const { return m_changeCycle; }
 
 protected:
-    // invoked everytime when reaches the timeout
-    void run() override
-    {
-        if (m_timeoutHandler)
-        {
-            m_timeoutHandler();
-        }
-    }
-
     uint64_t adjustTimeout() override
     {
         uint64_t timeout = m_timeout.load() * std::pow(m_base, m_changeCycle.load());
@@ -60,7 +46,6 @@ protected:
     }
 
 private:
-    std::function<void()> m_timeoutHandler;
     std::atomic<uint64_t> m_changeCycle = 0;
     double const m_base = 1.5;
 };
