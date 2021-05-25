@@ -93,6 +93,7 @@ public:
     }
     virtual uint64_t blockTxCountLimit() const { return m_blockTxCountLimit.load(); }
 
+
 protected:
     bcos::crypto::KeyPairInterface::Ptr m_keyPair;
     std::atomic<IndexType> m_nodeIndex;
