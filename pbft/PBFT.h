@@ -19,6 +19,7 @@
  * @date 2021-05-17
  */
 #pragma once
+#include "pbft/engine/BlockValidator.h"
 #include "pbft/engine/PBFTEngine.h"
 #include <bcos-framework/interfaces/consensus/ConsensusInterface.h>
 namespace bcos
@@ -29,7 +30,10 @@ class PBFT : public ConsensusInterface
 {
 public:
     using Ptr = std::shared_ptr<PBFT>;
-    explicit PBFT(PBFTEngine::Ptr _pbftEngine) : m_pbftEngine(_pbftEngine) {}
+    explicit PBFT(PBFTEngine::Ptr _pbftEngine) : m_pbftEngine(_pbftEngine)
+    {
+        m_blockValidator = std::make_shared<BlockValidator>(m_pbftEngine->pbftConfig());
+    }
     virtual ~PBFT() { stop(); }
 
     void start() override { m_pbftEngine->start(); }
@@ -57,8 +61,23 @@ public:
         _onRecv(nullptr);
     }
 
+    // the sync module calls this interface to check block
+    void asyncCheckBlock(bcos::protocol::Block::Ptr _block,
+        std::function<void(Error::Ptr, bool)> _onVerifyFinish) override
+    {
+        m_blockValidator->asyncCheckBlock(_block, _onVerifyFinish);
+    }
+
+    // the sync module calls this interface to notify new block
+    void asyncNotifyNewBlock(bcos::ledger::LedgerConfig::Ptr _ledgerConfig,
+        std::function<void(Error::Ptr)> _onRecv) override
+    {
+        m_pbftEngine->asyncNotifyNewBlock(_ledgerConfig, _onRecv);
+    }
+
 private:
     PBFTEngine::Ptr m_pbftEngine;
+    BlockValidator::Ptr m_blockValidator;
 };
 }  // namespace consensus
 }  // namespace bcos

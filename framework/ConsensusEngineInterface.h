@@ -20,7 +20,6 @@
  */
 #pragma once
 #include "framework/ConsensusConfigInterface.h"
-#include "framework/TimerInterface.h"
 namespace bcos
 {
 namespace consensus

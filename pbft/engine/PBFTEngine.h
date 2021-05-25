@@ -74,6 +74,9 @@ public:
         m_cacheProcessor->initState(_proposals);
     }
 
+    virtual void asyncNotifyNewBlock(
+        bcos::ledger::LedgerConfig::Ptr _ledgerConfig, std::function<void(Error::Ptr)> _onRecv);
+
 protected:
     virtual void onRecvProposal(bytesConstRef _proposalData,
         bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash);

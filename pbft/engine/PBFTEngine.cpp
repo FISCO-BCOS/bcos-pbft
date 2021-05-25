@@ -110,6 +110,15 @@ void PBFTEngine::onRecvProposal(
     handlePrePrepareMsg(pbftMessage, true, false);
 }
 
+// receive the new block notification
+void PBFTEngine::asyncNotifyNewBlock(
+    LedgerConfig::Ptr _ledgerConfig, std::function<void(Error::Ptr)> _onRecv)
+{
+    _onRecv(nullptr);
+    m_config->resetConfig(_ledgerConfig);
+    finalizeConsensus(_ledgerConfig);
+}
+
 void PBFTEngine::onReceivePBFTMessage(Error::Ptr _error, NodeIDPtr _fromNode, bytesConstRef _data,
     std::function<void(bytesConstRef _respData)> _sendResponseCallback)
 {

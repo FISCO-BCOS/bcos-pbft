@@ -212,23 +212,22 @@ void LedgerStorage::asyncCommitProposal(PBFTProposalInterface::Ptr _committedPro
                            << LOG_KV("index", _committedProposal->index());
     // commit the max-index proposal information
     auto maxIndexStr = boost::lexical_cast<std::string>(m_maxCommittedProposalIndex);
-    auto maxIndexData = std::make_shared<bytes>(maxIndexStr.begin(), maxIndexStr.end());
+    auto maxIndexBytes = std::make_shared<bytes>(maxIndexStr.begin(), maxIndexStr.end());
     asyncPutProposal(
-        m_pbftCommitDB, m_maxCommittedProposalKey, maxIndexData, _committedProposal->index());
+        m_pbftCommitDB, m_maxCommittedProposalKey, maxIndexBytes, _committedProposal->index());
 
     // commit the data
-    auto proposalKey = std::make_shared<std::string>(
-        boost::lexical_cast<std::string>(_committedProposal->index()));
     auto encodedData = _committedProposal->encode();
-    asyncPutProposal(m_pbftCommitDB, proposalKey, encodedData, _committedProposal->index());
+    asyncPutProposal(m_pbftCommitDB, boost::lexical_cast<std::string>(_committedProposal->index()),
+        encodedData, _committedProposal->index());
 }
 
-void LedgerStorage::asyncPutProposal(std::shared_ptr<std::string> _dbName,
-    std::shared_ptr<std::string> _key, bytesPointer _committedData,
-    bcos::protocol::BlockNumber _proposalIndex)
+void LedgerStorage::asyncPutProposal(std::string const& _dbName, std::string const& _key,
+    bytesPointer _committedData, bcos::protocol::BlockNumber _proposalIndex)
 {
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
-    m_storage->asyncPut(_dbName, _key, _committedData,
+    m_storage->asyncPut(_dbName, _key,
+        std::string_view((const char*)_committedData->data(), _committedData->size()),
         [_dbName, _committedData, _key, _proposalIndex, self](Error::Ptr _error) {
             if (_error == nullptr)
             {
@@ -327,12 +326,10 @@ void LedgerStorage::asyncRemoveStabledCheckPoint(size_t _stabledCheckPointIndex)
 {
     PBFT_STORAGE_LOG(INFO) << LOG_DESC("asyncRemoveStabledCheckPoint")
                            << LOG_KV("index", _stabledCheckPointIndex);
-    auto key = std::make_shared<std::string>(std::to_string(_stabledCheckPointIndex));
-    asyncRemove(m_pbftCommitDB, key);
+    asyncRemove(m_pbftCommitDB, boost::lexical_cast<std::string>(_stabledCheckPointIndex));
 }
 
-void LedgerStorage::asyncRemove(
-    std::shared_ptr<std::string> _dbName, std::shared_ptr<std::string> _key)
+void LedgerStorage::asyncRemove(std::string const& _dbName, std::string const& _key)
 {
     m_storage->asyncRemove(_dbName, _key, [_dbName, _key](Error::Ptr _error) {
         if (_error == nullptr)
