@@ -45,7 +45,7 @@ NodeIDs ConsensusConfig::consensusNodeIDList() const
 
 void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList)
 {
-    std::sort(_consensusNodeList.begin(), _consensusNodeList.end());
+    std::sort(_consensusNodeList.begin(), _consensusNodeList.end(), ConsensusNodeComparator());
     bool updated = false;
     // update the consensus list
     {

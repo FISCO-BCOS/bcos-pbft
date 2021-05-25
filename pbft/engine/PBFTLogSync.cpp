@@ -39,7 +39,7 @@ void PBFTLogSync::requestCommittedProposals(
     auto pbftRequest = m_config->pbftMessageFactory()->populateFrom(
         PacketType::CommittedProposalRequest, _startIndex, _offset);
     requestPBFTData(_from, pbftRequest,
-        [this](Error::Ptr _error, NodeIDPtr _nodeID, bytesConstRef _data,
+        [this](Error::Ptr _error, NodeIDPtr _nodeID, bytesConstRef _data, std::string const&,
             SendResponseCallback _sendResponse) {
             return this->onRecvCommittedProposalsResponse(_error, _nodeID, _data, _sendResponse);
         });
@@ -52,7 +52,7 @@ void PBFTLogSync::requestPrecommitData(bcos::crypto::PublicPtr _from,
         PacketType::PreparedProposalRequest, _prePrepareMsg->index(), _prePrepareMsg->hash());
     requestPBFTData(_from, pbftRequest,
         [this, _prePrepareMsg, _prePrepareCallback](Error::Ptr _error, NodeIDPtr _nodeID,
-            bytesConstRef _data, SendResponseCallback _sendResponse) {
+            bytesConstRef _data, std::string const&, SendResponseCallback _sendResponse) {
             return this->onRecvPrecommitResponse(
                 _error, _nodeID, _data, _prePrepareMsg, _prePrepareCallback, _sendResponse);
         });
