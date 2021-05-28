@@ -74,6 +74,7 @@ public:
 
     virtual bool checkAndCommitStableCheckPoint();
     virtual void onCheckPointTimeout();
+    bool stableCommitted() { return m_stableCommitted; }
 
 private:
     bool checkPrePrepareProposalStatus();

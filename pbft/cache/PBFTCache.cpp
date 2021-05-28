@@ -69,10 +69,6 @@ void PBFTCache::addCache(CollectionCacheType& _cachedReq, QuorumRecoderType& _we
     }
     auto const& proposalHash = _pbftCache->hash();
     auto generatedFrom = _pbftCache->generatedFrom();
-    if (_cachedReq.count(proposalHash) && _cachedReq[proposalHash].count(generatedFrom))
-    {
-        return;
-    }
     auto nodeInfo = m_config->getConsensusNodeByIndex(generatedFrom);
     if (!nodeInfo)
     {
@@ -82,10 +78,7 @@ void PBFTCache::addCache(CollectionCacheType& _cachedReq, QuorumRecoderType& _we
     {
         _weightInfo[proposalHash] = 0;
     }
-    else
-    {
-        _weightInfo[proposalHash] += nodeInfo->weight();
-    }
+    _weightInfo[proposalHash] += nodeInfo->weight();
     _cachedReq[proposalHash][generatedFrom] = _pbftCache;
 }
 

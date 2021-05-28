@@ -95,6 +95,7 @@ public:
         pbftMessage->setTimestamp(_timestamp);
         pbftMessage->setGeneratedFrom(_generatedFrom);
         pbftMessage->setHash(_proposal->hash());
+        pbftMessage->setIndex(_proposal->index());
         PBFTProposalList populatedProposalList;
         // create the proposal
         auto signedProposal = createPBFTProposal();

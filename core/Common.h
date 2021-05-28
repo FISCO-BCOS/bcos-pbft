@@ -19,6 +19,7 @@
  */
 #pragma once
 #include <bcos-framework/interfaces/consensus/ConsensusTypeDef.h>
+#include <bcos-framework/libutilities/Exceptions.h>
 #include <bcos-framework/libutilities/Log.h>
 
 #define CONSENSUS_LOG(LEVEL) LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("Core")
@@ -27,5 +28,6 @@ namespace bcos
 namespace consensus
 {
 const IndexType NON_CONSENSUS_NODE = (IndexType)(-1);
+DERIVE_BCOS_EXCEPTION(InitConsensusException);
 }  // namespace consensus
 }  // namespace bcos

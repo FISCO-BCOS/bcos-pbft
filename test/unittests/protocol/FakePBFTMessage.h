@@ -200,7 +200,7 @@ private:
     KeyPairInterface::Ptr m_keyPair;
 };
 
-PBFTProposalInterface::Ptr fakeSingleProposal(CryptoSuite::Ptr _cryptoSuite,
+inline PBFTProposalInterface::Ptr fakeSingleProposal(CryptoSuite::Ptr _cryptoSuite,
     PBFTMessageFixture::Ptr faker,
     std::vector<std::pair<int64_t, KeyPairInterface::Ptr>> const& _nodeKeyPairList,
     BlockNumber _index, HashType const& _hash, bytes const& _data)
@@ -217,7 +217,7 @@ PBFTProposalInterface::Ptr fakeSingleProposal(CryptoSuite::Ptr _cryptoSuite,
     return faker->fakePBFTProposal(_index, _hash, _data, nodeList, signatureList);
 }
 
-PBFTProposalList fakeProposals(CryptoSuite::Ptr _cryptoSuite, PBFTMessageFixture::Ptr faker,
+inline PBFTProposalList fakeProposals(CryptoSuite::Ptr _cryptoSuite, PBFTMessageFixture::Ptr faker,
     std::vector<std::pair<int64_t, KeyPairInterface::Ptr>> const& _nodeKeyPairList,
     BlockNumber _index, bytes const& _data, size_t proposalSize)
 {
@@ -235,8 +235,9 @@ PBFTProposalList fakeProposals(CryptoSuite::Ptr _cryptoSuite, PBFTMessageFixture
     return proposals;
 }
 
-void checkFakedBasePBFTMessage(PBFTBaseMessageInterface::Ptr fakedMessage, int64_t orgTimestamp,
-    int32_t version, ViewType view, IndexType generatedFrom, HashType const& proposalHash)
+inline void checkFakedBasePBFTMessage(PBFTBaseMessageInterface::Ptr fakedMessage,
+    int64_t orgTimestamp, int32_t version, ViewType view, IndexType generatedFrom,
+    HashType const& proposalHash)
 {
     // check the content
     BOOST_CHECK(fakedMessage->timestamp() == orgTimestamp);
@@ -246,7 +247,7 @@ void checkFakedBasePBFTMessage(PBFTBaseMessageInterface::Ptr fakedMessage, int64
     BOOST_CHECK(fakedMessage->generatedFrom() == generatedFrom);
 }
 
-void checkSingleProposal(PBFTProposalInterface::Ptr _proposal, HashType const& _hash,
+inline void checkSingleProposal(PBFTProposalInterface::Ptr _proposal, HashType const& _hash,
     BlockNumber _index, bytes const& /*_data*/)
 {
     BOOST_CHECK(_proposal->index() == _index);
@@ -254,8 +255,8 @@ void checkSingleProposal(PBFTProposalInterface::Ptr _proposal, HashType const& _
     // BOOST_CHECK(_proposal->data().toBytes() == _data);
 }
 
-void checkProposals(PBFTProposalList _proposals, CryptoSuite::Ptr _cryptoSuite, BlockNumber _index,
-    bytes const& _data)
+inline void checkProposals(PBFTProposalList _proposals, CryptoSuite::Ptr _cryptoSuite,
+    BlockNumber _index, bytes const& _data)
 {
     // check the proposal
     auto data = _data;
@@ -269,7 +270,7 @@ void checkProposals(PBFTProposalList _proposals, CryptoSuite::Ptr _cryptoSuite, 
     }
 }
 
-void checkPBFTMessage(PBFTMessage::Ptr fakedMessage, int64_t orgTimestamp, int32_t version,
+inline void checkPBFTMessage(PBFTMessage::Ptr fakedMessage, int64_t orgTimestamp, int32_t version,
     ViewType view, IndexType generatedFrom, HashType const& proposalHash, size_t proposalSize,
     CryptoSuite::Ptr cryptoSuite, BlockNumber _index, bytes const& _data)
 {
@@ -280,7 +281,7 @@ void checkPBFTMessage(PBFTMessage::Ptr fakedMessage, int64_t orgTimestamp, int32
     checkProposals(fakedMessage->proposals(), cryptoSuite, _index, _data);
 }
 
-PBFTMessage::Ptr fakePBFTMessage(int64_t orgTimestamp, int32_t version, ViewType view,
+inline PBFTMessage::Ptr fakePBFTMessage(int64_t orgTimestamp, int32_t version, ViewType view,
     IndexType generatedFrom, HashType const& proposalHash, BlockNumber _index, bytes const& _data,
     size_t proposalSize, std::shared_ptr<PBFTMessageFixture> _faker, PacketType _packetType)
 {
@@ -304,10 +305,11 @@ PBFTMessage::Ptr fakePBFTMessage(int64_t orgTimestamp, int32_t version, ViewType
 }
 
 
-void checkViewChangeMessage(PBFTViewChangeMsg::Ptr fakedViewChangeMessage, int64_t orgTimestamp,
-    int32_t version, ViewType view, IndexType generatedFrom, HashType const& proposalHash,
-    BlockNumber _index, bytes const& _data, BlockNumber _committedIndex,
-    HashType const& _committedHash, size_t _proposalSize, CryptoSuite::Ptr _cryptoSuite)
+inline void checkViewChangeMessage(PBFTViewChangeMsg::Ptr fakedViewChangeMessage,
+    int64_t orgTimestamp, int32_t version, ViewType view, IndexType generatedFrom,
+    HashType const& proposalHash, BlockNumber _index, bytes const& _data,
+    BlockNumber _committedIndex, HashType const& _committedHash, size_t _proposalSize,
+    CryptoSuite::Ptr _cryptoSuite)
 {
     checkFakedBasePBFTMessage(
         fakedViewChangeMessage, orgTimestamp, version, view, generatedFrom, proposalHash);
@@ -325,10 +327,10 @@ void checkViewChangeMessage(PBFTViewChangeMsg::Ptr fakedViewChangeMessage, int64
         fakedViewChangeMessage->committedProposal(), _committedHash, _committedIndex, bytes());
 }
 
-PBFTViewChangeMsg::Ptr fakeViewChangeMessage(int64_t orgTimestamp, int32_t version, ViewType view,
-    IndexType generatedFrom, HashType const& proposalHash, BlockNumber _index, bytes const& _data,
-    BlockNumber _committedIndex, HashType const& _committedHash, size_t _proposalSize,
-    std::shared_ptr<PBFTMessageFixture> _faker)
+inline PBFTViewChangeMsg::Ptr fakeViewChangeMessage(int64_t orgTimestamp, int32_t version,
+    ViewType view, IndexType generatedFrom, HashType const& proposalHash, BlockNumber _index,
+    bytes const& _data, BlockNumber _committedIndex, HashType const& _committedHash,
+    size_t _proposalSize, std::shared_ptr<PBFTMessageFixture> _faker)
 {
     auto cryptoSuite = _faker->cryptoSuite();
     std::vector<std::pair<int64_t, KeyPairInterface::Ptr>> nodeKeyPairList;
@@ -352,7 +354,7 @@ PBFTViewChangeMsg::Ptr fakeViewChangeMessage(int64_t orgTimestamp, int32_t versi
     return fakedViewChangeMessage;
 }
 
-void testPBFTMessage(PacketType _packetType, CryptoSuite::Ptr _cryptoSuite)
+inline void testPBFTMessage(PacketType _packetType, CryptoSuite::Ptr _cryptoSuite)
 {
     int64_t orgTimestamp = utcTime();
     int32_t version = 10;
@@ -389,7 +391,7 @@ void testPBFTMessage(PacketType _packetType, CryptoSuite::Ptr _cryptoSuite)
     BOOST_CHECK(decodedMsg->verifySignature(_cryptoSuite, keyPair->publicKey()) == false);
 }
 
-void testPBFTViewChangeMessage(CryptoSuite::Ptr _cryptoSuite)
+inline void testPBFTViewChangeMessage(CryptoSuite::Ptr _cryptoSuite)
 {
     int64_t orgTimestamp = utcTime();
     int32_t version = 11;
@@ -431,7 +433,7 @@ void testPBFTViewChangeMessage(CryptoSuite::Ptr _cryptoSuite)
     BOOST_CHECK(decodedMsg->verifySignature(_cryptoSuite, keyPair->publicKey()) == false);
 }
 
-void checkNewViewMessage(PBFTNewViewMsg::Ptr fakedNewViewMessage, int64_t orgTimestamp,
+inline void checkNewViewMessage(PBFTNewViewMsg::Ptr fakedNewViewMessage, int64_t orgTimestamp,
     int32_t version, ViewType view, IndexType generatedFrom, HashType const& proposalHash,
     BlockNumber _index, bytes const& _data, int64_t viewChangeSize, int64_t proposalSize,
     BlockNumber committedIndex, CryptoSuite::Ptr _cryptoSuite)
@@ -455,7 +457,7 @@ void checkNewViewMessage(PBFTNewViewMsg::Ptr fakedNewViewMessage, int64_t orgTim
     }
 }
 
-void testPBFTNewViewMessage(CryptoSuite::Ptr _cryptoSuite)
+inline void testPBFTNewViewMessage(CryptoSuite::Ptr _cryptoSuite)
 {
     int64_t orgTimestamp = utcTime();
     int32_t version = 11;
@@ -517,7 +519,7 @@ void testPBFTNewViewMessage(CryptoSuite::Ptr _cryptoSuite)
     BOOST_CHECK(decodedMsg->verifySignature(_cryptoSuite, keyPair->publicKey()) == false);
 }
 
-void testPBFTRequest(CryptoSuite::Ptr _cryptoSuite, PacketType _packetType)
+inline void testPBFTRequest(CryptoSuite::Ptr _cryptoSuite, PacketType _packetType)
 {
     auto timeStamp = utcTime();
     int32_t version = 12;

@@ -37,7 +37,7 @@ public:
 
     void asyncApply(ProposalInterface::ConstPtr _committedProposal,
         ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
-        std::function<void()> _onExecuteFinished) override;
+        std::function<void(bool)> _onExecuteFinished) override;
 
 protected:
     bcos::dispatcher::DispatcherInterface::Ptr m_dispatcher;

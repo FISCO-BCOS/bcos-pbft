@@ -80,6 +80,8 @@ public:
     virtual void setProgressedIndex(bcos::protocol::BlockNumber _progressedIndex)
     {
         m_progressedIndex = _progressedIndex;
+        CONSENSUS_LOG(DEBUG) << LOG_DESC("PBFTConfig: setProgressedIndex")
+                             << LOG_KV("progressedIndex", m_progressedIndex);
     }
 
     virtual void updateQuorum() = 0;
@@ -96,8 +98,8 @@ public:
 
 protected:
     bcos::crypto::KeyPairInterface::Ptr m_keyPair;
-    std::atomic<IndexType> m_nodeIndex;
-    std::atomic<IndexType> m_consensusNodeNum;
+    std::atomic<IndexType> m_nodeIndex = {0};
+    std::atomic<IndexType> m_consensusNodeNum = {0};
 
     ConsensusNodeListPtr m_consensusNodeList;
     mutable bcos::SharedMutex x_consensusNodeList;

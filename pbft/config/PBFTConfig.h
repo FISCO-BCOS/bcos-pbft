@@ -36,7 +36,7 @@ namespace bcos
 namespace consensus
 {
 const IndexType InvalidNodeIndex = -1;
-class PBFTConfig : public ConsensusConfig, std::enable_shared_from_this<PBFTConfig>
+class PBFTConfig : public ConsensusConfig, public std::enable_shared_from_this<PBFTConfig>
 {
 public:
     using Ptr = std::shared_ptr<PBFTConfig>;
@@ -107,17 +107,28 @@ public:
     void setCommittedProposal(ProposalInterface::Ptr _committedProposal) override
     {
         ConsensusConfig::setCommittedProposal(_committedProposal);
-        m_expectedCheckPoint = _committedProposal->index() + 1;
+        if (_committedProposal->index() + 1 > m_expectedCheckPoint)
+        {
+            PBFT_LOG(DEBUG) << LOG_DESC("PBFTConfig: resetExpectedCheckPoint")
+                            << LOG_KV("expectedCheckPoint", m_expectedCheckPoint);
+            m_expectedCheckPoint = _committedProposal->index() + 1;
+        }
     }
 
     int64_t expectedCheckPoint() { return m_expectedCheckPoint; }
-    void setExpectedCheckPoint(uint64_t _expectedCheckPoint)
+    void setExpectedCheckPoint(bcos::protocol::BlockNumber _expectedCheckPoint)
     {
-        m_expectedCheckPoint = _expectedCheckPoint;
+        m_expectedCheckPoint = std::max(committedProposal()->index() + 1, _expectedCheckPoint);
+        PBFT_LOG(DEBUG) << LOG_DESC("PBFTConfig: setExpectedCheckPoint")
+                        << LOG_KV("expectedCheckPoint", m_expectedCheckPoint);
     }
+
     StateMachineInterface::Ptr stateMachine() { return m_stateMachine; }
 
     bcos::sealer::SealerInterface::Ptr sealer() { return m_sealer; }
+
+    int64_t warterMarkLimit() const { return m_warterMarkLimit; }
+    void setWarterMarkLimit(int64_t _warterMarkLimit) { m_warterMarkLimit = _warterMarkLimit; }
 
 protected:
     void updateQuorum() override;
@@ -141,15 +152,15 @@ private:
     // Timer
     PBFTTimer::Ptr m_timer;
 
-    std::atomic<uint64_t> m_maxFaultyQuorum;
-    std::atomic<uint64_t> m_totalQuorum;
-    std::atomic<uint64_t> m_minRequiredQuorum;
+    std::atomic<uint64_t> m_maxFaultyQuorum = {0};
+    std::atomic<uint64_t> m_totalQuorum = {0};
+    std::atomic<uint64_t> m_minRequiredQuorum = {0};
     std::atomic<ViewType> m_view = {0};
     std::atomic<ViewType> m_toView = {0};
     // invalid leaderIndex
     std::atomic<IndexType> m_leaderIndex = InvalidNodeIndex;
 
-    std::atomic<uint64_t> m_expectedCheckPoint;
+    std::atomic<bcos::protocol::BlockNumber> m_expectedCheckPoint = {0};
 
     int64_t m_warterMarkLimit = 10;
     std::atomic<uint64_t> m_leaderSwitchPeriod = {1};
