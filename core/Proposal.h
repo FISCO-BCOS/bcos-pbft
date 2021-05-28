@@ -20,7 +20,7 @@
  */
 #pragma once
 #include "core/proto/Consensus.pb.h"
-#include "framework/ProposalInterface.h"
+#include "../framework/ProposalInterface.h"
 #include <bcos-framework/interfaces/protocol/BlockHeader.h>
 #include <bcos-framework/libprotocol/Common.h>
 

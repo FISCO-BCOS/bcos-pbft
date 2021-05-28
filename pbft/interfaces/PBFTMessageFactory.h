@@ -19,11 +19,11 @@
  * @date 2021-04-20
  */
 #pragma once
-#include "pbft/interfaces/NewViewMsgInterface.h"
-#include "pbft/interfaces/PBFTMessageInterface.h"
-#include "pbft/interfaces/PBFTProposalInterface.h"
-#include "pbft/interfaces/PBFTRequestInterface.h"
-#include "pbft/interfaces/ViewChangeMsgInterface.h"
+#include "NewViewMsgInterface.h"
+#include "PBFTMessageInterface.h"
+#include "PBFTProposalInterface.h"
+#include "PBFTRequestInterface.h"
+#include "ViewChangeMsgInterface.h"
 #include <bcos-framework/interfaces/crypto/CryptoSuite.h>
 #include <bcos-framework/interfaces/protocol/ProtocolTypeDef.h>
 namespace bcos

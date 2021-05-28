@@ -20,7 +20,7 @@
  */
 #include "PBFTEngine.h"
 #include "boost/bind.hpp"
-#include "pbft/cache/PBFTCacheProcessor.h"
+#include "../cache/PBFTCacheProcessor.h"
 #include <bcos-framework/interfaces/ledger/LedgerConfig.h>
 #include <bcos-framework/interfaces/protocol/Protocol.h>
 #include <bcos-framework/libutilities/ThreadPool.h>

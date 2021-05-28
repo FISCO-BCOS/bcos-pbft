@@ -20,7 +20,7 @@
  */
 #pragma once
 #include "bcos-framework/interfaces/txpool/TxPoolInterface.h"
-#include "pbft/interfaces/PBFTProposalInterface.h"
+#include "../interfaces/PBFTProposalInterface.h"
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
 #include <bcos-framework/libutilities/ThreadPool.h>
 

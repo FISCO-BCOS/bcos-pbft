@@ -19,7 +19,7 @@
  * @date 2021-04-09
  */
 #pragma once
-#include "framework/ConsensusConfigInterface.h"
+#include "ConsensusConfigInterface.h"
 namespace bcos
 {
 namespace consensus
