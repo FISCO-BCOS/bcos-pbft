@@ -19,7 +19,7 @@
  * @date 2021-05-25
  */
 #include "BlockValidator.h"
-#include "pbft/utilities/Common.h"
+#include "../utilities/Common.h"
 using namespace bcos;
 using namespace bcos::consensus;
 using namespace bcos::protocol;

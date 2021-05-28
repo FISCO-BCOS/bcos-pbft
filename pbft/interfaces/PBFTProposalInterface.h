@@ -19,7 +19,7 @@
  * @date 2021-04-15
  */
 #pragma once
-#include "framework/ProposalInterface.h"
+#include "../../framework/ProposalInterface.h"
 #include "pbft/utilities/Common.h"
 
 namespace bcos

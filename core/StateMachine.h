@@ -19,7 +19,7 @@
  * @date 2021-05-18
  */
 #pragma once
-#include "framework/StateMachineInterface.h"
+#include "../framework/StateMachineInterface.h"
 #include <bcos-framework/interfaces/dispatcher/DispatcherInterface.h>
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
 namespace bcos

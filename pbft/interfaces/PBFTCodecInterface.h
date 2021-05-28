@@ -19,7 +19,7 @@
  * @date 2021-04-13
  */
 #pragma once
-#include "pbft/interfaces/PBFTBaseMessageInterface.h"
+#include "PBFTBaseMessageInterface.h"
 #include <bcos-framework/interfaces/crypto/KeyInterface.h>
 #include <bcos-framework/libutilities/Common.h>
 namespace bcos

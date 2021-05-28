@@ -19,8 +19,8 @@
  * @date 2021-04-26
  */
 #pragma once
-#include "pbft/interfaces/PBFTMessageFactory.h"
-#include "pbft/interfaces/PBFTStorage.h"
+#include "../interfaces/PBFTMessageFactory.h"
+#include "../interfaces/PBFTStorage.h"
 #include <bcos-framework/interfaces/ledger/LedgerInterface.h>
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
 #include <bcos-framework/interfaces/storage/StorageInterface.h>

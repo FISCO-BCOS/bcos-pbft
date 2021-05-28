@@ -19,8 +19,8 @@
  * @date 2021-04-28
  */
 #pragma once
-#include "pbft/cache/PBFTCacheProcessor.h"
-#include "pbft/config/PBFTConfig.h"
+#include "../cache/PBFTCacheProcessor.h"
+#include "../config/PBFTConfig.h"
 #include <bcos-framework/interfaces/crypto/KeyInterface.h>
 #include <bcos-framework/libutilities/ThreadPool.h>
 namespace bcos

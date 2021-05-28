@@ -19,7 +19,7 @@
  * @date 2021-04-26
  */
 #include "LedgerStorage.h"
-#include "pbft/utilities/Common.h"
+#include "../utilities/Common.h"
 #include <bcos-framework/interfaces/protocol/ProtocolTypeDef.h>
 
 using namespace bcos;

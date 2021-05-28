@@ -19,7 +19,7 @@
  * @date 2021-04-13
  */
 #pragma once
-#include "pbft/utilities/Common.h"
+#include "../utilities/Common.h"
 #include <bcos-framework/interfaces/consensus/ConsensusTypeDef.h>
 #include <bcos-framework/interfaces/crypto/CommonType.h>
 #include <bcos-framework/interfaces/crypto/CryptoSuite.h>

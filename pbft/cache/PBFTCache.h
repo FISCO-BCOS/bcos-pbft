@@ -19,8 +19,8 @@
  * @date 2021-04-23
  */
 #pragma once
-#include "pbft/config/PBFTConfig.h"
-#include "pbft/interfaces/PBFTMessageInterface.h"
+#include "../config/PBFTConfig.h"
+#include "../interfaces/PBFTMessageInterface.h"
 
 namespace bcos
 {

@@ -19,8 +19,8 @@
  * @date 2021-05-17
  */
 #pragma once
-#include "pbft/engine/BlockValidator.h"
-#include "pbft/engine/PBFTEngine.h"
+#include "engine/BlockValidator.h"
+#include "engine/PBFTEngine.h"
 #include <bcos-framework/interfaces/consensus/ConsensusInterface.h>
 namespace bcos
 {

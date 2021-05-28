@@ -19,7 +19,7 @@
  * @date 2021-05-25
  */
 #pragma once
-#include "pbft/config/PBFTConfig.h"
+#include "../config/PBFTConfig.h"
 #include <bcos-framework/interfaces/protocol/Block.h>
 #include <bcos-framework/libutilities/ThreadPool.h>
 namespace bcos

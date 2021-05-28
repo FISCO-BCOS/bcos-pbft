@@ -20,7 +20,7 @@
  */
 #pragma once
 #include "Common.h"
-#include "framework/ConsensusEngineInterface.h"
+#include "../framework/ConsensusEngineInterface.h"
 #include <bcos-framework/libutilities/Worker.h>
 
 namespace bcos

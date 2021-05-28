@@ -19,8 +19,8 @@
  * @date 2021-04-26
  */
 #pragma once
-#include "pbft/interfaces/PBFTMessageInterface.h"
-#include "pbft/interfaces/PBFTProposalInterface.h"
+#include "PBFTMessageInterface.h"
+#include "PBFTProposalInterface.h"
 #include <bcos-framework/interfaces/ledger/LedgerConfig.h>
 #include <bcos-framework/interfaces/protocol/ProtocolTypeDef.h>
 namespace bcos

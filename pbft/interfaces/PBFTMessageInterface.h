@@ -19,8 +19,8 @@
  * @date 2021-04-13
  */
 #pragma once
-#include "pbft/interfaces/PBFTBaseMessageInterface.h"
-#include "pbft/interfaces/PBFTProposalInterface.h"
+#include "PBFTBaseMessageInterface.h"
+#include "PBFTProposalInterface.h"
 namespace bcos
 {
 namespace consensus
