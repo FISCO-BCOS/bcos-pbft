@@ -19,7 +19,7 @@
  * @date 2021-05-19
  */
 #pragma once
-#include "PBFT.h"
+#include "PBFTImpl.h"
 #include "pbft/config/PBFTConfig.h"
 #include <bcos-framework/interfaces/dispatcher/DispatcherInterface.h>
 #include <bcos-framework/interfaces/ledger/LedgerInterface.h>
@@ -33,6 +33,7 @@ namespace consensus
 class PBFTFactory : public std::enable_shared_from_this<PBFTFactory>
 {
 public:
+    using Ptr = std::shared_ptr<PBFTFactory>;
     PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
         bcos::crypto::KeyPairInterface::Ptr _keyPair,
         std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
@@ -47,6 +48,7 @@ public:
 
     ConsensusInterface::Ptr consensus() { return m_pbft; }
     PBFTConfig::Ptr pbftConfig() { return m_pbftConfig; }
+    PBFTEngine::Ptr pbftEngine() { return m_pbftEngine; }
 
 private:
     ConsensusInterface::Ptr m_pbft;

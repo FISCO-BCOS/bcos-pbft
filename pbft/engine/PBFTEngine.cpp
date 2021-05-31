@@ -659,8 +659,8 @@ void PBFTEngine::finalizeConsensus(LedgerConfig::Ptr _ledgerConfig)
                     << LOG_KV("hash", _ledgerConfig->hash().abridged());
     Guard l(m_mutex);
     // tried to commit the stable checkpoint
-    m_cacheProcessor->tryToCommitStableCheckPoint();
     m_cacheProcessor->removeConsensusedCache(m_config->view(), _ledgerConfig->blockNumber());
+    m_cacheProcessor->tryToCommitStableCheckPoint();
 }
 
 bool PBFTEngine::handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _checkPointMsg)

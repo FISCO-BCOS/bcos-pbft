@@ -139,18 +139,21 @@ void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committed
     PBFT_LOG(DEBUG) << LOG_DESC("updateCommitQueue: push committed proposal into the commitQueue")
                     << LOG_KV("index", _committedProposal->index());
 
-    while (m_committedQueue.top()->index() < m_config->expectedCheckPoint())
+    while (!m_committedQueue.empty() &&
+           m_committedQueue.top()->index() < m_config->expectedCheckPoint())
     {
         PBFT_LOG(DEBUG) << LOG_DESC("updateCommitQueue: remove invalid proposal")
-                        << LOG_KV("index", m_committedQueue.top()->index());
+                        << LOG_KV("index", m_committedQueue.top()->index())
+                        << LOG_KV("expectedIndex", m_config->expectedCheckPoint());
         m_committedQueue.pop();
     }
     // try to execute the proposal
-    while (m_committedQueue.top()->index() == m_config->expectedCheckPoint())
+    while (!m_committedQueue.empty() &&
+           m_committedQueue.top()->index() == m_config->expectedCheckPoint())
     {
         auto proposal = m_committedQueue.top();
-        applyStateMachine(proposal);
         m_config->setExpectedCheckPoint(proposal->index() + 1);
+        applyStateMachine(proposal);
         // commit the proposal
         m_config->storage()->asyncCommitProposal(proposal);
         m_committedQueue.pop();
@@ -161,15 +164,27 @@ void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committed
 void PBFTCacheProcessor::applyStateMachine(PBFTProposalInterface::Ptr _proposal)
 {
     auto committedProposal = m_config->committedProposal();
+    PBFT_LOG(DEBUG) << LOG_DESC("applyStateMachine") << LOG_KV("index", _proposal->index())
+                    << LOG_KV("hash", _proposal->hash().abridged())
+                    << LOG_KV("committedIndex", committedProposal->index())
+                    << LOG_KV("committedHash", committedProposal->hash().abridged());
     auto executedProposal = m_config->pbftMessageFactory()->createPBFTProposal();
     auto self = std::weak_ptr<PBFTCacheProcessor>(shared_from_this());
-    m_config->stateMachine()->asyncApply(
-        committedProposal, _proposal, executedProposal, [self, executedProposal]() {
+    m_config->stateMachine()->asyncApply(committedProposal, _proposal, executedProposal,
+        [self, _proposal, executedProposal](bool _ret) {
             try
             {
                 auto cache = self.lock();
                 if (!cache)
                 {
+                    return;
+                }
+                if (!_ret)
+                {
+                    if (cache->m_config->expectedCheckPoint() > _proposal->index())
+                    {
+                        cache->m_config->setExpectedCheckPoint(_proposal->index());
+                    }
                     return;
                 }
                 auto config = cache->m_config;
@@ -428,6 +443,11 @@ void PBFTCacheProcessor::removeConsensusedCache(ViewType _view, BlockNumber _con
             pcache = m_caches.erase(pcache);
             continue;
         }
+        if (pcache->second->stableCommitted())
+        {
+            pcache = m_caches.erase(pcache);
+            continue;
+        }
         pcache++;
     }
     removeInvalidViewChange(_view, _consensusedNumber);
@@ -502,6 +522,7 @@ void PBFTCacheProcessor::reCalculateViewChangeWeight()
 
 void PBFTCacheProcessor::checkAndCommitStableCheckPoint()
 {
+    std::vector<PBFTCache::Ptr> stabledCacheList;
     for (auto const& it : m_caches)
     {
         auto ret = it.second->checkAndCommitStableCheckPoint();
@@ -509,7 +530,13 @@ void PBFTCacheProcessor::checkAndCommitStableCheckPoint()
         {
             continue;
         }
-        updateStableCheckPointQueue(it.second->checkPointProposal());
+        stabledCacheList.emplace_back(it.second);
+    }
+    // Note: since updateStableCheckPointQueue may update m_caches after commitBlock
+    // must call it after iterator m_caches
+    for (auto cache : stabledCacheList)
+    {
+        updateStableCheckPointQueue(cache->checkPointProposal());
     }
 }
 
@@ -527,7 +554,8 @@ void PBFTCacheProcessor::updateStableCheckPointQueue(PBFTProposalInterface::Ptr 
 void PBFTCacheProcessor::tryToCommitStableCheckPoint()
 {
     // remove the invalid checkpoint
-    while (m_stableCheckPointQueue.top()->index() <= m_config->committedProposal()->index())
+    while (!m_stableCheckPointQueue.empty() &&
+           m_stableCheckPointQueue.top()->index() <= m_config->committedProposal()->index())
     {
         PBFT_LOG(DEBUG) << LOG_DESC("updateStableCheckPointQueue: remove invalid checkpoint")
                         << LOG_KV("index", m_stableCheckPointQueue.top()->index())
@@ -535,12 +563,14 @@ void PBFTCacheProcessor::tryToCommitStableCheckPoint()
         m_stableCheckPointQueue.pop();
     }
     // submit stable-checkpoint to ledger in ordeer
-    if (m_stableCheckPointQueue.top()->index() == m_config->committedProposal()->index() + 1)
+    if (!m_stableCheckPointQueue.empty() &&
+        m_stableCheckPointQueue.top()->index() == m_config->committedProposal()->index() + 1)
     {
         PBFT_LOG(DEBUG) << LOG_DESC("updateStableCheckPointQueue: commit stable checkpoint")
                         << LOG_KV("index", m_stableCheckPointQueue.top()->index())
                         << LOG_KV("committedIndex", m_config->committedProposal()->index());
-        m_config->storage()->asyncCommmitStableCheckPoint(m_stableCheckPointQueue.top());
+        auto stableCheckPoint = m_stableCheckPointQueue.top();
         m_stableCheckPointQueue.pop();
+        m_config->storage()->asyncCommmitStableCheckPoint(stableCheckPoint);
     }
 }
