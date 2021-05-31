@@ -20,7 +20,7 @@
  */
 #pragma once
 #include "../../framework/ProposalInterface.h"
-#include "pbft/utilities/Common.h"
+#include "../utilities/Common.h"
 
 namespace bcos
 {
