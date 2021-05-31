@@ -8,25 +8,25 @@ include(GenerateSources)
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${MESSAGES_PROTOS} ${PROTO_PATH} "protocol/proto" ${PBFT_PROTO_GENERATE_BASE_DIR} ${PBFT_PROTO_GENERATE_DIR})
 
 aux_source_directory(. SRC_LIST)
-include_directories(.)
+# include_directories(.)
 
 aux_source_directory(./config SRC_LIST)
-include_directories(./config)
+# include_directories(./config)
 
 aux_source_directory(./cache SRC_LIST)
-include_directories(./cache)
+# include_directories(./cache)
 
 aux_source_directory(./engine SRC_LIST)
-include_directories(./engine)
+# include_directories(./engine)
 
 aux_source_directory(./protocol SRC_LIST)
-include_directories(./protocol)
+# include_directories(./protocol)
 
 aux_source_directory(./protocol/PB SRC_LIST)
-include_directories(./protocol/PB)
+# include_directories(./protocol/PB)
 
 aux_source_directory(./storage SRC_LIST)
-include_directories(./storage)
+# include_directories(./storage)
 
 add_library(${BCOS_PBFT_TARGET} ${SRC_LIST} ${PROTO_SRCS} ${HEADERS} ${PROTO_HDRS})
 

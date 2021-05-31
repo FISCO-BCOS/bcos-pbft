@@ -19,12 +19,12 @@
  * @date 2021-05-19
  */
 #include "PBFTFactory.h"
-#include "core/StateMachine.h"
-#include "pbft/engine/Validator.h"
-#include "pbft/protocol/PB/PBFTCodec.h"
-#include "pbft/protocol/PB/PBFTMessageFactoryImpl.h"
-#include "pbft/storage/LedgerStorage.h"
-#include "pbft/utilities/Common.h"
+#include "../core/StateMachine.h"
+#include "engine/Validator.h"
+#include "protocol/PB/PBFTCodec.h"
+#include "protocol/PB/PBFTMessageFactoryImpl.h"
+#include "storage/LedgerStorage.h"
+#include "utilities/Common.h"
 #include <bcos-framework/libsealer/Sealer.h>
 
 using namespace bcos;

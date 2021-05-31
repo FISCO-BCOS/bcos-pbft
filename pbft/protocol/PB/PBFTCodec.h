@@ -19,8 +19,8 @@
  * @date 2021-04-13
  */
 #pragma once
-#include "pbft/interfaces/PBFTCodecInterface.h"
-#include "pbft/interfaces/PBFTMessageFactory.h"
+#include "../../interfaces/PBFTCodecInterface.h"
+#include "../../interfaces/PBFTMessageFactory.h"
 #include <bcos-framework/interfaces/crypto/CryptoSuite.h>
 #include <bcos-framework/interfaces/crypto/KeyPairInterface.h>
 namespace bcos

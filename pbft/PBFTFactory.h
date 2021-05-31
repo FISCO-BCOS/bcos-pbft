@@ -20,7 +20,7 @@
  */
 #pragma once
 #include "PBFTImpl.h"
-#include "pbft/config/PBFTConfig.h"
+#include "config/PBFTConfig.h"
 #include <bcos-framework/interfaces/dispatcher/DispatcherInterface.h>
 #include <bcos-framework/interfaces/ledger/LedgerInterface.h>
 #include <bcos-framework/interfaces/storage/StorageInterface.h>

@@ -19,12 +19,12 @@
  * @date 2021-04-20
  */
 #pragma once
-#include "pbft/interfaces/PBFTMessageFactory.h"
-#include "pbft/protocol/PB/PBFTMessage.h"
-#include "pbft/protocol/PB/PBFTNewViewMsg.h"
-#include "pbft/protocol/PB/PBFTProposal.h"
-#include "pbft/protocol/PB/PBFTRequest.h"
-#include "pbft/protocol/PB/PBFTViewChangeMsg.h"
+#include "../../interfaces/PBFTMessageFactory.h"
+#include "PBFTMessage.h"
+#include "PBFTNewViewMsg.h"
+#include "PBFTProposal.h"
+#include "PBFTRequest.h"
+#include "PBFTViewChangeMsg.h"
 
 namespace bcos
 {

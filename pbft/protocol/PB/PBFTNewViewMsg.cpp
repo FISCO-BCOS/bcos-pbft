@@ -20,8 +20,8 @@
  */
 
 #include "PBFTNewViewMsg.h"
-#include "pbft/protocol/PB/PBFTMessage.h"
-#include "pbft/protocol/PB/PBFTViewChangeMsg.h"
+#include "PBFTMessage.h"
+#include "PBFTViewChangeMsg.h"
 #include <bcos-framework/libprotocol/Common.h>
 
 using namespace bcos;

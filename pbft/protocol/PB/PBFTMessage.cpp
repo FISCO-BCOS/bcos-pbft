@@ -19,8 +19,8 @@
  * @date 2021-04-13
  */
 #include "PBFTMessage.h"
-#include "core/Proposal.h"
-#include "pbft/protocol/PB/PBFTProposal.h"
+#include "../../../core/Proposal.h"
+#include "PBFTProposal.h"
 
 using namespace bcos;
 using namespace bcos::consensus;
