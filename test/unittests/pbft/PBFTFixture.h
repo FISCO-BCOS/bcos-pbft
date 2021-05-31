@@ -50,19 +50,93 @@ namespace bcos
 {
 namespace test
 {
+class FakeCacheProcessor : public PBFTCacheProcessor
+{
+public:
+    using Ptr = std::shared_ptr<FakeCacheProcessor>;
+    explicit FakeCacheProcessor(PBFTConfig::Ptr _config) : PBFTCacheProcessor(_config) {}
+
+    ~FakeCacheProcessor() override {}
+};
+
+class FakePBFTEngine : public PBFTEngine
+{
+public:
+    using Ptr = std::shared_ptr<FakePBFTEngine>;
+    explicit FakePBFTEngine(PBFTConfig::Ptr _config) : PBFTEngine(_config)
+    {
+        m_cacheProcessor = std::make_shared<FakeCacheProcessor>(_config);
+        m_logSync = std::make_shared<PBFTLogSync>(_config, m_cacheProcessor);
+    }
+    ~FakePBFTEngine() override {}
+
+    void onReceivePBFTMessage(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
+        bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse) override
+    {
+        PBFTEngine::onReceivePBFTMessage(_error, _nodeID, _data, _sendResponse);
+    }
+
+    // PBFT main processing function
+    void executeWorker() override
+    {
+        while (!msgQueue()->empty())
+        {
+            PBFTEngine::executeWorker();
+        }
+    }
+
+    void onRecvProposal(bytesConstRef _proposalData, bcos::protocol::BlockNumber _proposalIndex,
+        bcos::crypto::HashType const& _proposalHash) override
+    {
+        PBFTEngine::onRecvProposal(_proposalData, _proposalIndex, _proposalHash);
+    }
+
+    bool handlePrePrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg,
+        bool _needVerifyProposal, bool _generatedFromNewView = false,
+        bool _needCheckSignature = true) override
+    {
+        return PBFTEngine::handlePrePrepareMsg(
+            _prePrepareMsg, _needVerifyProposal, _generatedFromNewView, _needCheckSignature);
+    }
+
+    PBFTMsgQueuePtr msgQueue() { return m_msgQueue; }
+};
+
+class FakePBFTFactory : public PBFTFactory
+{
+public:
+    using Ptr = std::shared_ptr<PBFTFactory>;
+    FakePBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
+        bcos::crypto::KeyPairInterface::Ptr _keyPair,
+        std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
+        bcos::storage::StorageInterface::Ptr _storage,
+        std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
+        bcos::txpool::TxPoolInterface::Ptr _txpool, bcos::sealer::SealerInterface::Ptr _sealer,
+        bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
+        bcos::protocol::BlockFactory::Ptr _blockFactory)
+      : PBFTFactory(_cryptoSuite, _keyPair, _frontService, _storage, _ledger, _txpool, _sealer,
+            _dispatcher, _blockFactory)
+    {
+        PBFT_LOG(DEBUG) << LOG_DESC("create PBFTEngine");
+        m_pbftEngine = std::make_shared<FakePBFTEngine>(m_pbftConfig);
+
+        PBFT_LOG(INFO) << LOG_DESC("create PBFT");
+        m_pbft = std::make_shared<PBFTImpl>(m_pbftEngine);
+        PBFT_LOG(INFO) << LOG_DESC("create PBFT success");
+    }
+};
+
 class PBFTFixture
 {
 public:
+    using Ptr = std::shared_ptr<PBFTFixture>;
     PBFTFixture(CryptoSuite::Ptr _cryptoSuite, KeyPairInterface::Ptr _keyPair,
-        size_t _consensusTimeout = 3, size_t _txCountLimit = 1000)
+        FakeLedger::Ptr _ledger = nullptr, size_t _consensusTimeout = 3,
+        size_t _txCountLimit = 1000)
       : m_cryptoSuite(_cryptoSuite), m_keyPair(_keyPair), m_nodeId(_keyPair->publicKey())
     {
-        auto blockHeaderFactory = std::make_shared<PBBlockHeaderFactory>(_cryptoSuite);
-        auto txFactory = std::make_shared<PBTransactionFactory>(_cryptoSuite);
-        auto receiptFactory = std::make_shared<PBTransactionReceiptFactory>(_cryptoSuite);
         // create block factory
-        m_blockFactory =
-            std::make_shared<PBBlockFactory>(blockHeaderFactory, txFactory, receiptFactory);
+        m_blockFactory = createBlockFactory(_cryptoSuite);
 
         // create fakeFrontService
         m_frontService = std::make_shared<FakeFrontService>(_keyPair->publicKey());
@@ -71,10 +145,17 @@ public:
         m_storage = std::make_shared<FakeStorage>();
 
         // create fakeLedger
-        m_ledger = std::make_shared<FakeLedger>(m_blockFactory, 20, 10, 10);
-        m_ledger->setSystemConfig(SYSTEM_KEY_CONSENSUS_TIMEOUT, std::to_string(_consensusTimeout));
-        m_ledger->setSystemConfig(SYSTEM_KEY_TX_COUNT_LIMIT, std::to_string(_txCountLimit));
-
+        if (_ledger == nullptr)
+        {
+            m_ledger = std::make_shared<FakeLedger>(m_blockFactory, 20, 10, 10);
+            m_ledger->setSystemConfig(
+                SYSTEM_KEY_CONSENSUS_TIMEOUT, std::to_string(_consensusTimeout));
+            m_ledger->setSystemConfig(SYSTEM_KEY_TX_COUNT_LIMIT, std::to_string(_txCountLimit));
+        }
+        else
+        {
+            m_ledger = _ledger;
+        }
         // create fakeTxPool
         m_txpool = std::make_shared<FakeTxPool>();
 
@@ -84,11 +165,12 @@ public:
         // create FakeDispatcher
         m_dispatcher = std::make_shared<FakeDispatcher>();
 
-        m_pbftFactory = std::make_shared<PBFTFactory>(_cryptoSuite, _keyPair, m_frontService,
+        m_pbftFactory = std::make_shared<FakePBFTFactory>(_cryptoSuite, _keyPair, m_frontService,
             m_storage, m_ledger, m_txpool, m_sealer, m_dispatcher, m_blockFactory);
         m_pbft = std::dynamic_pointer_cast<PBFTImpl>(m_pbftFactory->consensus());
-        m_pbftEngine = m_pbftFactory->pbftEngine();
+        m_pbftEngine = std::dynamic_pointer_cast<FakePBFTEngine>(m_pbftFactory->pbftEngine());
     }
+
     virtual ~PBFTFixture() {}
 
     void init() { m_pbftFactory->init(); }
@@ -105,6 +187,8 @@ public:
         appendConsensusNode(node);
     }
 
+    void updateSwitchPerid() {}
+
     void clearConsensusNodeList() { m_ledger->ledgerConfig()->mutableConsensusNodeList().clear(); }
 
     FakeFrontService::Ptr frontService() { return m_frontService; }
@@ -114,12 +198,18 @@ public:
     FakeSealer::Ptr sealer() { return m_sealer; }
     FakeDispatcher::Ptr dispatcher() { return m_dispatcher; }
 
-    PBFTFactory::Ptr pbftFactory() { return m_pbftFactory; }
+    FakePBFTFactory::Ptr pbftFactory() { return m_pbftFactory; }
     PBFTImpl::Ptr pbft() { return m_pbft; }
     PBFTConfig::Ptr pbftConfig() { return m_pbftFactory->pbftConfig(); }
     PublicPtr nodeID() { return m_nodeId; }
 
-    PBFTEngine::Ptr pbftEngine() { return m_pbftEngine; }
+    FakePBFTEngine::Ptr pbftEngine() { return m_pbftEngine; }
+    KeyPairInterface::Ptr keyPair() { return m_keyPair; }
+
+    void setFrontService(FakeFrontService::Ptr _fakeFrontService)
+    {
+        m_frontService = _fakeFrontService;
+    }
 
 private:
     CryptoSuite::Ptr m_cryptoSuite;
@@ -134,9 +224,80 @@ private:
     FakeSealer::Ptr m_sealer;
     FakeDispatcher::Ptr m_dispatcher;
 
-    PBFTFactory::Ptr m_pbftFactory;
-    PBFTEngine::Ptr m_pbftEngine;
+    FakePBFTFactory::Ptr m_pbftFactory;
+    FakePBFTEngine::Ptr m_pbftEngine;
     PBFTImpl::Ptr m_pbft;
 };
+using PBFTFixtureList = std::vector<PBFTFixture::Ptr>;
+
+inline PBFTFixture::Ptr createPBFTFixture(CryptoSuite::Ptr _cryptoSuite,
+    FakeLedger::Ptr _ledger = nullptr, size_t _consensusTimeout = 3, size_t _txCountLimit = 1000)
+{
+    auto keyPair = _cryptoSuite->signatureImpl()->generateKeyPair();
+    return std::make_shared<PBFTFixture>(
+        _cryptoSuite, keyPair, _ledger, _consensusTimeout, _txCountLimit);
+}
+
+inline std::map<IndexType, PBFTFixture::Ptr> createFakers(CryptoSuite::Ptr _cryptoSuite,
+    size_t _consensusNodeSize, size_t _currentBlockNumber, size_t _consensusTimeout = 3,
+    size_t _txCountLimit = 1000)
+{
+    PBFTFixtureList fakerList;
+    // create block factory
+    auto blockFactory = createBlockFactory(_cryptoSuite);
+
+    auto ledger = std::make_shared<FakeLedger>(blockFactory, _currentBlockNumber + 1, 10, 0);
+    for (size_t i = 0; i < _consensusNodeSize; i++)
+    {
+        // ensure all the block are consistent
+        auto fakedLedger = std::make_shared<FakeLedger>(
+            blockFactory, _currentBlockNumber + 1, 10, 0, ledger->sealerList());
+        fakedLedger->setSystemConfig(
+            SYSTEM_KEY_CONSENSUS_TIMEOUT, std::to_string(_consensusTimeout));
+        fakedLedger->setSystemConfig(SYSTEM_KEY_TX_COUNT_LIMIT, std::to_string(_txCountLimit));
+
+        auto peerFaker =
+            createPBFTFixture(_cryptoSuite, fakedLedger, _consensusTimeout, _txCountLimit);
+        fakerList.push_back(peerFaker);
+    }
+
+    for (size_t i = 0; i < _consensusNodeSize; i++)
+    {
+        auto faker = fakerList[i];
+        for (size_t j = 0; j < _consensusNodeSize; j++)
+        {
+            faker->appendConsensusNode(fakerList[j]->keyPair()->publicKey());
+        }
+    }
+    // init the fakers
+    auto fakeGateWay = std::make_shared<FakeGateWay>();
+    for (size_t i = 0; i < _consensusNodeSize; i++)
+    {
+        auto faker = fakerList[i];
+        faker->init();
+        fakeGateWay->addConsensusInterface(faker->keyPair()->publicKey(), faker->pbft());
+    }
+    std::map<IndexType, PBFTFixture::Ptr> indexToFakerMap;
+    for (size_t i = 0; i < _consensusNodeSize; i++)
+    {
+        auto faker = fakerList[i];
+        indexToFakerMap[faker->pbftConfig()->nodeIndex()] = faker;
+        faker->frontService()->setGateWay(fakeGateWay);
+    }
+    return indexToFakerMap;
+}
+
+inline Block::Ptr fakeBlock(CryptoSuite::Ptr _cryptoSuite, PBFTFixture::Ptr _faker,
+    size_t _proposalIndex, size_t _txsHashSize)
+{
+    auto ledgerConfig = _faker->ledger()->ledgerConfig();
+    auto parent = (_faker->ledger()->ledgerData())[ledgerConfig->blockNumber()];
+    auto block = _faker->ledger()->init(parent->blockHeader(), true, _proposalIndex, 0, 0);
+    for (size_t i = 0; i < _txsHashSize; i++)
+    {
+        block->appendTransactionHash(_cryptoSuite->hashImpl()->hash(std::to_string(i)));
+    }
+    return block;
+}
 }  // namespace test
 }  // namespace bcos

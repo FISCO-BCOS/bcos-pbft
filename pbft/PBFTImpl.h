@@ -50,6 +50,10 @@ public:
     void asyncGetPBFTView(std::function<void(Error::Ptr, ViewType)> _onGetView) override
     {
         auto view = m_pbftEngine->pbftConfig()->view();
+        if (!_onGetView)
+        {
+            return;
+        }
         _onGetView(nullptr, view);
     }
 
@@ -58,6 +62,10 @@ public:
         std::function<void(Error::Ptr _error)> _onRecv) override
     {
         m_pbftEngine->onReceivePBFTMessage(_error, _nodeID, _data, _sendResponse);
+        if (!_onRecv)
+        {
+            return;
+        }
         _onRecv(nullptr);
     }
 

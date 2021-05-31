@@ -41,11 +41,14 @@ BOOST_AUTO_TEST_CASE(testPBFTInit)
     auto signatureImpl = std::make_shared<Secp256k1SignatureImpl>();
     auto cryptoSuite = std::make_shared<CryptoSuite>(hashImpl, signatureImpl, nullptr);
     auto keyPair = signatureImpl->generateKeyPair();
+    auto gateWay = std::make_shared<FakeGateWay>();
 
     size_t consensusTimeout = 4;
     size_t txCountLimit = 2000;
-    auto faker =
-        std::make_shared<PBFTFixture>(cryptoSuite, keyPair, consensusTimeout, txCountLimit);
+    auto faker = std::make_shared<PBFTFixture>(
+        cryptoSuite, keyPair, nullptr, consensusTimeout, txCountLimit);
+    faker->frontService()->setGateWay(gateWay);
+
     // case1: with zero consensus node
     BOOST_CHECK_THROW(faker->init(), InitConsensusException);
 
@@ -146,6 +149,11 @@ BOOST_AUTO_TEST_CASE(testPBFTInit)
     pbftConfig->storage()->asyncCommitProposal(fakedProposal);
     faker->init();
     BOOST_CHECK(pbftConfig->minRequiredQuorum() == 1);
+    while (faker->ledger()->blockNumber() != proposalIndex ||
+           (pbftConfig->progressedIndex() != proposalIndex + 1))
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
     BOOST_CHECK(faker->ledger()->blockNumber() == proposalIndex);
     BOOST_CHECK(pbftConfig->progressedIndex() == proposalIndex + 1);
     BOOST_CHECK(pbftEngine->cacheProcessor()->committedQueueSize() == 0);

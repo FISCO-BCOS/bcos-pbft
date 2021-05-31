@@ -24,10 +24,11 @@ using namespace bcos::consensus;
 using namespace bcos::crypto;
 using namespace bcos::protocol;
 
-void TxsValidator::asyncResetTxsFlag(PBFTProposalInterface::Ptr _proposal, bool _flag)
+void TxsValidator::asyncResetTxsFlag(bytesConstRef _data, bool _flag)
 {
+    auto block = m_blockFactory->createBlock(_data);
     auto self = std::weak_ptr<TxsValidator>(shared_from_this());
-    m_worker->enqueue([self, _proposal, _flag]() {
+    m_worker->enqueue([self, block, _flag]() {
         try
         {
             auto validator = self.lock();
@@ -35,7 +36,7 @@ void TxsValidator::asyncResetTxsFlag(PBFTProposalInterface::Ptr _proposal, bool 
             {
                 return;
             }
-            auto block = validator->m_blockFactory->createBlock(_proposal->data());
+
             auto txsHash = std::make_shared<HashList>();
             for (size_t i = 0; i < block->transactionsHashSize(); i++)
             {

@@ -230,7 +230,10 @@ inline PBFTProposalList fakeProposals(CryptoSuite::Ptr _cryptoSuite, PBFTMessage
         proposals.push_back(
             fakeSingleProposal(_cryptoSuite, faker, _nodeKeyPairList, index, hash, data));
         index++;
-        data[0] += 1;
+        if (data.size() > 0)
+        {
+            data[0] += 1;
+        }
     }
     return proposals;
 }
@@ -265,7 +268,10 @@ inline void checkProposals(PBFTProposalList _proposals, CryptoSuite::Ptr _crypto
     {
         auto hash = _cryptoSuite->hashImpl()->hash(std::to_string(index));
         checkSingleProposal(proposal, hash, index, data);
-        data[0] += 1;
+        if (data.size() > 0)
+        {
+            data[0] += 1;
+        }
         index++;
     }
 }
@@ -295,9 +301,9 @@ inline PBFTMessage::Ptr fakePBFTMessage(int64_t orgTimestamp, int32_t version, V
     }
     auto proposals =
         fakeProposals(cryptoSuite, _faker, nodeKeyPairList, _index, _data, proposalSize);
-
     auto fakedMessage = _faker->fakePBFTMessage(
         orgTimestamp, version, view, generatedFrom, proposalHash, proposals);
+    fakedMessage->setIndex(_index);
     fakedMessage->setPacketType(_packetType);
     checkPBFTMessage(fakedMessage, orgTimestamp, version, view, generatedFrom, proposalHash,
         proposalSize, cryptoSuite, _index, _data);

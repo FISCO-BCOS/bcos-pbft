@@ -50,7 +50,7 @@ public:
     PBFTConfig::Ptr pbftConfig() { return m_pbftConfig; }
     PBFTEngine::Ptr pbftEngine() { return m_pbftEngine; }
 
-private:
+protected:
     ConsensusInterface::Ptr m_pbft;
     PBFTEngine::Ptr m_pbftEngine;
     PBFTConfig::Ptr m_pbftConfig;

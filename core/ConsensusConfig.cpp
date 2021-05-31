@@ -32,12 +32,16 @@ ConsensusNodeList ConsensusConfig::consensusNodeList() const
     return *m_consensusNodeList;
 }
 
-NodeIDs ConsensusConfig::consensusNodeIDList() const
+NodeIDs ConsensusConfig::consensusNodeIDList(bool _excludeSelf) const
 {
     ReadGuard l(x_consensusNodeList);
     std::vector<PublicPtr> nodeIDList;
     for (auto node : *m_consensusNodeList)
     {
+        if (_excludeSelf && node->nodeID()->data() == nodeID()->data())
+        {
+            continue;
+        }
         nodeIDList.push_back(node->nodeID());
     }
     return nodeIDList;

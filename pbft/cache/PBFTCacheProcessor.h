@@ -128,7 +128,7 @@ protected:
     virtual void applyStateMachine(PBFTProposalInterface::Ptr _proposal);
     virtual void updateStableCheckPointQueue(PBFTProposalInterface::Ptr _stableCheckPoint);
 
-private:
+protected:
     using PBFTCachesType = std::map<bcos::protocol::BlockNumber, PBFTCache::Ptr>;
     using UpdateCacheHandler =
         std::function<void(PBFTCache::Ptr _pbftCache, PBFTMessageInterface::Ptr _pbftMessage)>;
@@ -139,7 +139,7 @@ private:
         std::map<IndexType, ViewChangeMsgInterface::Ptr> _viewChangeCache);
     void reCalculateViewChangeWeight();
 
-private:
+protected:
     PBFTConfig::Ptr m_config;
     PBFTCachesType m_caches;
 
