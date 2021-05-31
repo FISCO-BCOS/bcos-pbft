@@ -52,7 +52,7 @@ configure_project()
 include(CompilerSettings)
 
 include_directories(${CMAKE_INSTALL_INCLUDEDIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+# include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 set(PROTO_PATH ${PROJECT_SOURCE_DIR})

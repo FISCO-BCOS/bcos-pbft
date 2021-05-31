@@ -19,8 +19,8 @@
  * @date 2021-04-28
  */
 #pragma once
-#include "pbft/interfaces/PBFTRequestInterface.h"
-#include "pbft/protocol/PB/PBFTBaseMessage.h"
+#include "../../interfaces/PBFTRequestInterface.h"
+#include "PBFTBaseMessage.h"
 #include "pbft/protocol/proto/PBFT.pb.h"
 #include <bcos-framework/libprotocol/Common.h>
 

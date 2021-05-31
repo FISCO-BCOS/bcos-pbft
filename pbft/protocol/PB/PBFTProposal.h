@@ -19,7 +19,7 @@
  * @date 2021-04-15
  */
 #pragma once
-#include "core/Proposal.h"
+#include "../../../core/Proposal.h"
 #include "pbft/protocol/proto/PBFT.pb.h"
 namespace bcos
 {

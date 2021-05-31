@@ -20,8 +20,8 @@
  */
 #pragma once
 #include "PBFTBaseMessage.h"
-#include "pbft/config/PBFTConfig.h"
-#include "pbft/interfaces/PBFTMessageInterface.h"
+#include "../../config/PBFTConfig.h"
+#include "../../interfaces/PBFTMessageInterface.h"
 #include "pbft/protocol/proto/PBFT.pb.h"
 
 namespace bcos
