@@ -267,7 +267,8 @@ CheckResult PBFTEngine::checkPBFTMsgState(PBFTBaseMessageInterface::Ptr _pbftReq
     if (_pbftReq->index() < m_config->progressedIndex() ||
         _pbftReq->index() >= m_config->highWaterMark())
     {
-        PBFT_LOG(TRACE) << LOG_DESC("checkPBFTMsgState: invalid pbftMsg for expired index")
+        PBFT_LOG(TRACE) << LOG_DESC("checkPBFTMsgState: invalid pbftMsg for invalid index")
+                        << LOG_KV("highWaterMark", m_config->highWaterMark())
                         << printPBFTMsgInfo(_pbftReq) << m_config->printCurrentState();
         return CheckResult::INVALID;
     }
@@ -330,8 +331,13 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
     {
         // packet can be processed in this round of consensus
         // check the proposal is generated from the leader
-        if (m_config->leaderIndex(_prePrepareMsg->index()) != _prePrepareMsg->generatedFrom())
+        auto expectedLeader = m_config->leaderIndex(_prePrepareMsg->index());
+        if (expectedLeader != _prePrepareMsg->generatedFrom())
         {
+            PBFT_LOG(TRACE) << LOG_DESC(
+                                   "handlePrePrepareMsg: invalid packet for not from the leader")
+                            << printPBFTMsgInfo(_prePrepareMsg) << m_config->printCurrentState()
+                            << LOG_KV("expectedLeader", expectedLeader);
             m_config->validator()->asyncResetTxsFlag(
                 _prePrepareMsg->consensusProposal()->data(), false);
             return false;
@@ -470,9 +476,9 @@ bool PBFTEngine::handleCommitMsg(PBFTMessageInterface::Ptr _commitMsg)
 
 void PBFTEngine::onTimeout()
 {
+    PBFT_LOG(WARNING) << LOG_DESC("onTimeout") << m_config->printCurrentState();
     Guard l(m_mutex);
     m_timeoutState.store(true);
-    PBFT_LOG(WARNING) << LOG_DESC("onTimeout") << m_config->printCurrentState();
     // update toView
     m_config->incToView(1);
     // increase the changeCycle
@@ -496,9 +502,11 @@ void PBFTEngine::broadcastViewChangeReq()
             "broadcastViewChangeReq failed for the latest storage state has not been loaded.");
     }
     auto viewChangeReq = m_config->pbftMessageFactory()->createViewChangeMsg();
+    viewChangeReq->setHash(m_config->committedProposal()->hash());
+    viewChangeReq->setIndex(m_config->committedProposal()->index());
     viewChangeReq->setPacketType(PacketType::ViewChangePacket);
     viewChangeReq->setVersion(m_config->pbftMsgDefaultVersion());
-    viewChangeReq->setView(m_config->view());
+    viewChangeReq->setView(m_config->toView());
     viewChangeReq->setTimestamp(utcTime());
     viewChangeReq->setGeneratedFrom(m_config->nodeIndex());
     // set the committed proposal
@@ -557,7 +565,11 @@ bool PBFTEngine::isValidViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _v
             return false;
         }
     }
-    checkSignature(_viewChangeMsg);
+    auto ret = checkSignature(_viewChangeMsg);
+    if (ret == CheckResult::INVALID)
+    {
+        return false;
+    }
     return true;
 }
 
@@ -580,11 +592,12 @@ bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
 bool PBFTEngine::isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg)
 {
     // check the newViewMsg
-    if (m_config->leaderAfterViewChange() != _newViewMsg->index())
+    if (m_config->leaderIndexInNewViewPeriod() != _newViewMsg->generatedFrom())
     {
         PBFT_LOG(DEBUG) << LOG_DESC("InvalidNewViewMsg for invalid nextLeader")
-                        << LOG_KV("expectedLeader", m_config->leaderAfterViewChange())
+                        << LOG_KV("expectedLeader", m_config->leaderIndexInNewViewPeriod())
                         << LOG_KV("recvIdx", _newViewMsg->index());
+        return false;
     }
     if (_newViewMsg->view() <= m_config->view())
     {
@@ -616,7 +629,11 @@ bool PBFTEngine::isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newView
         return false;
     }
     // TODO: check the prePrepared message
-    checkSignature(_newViewMsg);
+    auto ret = checkSignature(_newViewMsg);
+    if (ret == CheckResult::INVALID)
+    {
+        return false;
+    }
     return true;
 }
 

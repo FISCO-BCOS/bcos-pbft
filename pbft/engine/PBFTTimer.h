@@ -28,24 +28,43 @@ class PBFTTimer : public Timer
 {
 public:
     using Ptr = std::shared_ptr<PBFTTimer>;
-    explicit PBFTTimer(uint64_t _timeout) : Timer(_timeout) {}
+    explicit PBFTTimer(uint64_t _timeout) : Timer(_timeout) { updateAdjustedTimeout(); }
 
     ~PBFTTimer() override {}
 
-    void updateChangeCycle(int64_t _changeCycle) { m_changeCycle = _changeCycle; }
-    void incChangeCycle(int64_t _increasedValue) { m_changeCycle += _increasedValue; }
-    void resetChangeCycle() { m_changeCycle = 0; }
+    void updateChangeCycle(int64_t _changeCycle)
+    {
+        m_changeCycle = _changeCycle;
+        updateAdjustedTimeout();
+    }
+    void incChangeCycle(int64_t _increasedValue)
+    {
+        m_changeCycle += _increasedValue;
+        updateAdjustedTimeout();
+    }
+    void resetChangeCycle()
+    {
+        m_changeCycle = 0;
+        updateAdjustedTimeout();
+    }
     uint64_t changeCycle() const { return m_changeCycle; }
 
-protected:
-    uint64_t adjustTimeout() override
+    void reset(uint64_t _timeout) override
     {
-        uint64_t timeout = m_timeout.load() * std::pow(m_base, m_changeCycle.load());
-        m_timeout.store(timeout);
-        return m_timeout.load();
+        Timer::reset(_timeout);
+        updateAdjustedTimeout();
     }
 
+protected:
+    void updateAdjustedTimeout()
+    {
+        uint64_t timeout = m_timeout.load() * std::pow(m_base, m_changeCycle.load());
+        m_adjustedTimeout.store(timeout);
+    }
+    uint64_t adjustTimeout() override { return m_adjustedTimeout; }
+
 private:
+    std::atomic<uint64_t> m_adjustedTimeout;
     std::atomic<uint64_t> m_changeCycle = 0;
     double const m_base = 1.5;
 };

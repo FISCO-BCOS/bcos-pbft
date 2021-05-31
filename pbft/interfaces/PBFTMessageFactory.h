@@ -126,19 +126,6 @@ public:
         return pbftMessage;
     }
 
-    virtual ViewChangeMsgInterface::Ptr populateFrom(ViewChangeMsgInterface::Ptr _viewChangeReq)
-    {
-        auto viewChangeReq = createViewChangeMsg();
-        viewChangeReq->setVersion(_viewChangeReq->version());
-        viewChangeReq->setPacketType(PacketType::ViewChangePacket);
-        viewChangeReq->setIndex(_viewChangeReq->index());
-        viewChangeReq->setView(_viewChangeReq->view());
-        viewChangeReq->setTimestamp(_viewChangeReq->timestamp());
-        viewChangeReq->setGeneratedFrom(_viewChangeReq->generatedFrom());
-        viewChangeReq->setCommittedProposal(_viewChangeReq->committedProposal());
-        return viewChangeReq;
-    }
-
     virtual PBFTProposalInterface::Ptr populateFrom(
         PBFTProposalInterface::Ptr _proposal, bool _withData = true, bool _withProof = true)
     {

@@ -77,21 +77,31 @@ public:
         PBFTBaseMessage::deserializeToObject();
     }
 
-    bytes const& signatureData() override { return *m_signatureData; }
+    bytesConstRef signatureData() override
+    {
+        auto const& signatureData = m_baseMessage->signaturedata();
+        return bytesConstRef((byte const*)signatureData.data(), signatureData.size());
+    }
+
     bcos::crypto::HashType const& signatureDataHash() override { return m_dataHash; }
     void setSignatureData(bytes&& _signatureData) override
     {
-        *m_signatureData = std::move(_signatureData);
+        auto size = _signatureData.size();
+        m_baseMessage->set_signaturedata((std::move(_signatureData)).data(), size);
     }
     void setSignatureData(bytes const& _signatureData) override
     {
-        *m_signatureData = _signatureData;
+        m_baseMessage->set_signaturedata(_signatureData.data(), _signatureData.size());
     }
-    void setSignatureDataHash(bcos::crypto::HashType const& _hash) override { m_dataHash = _hash; }
+    void setSignatureDataHash(bcos::crypto::HashType const& _hash) override
+    {
+        m_dataHash = _hash;
+        m_baseMessage->set_signaturehash(_hash.data(), bcos::crypto::HashType::size);
+    }
     bool verifySignature(
         bcos::crypto::CryptoSuite::Ptr _cryptoSuite, bcos::crypto::PublicPtr _pubKey) override
     {
-        return _cryptoSuite->signatureImpl()->verify(_pubKey, m_dataHash, ref(*m_signatureData));
+        return _cryptoSuite->signatureImpl()->verify(_pubKey, m_dataHash, signatureData());
     }
 
     int64_t index() const override { return m_baseMessage->index(); }
@@ -111,12 +121,18 @@ protected:
     virtual void deserializeToObject()
     {
         auto const& hashData = m_baseMessage->hash();
-        if (hashData.size() < bcos::crypto::HashType::size)
+        if (hashData.size() >= bcos::crypto::HashType::size)
         {
-            return;
+            m_hash =
+                bcos::crypto::HashType((byte const*)hashData.c_str(), bcos::crypto::HashType::size);
         }
-        m_hash =
-            bcos::crypto::HashType((byte const*)hashData.c_str(), bcos::crypto::HashType::size);
+
+        auto const& signatureDataHash = m_baseMessage->signaturehash();
+        if (signatureDataHash.size() >= bcos::crypto::HashType::size)
+        {
+            m_dataHash = bcos::crypto::HashType(
+                (byte const*)signatureDataHash.c_str(), bcos::crypto::HashType::size);
+        }
     }
 
     std::shared_ptr<BaseMessage> baseMessage() { return m_baseMessage; }

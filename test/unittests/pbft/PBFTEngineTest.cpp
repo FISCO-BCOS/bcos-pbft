@@ -34,12 +34,13 @@ namespace bcos
 namespace test
 {
 BOOST_FIXTURE_TEST_SUITE(PBFTEngineTest, TestPromptFixture)
-inline bool shouldExit(
-    std::map<IndexType, PBFTFixture::Ptr> const& _consensusNodes, BlockNumber _expectedNumber)
+inline bool shouldExit(std::map<IndexType, PBFTFixture::Ptr>& _consensusNodes,
+    BlockNumber _expectedNumber, size_t _connectedNodes)
 {
-    for (auto const& node : _consensusNodes)
+    for (IndexType i = 0; i < _connectedNodes; i++)
     {
-        if (node.second->ledger()->blockNumber() != _expectedNumber)
+        auto faker = _consensusNodes[i];
+        if (faker->ledger()->blockNumber() != _expectedNumber)
         {
             return false;
         }
@@ -47,15 +48,14 @@ inline bool shouldExit(
     return true;
 }
 
-BOOST_AUTO_TEST_CASE(testPBFTEngine)
+void testPBFTEngineWithFaulty(size_t _consensusNodes, size_t _connectedNodes)
 {
     auto hashImpl = std::make_shared<Keccak256Hash>();
     auto signatureImpl = std::make_shared<Secp256k1SignatureImpl>();
     auto cryptoSuite = std::make_shared<CryptoSuite>(hashImpl, signatureImpl, nullptr);
 
-    size_t consensusNodeSize = 10;
     BlockNumber currentBlockNumber = 19;
-    auto fakerMap = createFakers(cryptoSuite, consensusNodeSize, currentBlockNumber);
+    auto fakerMap = createFakers(cryptoSuite, _consensusNodes, currentBlockNumber, _connectedNodes);
 
     // check the leader notify the sealer to seal proposals
     IndexType leaderIndex = 0;
@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE(testPBFTEngine)
         ref(*blockData), block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
 
     // handle prepare message and broadcast commit messages
-    while (!shouldExit(fakerMap, currentBlockNumber + 2))
+    while (!shouldExit(fakerMap, currentBlockNumber + 2, _connectedNodes))
     {
         for (auto const& node : fakerMap)
         {
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(testPBFTEngine)
     faker->pbftEngine()->asyncSubmitProposal(
         ref(*blockData), block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
 
-    while (!shouldExit(fakerMap, currentBlockNumber + 4))
+    while (!shouldExit(fakerMap, currentBlockNumber + 4, _connectedNodes))
     {
         for (auto const& node : fakerMap)
         {
@@ -123,6 +123,15 @@ BOOST_AUTO_TEST_CASE(testPBFTEngine)
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
+}
+
+BOOST_AUTO_TEST_CASE(testPBFTEngineWithAllNonFaulty)
+{
+    size_t consensusNodeSize = 10;
+    // case1: all non-faulty
+    testPBFTEngineWithFaulty(consensusNodeSize, consensusNodeSize);
+    // case2: with f=3 faulty
+    testPBFTEngineWithFaulty(consensusNodeSize, 7);
 }
 
 BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
@@ -133,7 +142,8 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
 
     size_t consensusNodeSize = 2;
     size_t currentBlockNumber = 10;
-    auto fakerMap = createFakers(cryptoSuite, consensusNodeSize, currentBlockNumber);
+    auto fakerMap =
+        createFakers(cryptoSuite, consensusNodeSize, currentBlockNumber, consensusNodeSize);
 
     auto expectedIndex = (fakerMap[0])->pbftConfig()->progressedIndex();
     auto expectedLeader = (fakerMap[0])->pbftConfig()->leaderIndex(expectedIndex);
@@ -148,30 +158,75 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
     auto pbftMsg = fakePBFTMessage(utcTime(), 1, leaderFaker->pbftConfig()->view(), expectedLeader,
         hash, index, bytes(), 0, leaderMsgFixture, PacketType::PrePreparePacket);
     auto data = leaderFaker->pbftConfig()->codec()->encode(pbftMsg);
-    auto decodedMsg = leaderFaker->pbftConfig()->codec()->decode(ref(*data));
     nonLeaderFaker->pbftEngine()->onReceivePBFTMessage(
-        nullptr, leaderFaker->keyPair()->publicKey(), ref(*data), nullptr);
+        nullptr, nonLeaderFaker->keyPair()->publicKey(), ref(*data), nullptr);
     nonLeaderFaker->pbftEngine()->executeWorker();
     BOOST_CHECK(!nonLeaderFaker->pbftEngine()->cacheProcessor()->existPrePrepare(pbftMsg));
 
+    // case2: invalid view
+    index = expectedIndex;
+    ViewType view = 10;
+    for (auto node : fakerMap)
+    {
+        node.second->pbftConfig()->setView(view);
+    }
+    expectedLeader = (fakerMap[0])->pbftConfig()->leaderIndex(index);
+    leaderFaker = fakerMap[expectedLeader];
+    pbftMsg = fakePBFTMessage(utcTime(), 1, (leaderFaker->pbftConfig()->view() - 1), expectedLeader,
+        hash, index, bytes(), 0, leaderMsgFixture, PacketType::PrePreparePacket);
+    data = leaderFaker->pbftConfig()->codec()->encode(pbftMsg);
+    nonLeaderFaker = fakerMap[(expectedLeader + 1) % consensusNodeSize];
+    nonLeaderFaker->pbftEngine()->onReceivePBFTMessage(
+        nullptr, nonLeaderFaker->keyPair()->publicKey(), ref(*data), nullptr);
+    nonLeaderFaker->pbftEngine()->executeWorker();
+    BOOST_CHECK(!nonLeaderFaker->pbftEngine()->cacheProcessor()->existPrePrepare(pbftMsg));
 
-#if 0
-    fakePBFTMessage(int64_t orgTimestamp, int32_t version, ViewType view,
-    IndexType generatedFrom, HashType const& proposalHash, BlockNumber _index, bytes const& _data,
-    size_t proposalSize, std::shared_ptr<PBFTMessageFixture> _faker, PacketType _packetType)
-       // case1: invalid view
-    auto view = 10;
-    
-    faker->pbftConfig()->setView(view);
-    auto data = pbftMsg->encode();
+    // case3: not from the leader
+    pbftMsg = fakePBFTMessage(utcTime(), 1, (nonLeaderFaker->pbftConfig()->view()),
+        (expectedLeader + 1) % consensusNodeSize, hash, index, bytes(), 0, leaderMsgFixture,
+        PacketType::PrePreparePacket);
+    data = nonLeaderFaker->pbftConfig()->codec()->encode(pbftMsg);
+    leaderFaker->pbftEngine()->onReceivePBFTMessage(
+        nullptr, leaderFaker->keyPair()->publicKey(), ref(*data), nullptr);
+    leaderFaker->pbftEngine()->executeWorker();
+    BOOST_CHECK(!leaderFaker->pbftEngine()->cacheProcessor()->existPrePrepare(pbftMsg));
 
-#endif
+    // case4: invalid signature
+    pbftMsg = fakePBFTMessage(utcTime(), 1, (leaderFaker->pbftConfig()->view()), expectedLeader,
+        hash, index, bytes(), 0, leaderMsgFixture, PacketType::PrePreparePacket);
+    data = nonLeaderFaker->pbftConfig()->codec()->encode(pbftMsg);
+    nonLeaderFaker->pbftEngine()->onReceivePBFTMessage(
+        nullptr, nonLeaderFaker->keyPair()->publicKey(), ref(*data), nullptr);
+    nonLeaderFaker->pbftEngine()->executeWorker();
+    BOOST_CHECK(!nonLeaderFaker->pbftEngine()->cacheProcessor()->existPrePrepare(pbftMsg));
 
+    // case5: invalid pre-prepare for txpool verify failed
+    data = leaderFaker->pbftConfig()->codec()->encode(pbftMsg);
+    nonLeaderFaker->txpool()->setVerifyResult(false);
+    nonLeaderFaker->pbftEngine()->onReceivePBFTMessage(
+        nullptr, nonLeaderFaker->keyPair()->publicKey(), ref(*data), nullptr);
+    nonLeaderFaker->pbftEngine()->executeWorker();
+    BOOST_CHECK(!nonLeaderFaker->pbftEngine()->cacheProcessor()->existPrePrepare(pbftMsg));
 
-#if 0
-    inline PBFTFixture::Ptr createPBFTFixture(CryptoSuite::Ptr _cryptoSuite,
-    FakeLedger::Ptr _ledger = nullptr, size_t _consensusTimeout = 3, size_t _txCountLimit = 1000)
-#endif
+    // case6: valid pre-prepare
+    nonLeaderFaker->txpool()->setVerifyResult(true);
+    nonLeaderFaker->pbftEngine()->onReceivePBFTMessage(
+        nullptr, nonLeaderFaker->keyPair()->publicKey(), ref(*data), nullptr);
+    nonLeaderFaker->pbftEngine()->executeWorker();
+    BOOST_CHECK(nonLeaderFaker->pbftEngine()->cacheProcessor()->existPrePrepare(pbftMsg));
+    nonLeaderFaker->pbftConfig()->setConsensusTimeout(200);
+    leaderFaker->pbftConfig()->setConsensusTimeout(200);
+    BOOST_CHECK(nonLeaderFaker->pbftConfig()->timer()->running());
+    while (!leaderFaker->pbftEngine()->isTimeout() || !nonLeaderFaker->pbftEngine()->isTimeout())
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    // wait to trigger viewchange since not reach consensus
+    while (leaderFaker->pbftEngine()->isTimeout() || nonLeaderFaker->pbftEngine()->isTimeout())
+    {
+        nonLeaderFaker->pbftEngine()->executeWorker();
+        leaderFaker->pbftEngine()->executeWorker();
+    }
 }
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace test

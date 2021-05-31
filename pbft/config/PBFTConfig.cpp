@@ -132,9 +132,13 @@ IndexType PBFTConfig::leaderIndex(BlockNumber _proposalIndex)
 
 bool PBFTConfig::leaderAfterViewChange()
 {
-    auto expectedLeader =
-        (m_progressedIndex / m_leaderSwitchPeriod + m_toView) % m_consensusNodeNum;
+    auto expectedLeader = leaderIndexInNewViewPeriod();
     return (m_nodeIndex == expectedLeader);
+}
+
+IndexType PBFTConfig::leaderIndexInNewViewPeriod()
+{
+    return (m_committedProposal->index() / m_leaderSwitchPeriod + m_toView) % m_consensusNodeNum;
 }
 
 PBFTProposalInterface::Ptr PBFTConfig::populateCommittedProposal()
@@ -160,6 +164,7 @@ std::string PBFTConfig::printCurrentState()
     stringstream << LOG_KV("consNum", progressedIndex())
                  << LOG_KV("committedHash", committedProposal()->hash().abridged())
                  << LOG_KV("committedIndex", committedProposal()->index()) << LOG_KV("view", view())
+                 << LOG_KV("toView", toView()) << LOG_KV("changeCycle", m_timer->changeCycle())
                  << LOG_KV("Idx", nodeIndex()) << LOG_KV("nodeId", nodeID()->shortHex());
     return stringstream.str();
 }
