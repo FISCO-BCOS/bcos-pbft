@@ -52,11 +52,16 @@ public:
             return;
         }
         std::vector<ParentInfo> parentList;
-        parentList.push_back(
-            ParentInfo{latestBlock->blockHeader()->number(), latestBlock->blockHeader()->hash()});
-        _block->blockHeader()->setParentInfo(parentList);
+        if (_block->blockHeader()->parentInfo().size() == 0)
+        {
+            parentList.push_back(ParentInfo{
+                latestBlock->blockHeader()->number(), latestBlock->blockHeader()->hash()});
+            _block->blockHeader()->setParentInfo(parentList);
+        }
+        m_blocks.push_back(_block);
         _callback(nullptr, _block->blockHeader());
     }
+
     // useless for PBFT, maybe useful for executors
     void asyncGetLatestBlock(std::function<void(Error::Ptr, Block::Ptr)>) override {}
 

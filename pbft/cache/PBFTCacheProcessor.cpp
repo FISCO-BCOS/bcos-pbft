@@ -38,7 +38,6 @@ void PBFTCacheProcessor::addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepar
         [](PBFTCache::Ptr _pbftCache, PBFTMessageInterface::Ptr proposal) {
             _pbftCache->addPrePrepareCache(proposal);
         });
-    PBFT_LOG(INFO) << LOG_DESC("addPrePrepareCache") << printPBFTMsgInfo(_prePrepareMsg);
 }
 
 bool PBFTCacheProcessor::existPrePrepare(PBFTMessageInterface::Ptr _prePrepareMsg)
@@ -155,7 +154,6 @@ void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committed
         m_config->setExpectedCheckPoint(proposal->index() + 1);
         applyStateMachine(proposal);
         // commit the proposal
-        m_config->storage()->asyncCommitProposal(proposal);
         m_committedQueue.pop();
     }
 }
@@ -166,8 +164,7 @@ void PBFTCacheProcessor::applyStateMachine(PBFTProposalInterface::Ptr _proposal)
     auto committedProposal = m_config->committedProposal();
     PBFT_LOG(DEBUG) << LOG_DESC("applyStateMachine") << LOG_KV("index", _proposal->index())
                     << LOG_KV("hash", _proposal->hash().abridged())
-                    << LOG_KV("committedIndex", committedProposal->index())
-                    << LOG_KV("committedHash", committedProposal->hash().abridged());
+                    << m_config->printCurrentState();
     auto executedProposal = m_config->pbftMessageFactory()->createPBFTProposal();
     auto self = std::weak_ptr<PBFTCacheProcessor>(shared_from_this());
     m_config->stateMachine()->asyncApply(committedProposal, _proposal, executedProposal,
@@ -188,6 +185,9 @@ void PBFTCacheProcessor::applyStateMachine(PBFTProposalInterface::Ptr _proposal)
                     return;
                 }
                 auto config = cache->m_config;
+                // commit the proposal when execute success
+                config->storage()->asyncCommitProposal(_proposal);
+                // broadcast checkpoint message
                 auto checkPointMsg = config->pbftMessageFactory()->populateFrom(
                     PacketType::CheckPoint, config->pbftMsgDefaultVersion(), config->view(),
                     utcTime(), config->nodeIndex(), executedProposal, config->cryptoSuite(),
@@ -200,8 +200,12 @@ void PBFTCacheProcessor::applyStateMachine(PBFTProposalInterface::Ptr _proposal)
                 cache->addCheckPointMsg(checkPointMsg);
                 cache->setCheckPointProposal(executedProposal);
                 cache->checkAndCommitStableCheckPoint();
-                PBFT_LOG(DEBUG) << LOG_DESC("applyStateMachine: broadcast checkpoint message")
-                                << printPBFTMsgInfo(checkPointMsg);
+                PBFT_LOG(DEBUG) << LOG_DESC(
+                                       "applyStateMachine success and broadcast checkpoint message")
+                                << LOG_KV("index", checkPointMsg->index())
+                                << LOG_KV("beforeExec", _proposal->hash().abridged())
+                                << LOG_KV("afterExec", executedProposal->hash().abridged())
+                                << config->printCurrentState();
             }
             catch (std::exception const& e)
             {
@@ -547,7 +551,7 @@ void PBFTCacheProcessor::updateStableCheckPointQueue(PBFTProposalInterface::Ptr 
     PBFT_LOG(DEBUG) << LOG_DESC("updateStableCheckPointQueue: insert new checkpoint proposal")
                     << LOG_KV("index", _stableCheckPoint->index())
                     << LOG_KV("hash", _stableCheckPoint->hash().abridged())
-                    << LOG_KV("curCommittedIndex", m_config->committedProposal()->index());
+                    << m_config->printCurrentState();
     tryToCommitStableCheckPoint();
 }
 

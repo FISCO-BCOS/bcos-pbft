@@ -80,7 +80,12 @@ public:
     virtual uint64_t leaderSwitchPeriod() const { return m_leaderSwitchPeriod; }
     virtual void setLeaderSwitchPeriod(uint64_t _leaderSwitchPeriod)
     {
+        if (_leaderSwitchPeriod == m_leaderSwitchPeriod)
+        {
+            return;
+        }
         m_leaderSwitchPeriod.store(_leaderSwitchPeriod);
+        m_leaderSwitchPeriodUpdated = true;
     }
     bcos::crypto::CryptoSuite::Ptr cryptoSuite() { return m_cryptoSuite; }
     std::shared_ptr<PBFTMessageFactory> pbftMessageFactory() { return m_pbftMessageFactory; }
@@ -151,6 +156,7 @@ private:
     PBFTStorage::Ptr m_storage;
     // Timer
     PBFTTimer::Ptr m_timer;
+    std::atomic_bool m_leaderSwitchPeriodUpdated = {false};
 
     std::atomic<uint64_t> m_maxFaultyQuorum = {0};
     std::atomic<uint64_t> m_totalQuorum = {0};

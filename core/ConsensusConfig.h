@@ -19,8 +19,8 @@
  * @date 2021-04-09
  */
 #pragma once
-#include "Common.h"
 #include "../framework/ConsensusConfigInterface.h"
+#include "Common.h"
 #include <bcos-framework/interfaces/crypto/KeyPairInterface.h>
 #include <bcos-framework/libutilities/Common.h>
 
@@ -46,7 +46,7 @@ public:
     bool isConsensusNode() const override { return (m_nodeIndex != NON_CONSENSUS_NODE); }
     // the consensus node list
     ConsensusNodeList consensusNodeList() const override;
-    bcos::crypto::NodeIDs consensusNodeIDList() const override;
+    bcos::crypto::NodeIDs consensusNodeIDList(bool _excludeSelf = true) const override;
 
     uint64_t consensusTimeout() const override { return m_consensusTimeout; }
 

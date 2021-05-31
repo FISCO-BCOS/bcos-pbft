@@ -52,9 +52,11 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
 void PBFTConfig::notifySealer(BlockNumber _progressedIndex, uint64_t _maxTxsToSeal)
 {
     auto currentLeader = leaderIndex(_progressedIndex);
-    if (m_leaderIndex != currentLeader || m_leaderIndex == InvalidNodeIndex)
+    if (m_leaderIndex != currentLeader || m_leaderIndex == InvalidNodeIndex ||
+        m_leaderSwitchPeriodUpdated)
     {
         m_leaderIndex = currentLeader;
+        m_leaderSwitchPeriodUpdated = false;
         if (m_leaderIndex != nodeIndex())
         {
             return;
@@ -151,7 +153,7 @@ std::string PBFTConfig::printCurrentState()
     std::ostringstream stringstream;
     if (!committedProposal())
     {
-        stringstream << LOG_DESC("The storage has not been intited.");
+        stringstream << LOG_DESC("The storage has not been init.");
         return stringstream.str();
     }
 

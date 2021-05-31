@@ -19,8 +19,8 @@
  * @date 2021-04-21
  */
 #pragma once
-#include "bcos-framework/interfaces/txpool/TxPoolInterface.h"
 #include "../interfaces/PBFTProposalInterface.h"
+#include "bcos-framework/interfaces/txpool/TxPoolInterface.h"
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
 #include <bcos-framework/libutilities/ThreadPool.h>
 
@@ -38,7 +38,7 @@ public:
         PBFTProposalInterface::Ptr _proposal,
         std::function<void(Error::Ptr, bool)> _verifyFinishedHandler) = 0;
 
-    virtual void asyncResetTxsFlag(PBFTProposalInterface::Ptr _proposal, bool _flag) = 0;
+    virtual void asyncResetTxsFlag(bytesConstRef _data, bool _flag) = 0;
 };
 
 class TxsValidator : public ValidatorInterface, public std::enable_shared_from_this<TxsValidator>
@@ -60,7 +60,7 @@ public:
         m_txPool->asyncVerifyBlock(_fromNode, _proposal->data(), _verifyFinishedHandler);
     }
 
-    void asyncResetTxsFlag(PBFTProposalInterface::Ptr _proposal, bool _flag = false) override;
+    void asyncResetTxsFlag(bytesConstRef _data, bool _flag = false) override;
 
 protected:
     virtual void asyncResetTxsFlag(bcos::crypto::HashListPtr _txsHashList, bool _flag);

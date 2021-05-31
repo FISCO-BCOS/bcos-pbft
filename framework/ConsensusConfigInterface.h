@@ -40,7 +40,7 @@ public:
 
     // the sealer list
     virtual ConsensusNodeList consensusNodeList() const = 0;
-    virtual bcos::crypto::NodeIDs consensusNodeIDList() const = 0;
+    virtual bcos::crypto::NodeIDs consensusNodeIDList(bool _excludeSelf = true) const = 0;
     virtual bool isConsensusNode() const = 0;
 
     // the consensus timeout

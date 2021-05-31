@@ -91,7 +91,8 @@ protected:
 
     // Process Pre-prepare type message packets
     virtual bool handlePrePrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg,
-        bool _needVerifyProposal, bool _generatedFromNewView = false);
+        bool _needVerifyProposal, bool _generatedFromNewView = false,
+        bool _needCheckSignature = true);
     virtual CheckResult checkPrePrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg);
     virtual CheckResult checkSignature(std::shared_ptr<PBFTBaseMessageInterface> _req);
     virtual CheckResult checkPBFTMsgState(std::shared_ptr<PBFTBaseMessageInterface> _pbftReq) const;
@@ -128,7 +129,7 @@ private:
         m_signalled.wait_for(l, boost::chrono::milliseconds(5));
     }
 
-private:
+protected:
     // PBFT configuration class
     // mainly maintains the node information, consensus configuration information
     // such as consensus node list, consensus weight, etc.

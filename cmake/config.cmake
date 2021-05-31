@@ -1,5 +1,5 @@
 hunter_config(bcos-framework
 VERSION 3.0.0-local
-URL "https://${URL_BASE}/FISCO-BCOS/bcos-framework/archive/61f2159aaac9994591e3b66c1882be97960b160e.tar.gz"
-SHA1 3f6ad1af8b46d93bc0c4f067e5aa2562a65e26af
+URL "https://${URL_BASE}/FISCO-BCOS/bcos-framework/archive/4a78e37c8e9e381d8f80489734d436a01e04477b.tar.gz"
+SHA1 93474a7821e9234b561182d353fefeb9951a3a60
 )

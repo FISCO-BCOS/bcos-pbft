@@ -110,6 +110,22 @@ public:
         return pbftMessage;
     }
 
+    virtual PBFTMessageInterface::Ptr populateFrom(PacketType _packetType,
+        PBFTProposalInterface::Ptr _proposal, int32_t _version, ViewType _view, int64_t _timestamp,
+        IndexType _generatedFrom)
+    {
+        auto pbftMessage = createPBFTMsg();
+        pbftMessage->setPacketType(_packetType);
+        pbftMessage->setVersion(_version);
+        pbftMessage->setView(_view);
+        pbftMessage->setTimestamp(_timestamp);
+        pbftMessage->setGeneratedFrom(_generatedFrom);
+        pbftMessage->setHash(_proposal->hash());
+        pbftMessage->setIndex(_proposal->index());
+        pbftMessage->setConsensusProposal(_proposal);
+        return pbftMessage;
+    }
+
     virtual ViewChangeMsgInterface::Ptr populateFrom(ViewChangeMsgInterface::Ptr _viewChangeReq)
     {
         auto viewChangeReq = createViewChangeMsg();
