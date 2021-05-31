@@ -21,13 +21,15 @@
 #include "LedgerStorage.h"
 #include "../utilities/Common.h"
 #include <bcos-framework/interfaces/protocol/ProtocolTypeDef.h>
+#include <bcos-framework/interfaces/storage/StorageInterface.h>
 
 using namespace bcos;
 using namespace bcos::consensus;
 using namespace bcos::ledger;
 using namespace bcos::protocol;
+using namespace bcos::storage;
 
-PBFTProposalListPtr LedgerStorage::loadState(bcos::protocol::BlockNumber _stabledIndex)
+PBFTProposalListPtr LedgerStorage::loadState(BlockNumber _stabledIndex)
 {
     m_maxCommittedProposalIndexFetched = false;
     asyncGetLatestCommittedProposalIndex();
@@ -106,8 +108,8 @@ PBFTProposalListPtr LedgerStorage::loadState(bcos::protocol::BlockNumber _stable
     return m_stateProposals;
 }
 
-void LedgerStorage::asyncGetCommittedProposals(bcos::protocol::BlockNumber _start, size_t _offset,
-    std::function<void(PBFTProposalListPtr)> _onSuccess)
+void LedgerStorage::asyncGetCommittedProposals(
+    BlockNumber _start, size_t _offset, std::function<void(PBFTProposalListPtr)> _onSuccess)
 {
     // Note: The called program must effectively handle exceptions
     if (_start > m_maxCommittedProposalIndex)
@@ -121,7 +123,7 @@ void LedgerStorage::asyncGetCommittedProposals(bcos::protocol::BlockNumber _star
     auto keys = std::make_shared<std::vector<std::string>>();
     auto endIndex =
         std::min((int64_t)(_start + _offset - 1), (int64_t)m_maxCommittedProposalIndex.load());
-    for (int64_t i = 0; i < endIndex; i++)
+    for (int64_t i = _start; i <= endIndex; i++)
     {
         keys->push_back(boost::lexical_cast<std::string>(i));
     }
@@ -146,6 +148,12 @@ void LedgerStorage::asyncGetCommittedProposals(bcos::protocol::BlockNumber _star
                 auto proposalList = std::make_shared<PBFTProposalList>();
                 for (auto const& value : *_values)
                 {
+                    if (value.empty())
+                    {
+                        PBFT_STORAGE_LOG(WARNING) << LOG_DESC(
+                            "asyncGetCommittedProposals: Discontinuous committed proposal");
+                        break;
+                    }
                     auto proposalData = bytesConstRef((byte const*)value.data(), value.size());
                     proposalList->push_back(
                         storage->m_messageFactory->createPBFTProposal(proposalData));
@@ -167,19 +175,27 @@ void LedgerStorage::asyncGetLatestCommittedProposalIndex()
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
     m_storage->asyncGet(m_pbftCommitDB, m_maxCommittedProposalKey,
         [self](Error::Ptr _error, const std::string& _value) {
-            // TODO: Run different processing logic according to different error codes
-            if (_error != nullptr)
-            {
-                PBFT_STORAGE_LOG(WARNING) << LOG_DESC("asyncGetLatestCommittedProposalIndex failed")
-                                          << LOG_KV("errorCode", _error->errorCode())
-                                          << LOG_KV("errorMessage", _error->errorMessage());
-                return;
-            }
             try
             {
                 auto storage = self.lock();
                 if (!storage)
                 {
+                    storage->m_signalled.notify_all();
+                    return;
+                }
+                if (_error != nullptr && _error->errorCode() == StorageErrorCode::NotFound)
+                {
+                    storage->m_maxCommittedProposalIndexFetched = true;
+                    storage->m_signalled.notify_all();
+                    return;
+                }
+                if (_error != nullptr)
+                {
+                    PBFT_STORAGE_LOG(WARNING)
+                        << LOG_DESC("asyncGetLatestCommittedProposalIndex failed")
+                        << LOG_KV("errorCode", _error->errorCode())
+                        << LOG_KV("errorMessage", _error->errorMessage());
+                    storage->m_signalled.notify_all();
                     return;
                 }
                 auto latestCommittedProposalIndex = boost::lexical_cast<int64_t>(_value);
@@ -204,10 +220,11 @@ void LedgerStorage::asyncGetLatestCommittedProposalIndex()
 
 void LedgerStorage::asyncCommitProposal(PBFTProposalInterface::Ptr _committedProposal)
 {
-    if (m_maxCommittedProposalIndex.load() < _committedProposal->index())
+    if (m_maxCommittedProposalIndex.load() >= _committedProposal->index())
     {
-        m_maxCommittedProposalIndex.store(_committedProposal->index());
+        return;
     }
+    m_maxCommittedProposalIndex.store(_committedProposal->index());
     PBFT_STORAGE_LOG(INFO) << LOG_DESC("asyncCommitProposal: write the committed proposal into db")
                            << LOG_KV("index", _committedProposal->index());
     // commit the max-index proposal information
@@ -223,7 +240,7 @@ void LedgerStorage::asyncCommitProposal(PBFTProposalInterface::Ptr _committedPro
 }
 
 void LedgerStorage::asyncPutProposal(std::string const& _dbName, std::string const& _key,
-    bytesPointer _committedData, bcos::protocol::BlockNumber _proposalIndex)
+    bytesPointer _committedData, BlockNumber _proposalIndex)
 {
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
     m_storage->asyncPut(_dbName, _key,

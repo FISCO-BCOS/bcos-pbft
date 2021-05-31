@@ -65,7 +65,7 @@ PBFTFactory::PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
     m_pbftEngine = std::make_shared<PBFTEngine>(m_pbftConfig);
 
     PBFT_LOG(INFO) << LOG_DESC("create PBFT");
-    m_pbft = std::make_shared<PBFT>(m_pbftEngine);
+    m_pbft = std::make_shared<PBFTImpl>(m_pbftEngine);
     PBFT_LOG(INFO) << LOG_DESC("create PBFT success");
 }
 
@@ -77,23 +77,22 @@ void PBFTFactory::init()
     m_ledgerFetcher->fetchConsensusTimeout();
     m_ledgerFetcher->fetchBlockTxCountLimit();
     m_ledgerFetcher->waitFetchFinished();
+    auto ledgerConfig = m_ledgerFetcher->ledgerConfig();
     PBFT_LOG(INFO) << LOG_DESC("fetch LedgerConfig information success")
-                   << LOG_KV("blockNumber", m_ledgerFetcher->ledgerConfig()->blockNumber())
-                   << LOG_KV("hash", m_ledgerFetcher->ledgerConfig()->hash().abridged())
-                   << LOG_KV(
-                          "consensusTimeout", m_ledgerFetcher->ledgerConfig()->consensusTimeout())
-                   << LOG_KV(
-                          "maxTxsPerBlock", m_ledgerFetcher->ledgerConfig()->blockTxCountLimit());
-    m_pbftConfig->resetConfig(m_ledgerFetcher->ledgerConfig());
+                   << LOG_KV("blockNumber", ledgerConfig->blockNumber())
+                   << LOG_KV("hash", ledgerConfig->hash().abridged())
+                   << LOG_KV("consensusTimeout", ledgerConfig->consensusTimeout())
+                   << LOG_KV("maxTxsPerBlock", ledgerConfig->blockTxCountLimit())
+                   << LOG_KV("consensusNodeList", ledgerConfig->consensusNodeList().size());
+    m_pbftConfig->resetConfig(ledgerConfig);
 
     PBFT_LOG(INFO) << LOG_DESC("fetch PBFT state");
-    auto stateProposals =
-        m_pbftConfig->storage()->loadState(m_ledgerFetcher->ledgerConfig()->blockNumber());
+    auto stateProposals = m_pbftConfig->storage()->loadState(ledgerConfig->blockNumber());
     if (stateProposals)
     {
         PBFT_LOG(INFO) << LOG_DESC("init PBFT state")
                        << LOG_KV("stateProposals", stateProposals->size());
-        m_pbftConfig->setProgressedIndex(m_pbftConfig->storage()->maxCommittedProposalIndex() + 1);
+        m_pbftConfig->setExpectedCheckPoint(m_pbftConfig->storage()->maxCommittedProposalIndex());
         m_pbftEngine->initState(stateProposals);
     }
     PBFT_LOG(INFO) << LOG_DESC("init PBFT success");

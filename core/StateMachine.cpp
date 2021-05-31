@@ -28,17 +28,29 @@ using namespace bcos::crypto;
 
 void StateMachine::asyncApply(ProposalInterface::ConstPtr _committedProposal,
     ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
-    std::function<void()> _onExecuteFinished)
+    std::function<void(bool)> _onExecuteFinished)
 {
     if (_proposal->index() <= _committedProposal->index())
     {
         CONSENSUS_LOG(WARNING) << LOG_DESC("asyncApply: the proposal has already been committed")
                                << LOG_KV("proposalIndex", _proposal->index())
                                << LOG_KV("committedIndex", _committedProposal->index());
+        if (_onExecuteFinished)
+        {
+            _onExecuteFinished(false);
+        }
         return;
     }
     auto block = m_blockFactory->createBlock(_proposal->data());
-
+    // invalid block
+    if (!block->blockHeader())
+    {
+        if (_onExecuteFinished)
+        {
+            _onExecuteFinished(false);
+        }
+        return;
+    }
     // set the parentHash information
     if (_proposal->index() == _committedProposal->index() + 1)
     {
@@ -65,6 +77,7 @@ void StateMachine::asyncApply(ProposalInterface::ConstPtr _committedProposal,
                     << LOG_DESC("asyncExecuteBlock failed") << LOG_KV("number", blockNumber)
                     << LOG_KV("errorCode", _error->errorCode())
                     << LOG_KV("errorInfo", _error->errorMessage());
+                _onExecuteFinished(false);
                 return;
             }
             CONSENSUS_LOG(INFO) << LOG_DESC("asyncExecuteBlock success")
@@ -80,6 +93,7 @@ void StateMachine::asyncApply(ProposalInterface::ConstPtr _committedProposal,
             _executedProposal->setIndex(_blockHeader->number());
             _executedProposal->setHash(_blockHeader->hash());
             _executedProposal->setData(_blockHeader->encode(false));
-            _onExecuteFinished();
+            _onExecuteFinished(true);
         });
+    return;
 }

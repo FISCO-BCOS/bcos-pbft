@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  * @brief implementation for ConsensusInterface
- * @file PBFT.h
+ * @file PBFTImpl.h
  * @author: yujiechen
  * @date 2021-05-17
  */
@@ -26,15 +26,15 @@ namespace bcos
 {
 namespace consensus
 {
-class PBFT : public ConsensusInterface
+class PBFTImpl : public ConsensusInterface
 {
 public:
-    using Ptr = std::shared_ptr<PBFT>;
-    explicit PBFT(PBFTEngine::Ptr _pbftEngine) : m_pbftEngine(_pbftEngine)
+    using Ptr = std::shared_ptr<PBFTImpl>;
+    explicit PBFTImpl(PBFTEngine::Ptr _pbftEngine) : m_pbftEngine(_pbftEngine)
     {
         m_blockValidator = std::make_shared<BlockValidator>(m_pbftEngine->pbftConfig());
     }
-    virtual ~PBFT() { stop(); }
+    virtual ~PBFTImpl() { stop(); }
 
     void start() override { m_pbftEngine->start(); }
     void stop() override { m_pbftEngine->stop(); }

@@ -46,28 +46,29 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
     setConsensusNodeList(consensusList);
     // stop the timer
     m_timer->stop();
-    notifySealer(_ledgerConfig->blockNumber(), _ledgerConfig->blockTxCountLimit());
+    notifySealer(progressedIndex(), _ledgerConfig->blockTxCountLimit());
 }
 
-void PBFTConfig::notifySealer(BlockNumber _committedIndex, uint64_t _maxTxsToSeal)
+void PBFTConfig::notifySealer(BlockNumber _progressedIndex, uint64_t _maxTxsToSeal)
 {
-    auto leaderIdx = leaderIndex(_committedIndex);
-    if (m_leaderIndex != leaderIdx || m_leaderIndex == InvalidNodeIndex)
+    auto currentLeader = leaderIndex(_progressedIndex);
+    if (m_leaderIndex != currentLeader || m_leaderIndex == InvalidNodeIndex)
     {
-        if (m_leaderIndex == nodeIndex())
+        m_leaderIndex = currentLeader;
+        if (m_leaderIndex != nodeIndex())
         {
-            auto endProposalIndex = (leaderIdx + 1) * m_leaderSwitchPeriod - 1;
-            PBFT_LOG(INFO) << LOG_DESC(
-                                  "setCommittedProposal for new block submitted, notify the new "
-                                  "leader to seal block")
-                           << LOG_KV("preLeader", m_leaderIndex) << LOG_KV("curLeader", leaderIdx)
-                           << LOG_KV("startIndex", m_progressedIndex)
-                           << LOG_KV("endIndex", endProposalIndex)
-                           << LOG_KV("maxTxsToSeal", _maxTxsToSeal);
-            asyncNotifySealProposal(m_progressedIndex, endProposalIndex, _maxTxsToSeal);
+            return;
         }
-
-        m_leaderIndex = leaderIdx;
+        auto endProposalIndex =
+            (_progressedIndex / m_leaderSwitchPeriod + 1) * m_leaderSwitchPeriod - 1;
+        PBFT_LOG(INFO) << LOG_DESC(
+                              "notifySealer for new block submitted, notify the new "
+                              "leader to seal block")
+                       << LOG_KV("preLeader", m_leaderIndex) << LOG_KV("curLeader", currentLeader)
+                       << LOG_KV("startIndex", m_progressedIndex)
+                       << LOG_KV("endIndex", endProposalIndex)
+                       << LOG_KV("maxTxsToSeal", _maxTxsToSeal);
+        asyncNotifySealProposal(m_progressedIndex, endProposalIndex, _maxTxsToSeal);
     }
 }
 

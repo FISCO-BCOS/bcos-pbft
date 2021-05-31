@@ -33,7 +33,7 @@ public:
 
     virtual void asyncApply(ProposalInterface::ConstPtr _committedProposal,
         ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
-        std::function<void()> _onExecuteFinished) = 0;
+        std::function<void(bool)> _onExecuteFinished) = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

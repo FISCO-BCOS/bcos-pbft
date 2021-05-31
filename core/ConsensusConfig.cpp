@@ -45,8 +45,13 @@ NodeIDs ConsensusConfig::consensusNodeIDList() const
 
 void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList)
 {
-    std::sort(_consensusNodeList.begin(), _consensusNodeList.end());
-    bool updated = false;
+    if (_consensusNodeList.size() == 0)
+    {
+        BOOST_THROW_EXCEPTION(InitConsensusException()
+                              << errinfo_comment("Must contain at least one consensus node"));
+    }
+
+    std::sort(_consensusNodeList.begin(), _consensusNodeList.end(), ConsensusNodeComparator());
     // update the consensus list
     {
         UpgradableGuard l(x_consensusNodeList);
@@ -57,12 +62,6 @@ void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList
         UpgradeGuard ul(l);
         // consensus node list have been changed
         *m_consensusNodeList = _consensusNodeList;
-        updated = true;
-    }
-    // update the sealersNum
-    if (!updated)
-    {
-        return;
     }
     {
         // update the consensusNodeNum
@@ -77,8 +76,8 @@ void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList
     }
     // update quorum
     updateQuorum();
-    CONSENSUS_LOG(INFO) << LOG_DESC("updateConsensusNodeList") << LOG_KV("nodeNum", m_nodeIndex)
-                        << LOG_KV("nodeIndex", nodeIndex)
+    CONSENSUS_LOG(INFO) << LOG_DESC("updateConsensusNodeList")
+                        << LOG_KV("nodeNum", m_consensusNodeNum) << LOG_KV("nodeIndex", nodeIndex)
                         << decsConsensusNodeList(_consensusNodeList);
 }
 

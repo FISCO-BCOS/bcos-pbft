@@ -120,6 +120,8 @@ public:
     virtual void addCheckPointMsg(PBFTMessageInterface::Ptr _checkPointMsg);
     virtual void checkAndCommitStableCheckPoint();
     virtual void tryToCommitStableCheckPoint();
+    size_t stableCheckPointQueueSize() const { return m_stableCheckPointQueue.size(); }
+    size_t committedQueueSize() const { return m_committedQueue.size(); }
 
 protected:
     virtual void updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal);
