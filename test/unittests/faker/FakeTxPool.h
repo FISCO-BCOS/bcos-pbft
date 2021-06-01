@@ -35,6 +35,7 @@ namespace test
 class FakeTxPool : public TxPoolInterface
 {
 public:
+    using Ptr = std::shared_ptr<FakeTxPool>;
     FakeTxPool() = default;
     ~FakeTxPool() override {}
 

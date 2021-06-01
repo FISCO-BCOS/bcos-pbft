@@ -237,40 +237,40 @@ void PBFTCacheProcessor::addViewChangeReq(ViewChangeMsgInterface::Ptr _viewChang
 {
     auto reqView = _viewChange->view();
     auto fromIdx = _viewChange->generatedFrom();
-    if (!m_viewChangeCache.count(reqView) && !m_viewChangeCache[reqView].count(fromIdx))
+    if (m_viewChangeCache.count(reqView) && m_viewChangeCache[reqView].count(fromIdx))
     {
-        auto nodeInfo = m_config->getConsensusNodeByIndex(fromIdx);
-        if (!nodeInfo)
-        {
-            return;
-        }
-        m_viewChangeCache[reqView][fromIdx] = _viewChange;
-        if (!m_viewChangeWeight.count(reqView))
-        {
-            m_viewChangeWeight[reqView] = 0;
-        }
-        m_viewChangeWeight[reqView] += nodeInfo->weight();
-
-        auto committedIndex = _viewChange->committedProposal()->index();
-        if (!m_maxCommittedIndex.count(reqView) || m_maxCommittedIndex[reqView] < committedIndex)
-        {
-            m_maxCommittedIndex[reqView] = committedIndex;
-        }
-        // get the max precommitIndex
-        for (auto precommit : _viewChange->preparedProposals())
-        {
-            auto precommitIndex = precommit->index();
-            if (!m_maxPrecommitIndex.count(reqView) ||
-                m_maxPrecommitIndex[reqView] < precommitIndex)
-            {
-                m_maxPrecommitIndex[reqView] = precommitIndex;
-            }
-        }
-        PBFT_LOG(DEBUG) << LOG_DESC("addViewChangeReq") << printPBFTMsgInfo(_viewChange)
-                        << LOG_KV("weight", m_viewChangeWeight[reqView])
-                        << LOG_KV("maxCommittedIndex", m_maxCommittedIndex[reqView])
-                        << LOG_KV("maxPrecommitIndex", m_maxPrecommitIndex[reqView]);
+        return;
     }
+
+    auto nodeInfo = m_config->getConsensusNodeByIndex(fromIdx);
+    if (!nodeInfo)
+    {
+        return;
+    }
+    m_viewChangeCache[reqView][fromIdx] = _viewChange;
+    if (!m_viewChangeWeight.count(reqView))
+    {
+        m_viewChangeWeight[reqView] = 0;
+    }
+    m_viewChangeWeight[reqView] += nodeInfo->weight();
+    auto committedIndex = _viewChange->committedProposal()->index();
+    if (!m_maxCommittedIndex.count(reqView) || m_maxCommittedIndex[reqView] < committedIndex)
+    {
+        m_maxCommittedIndex[reqView] = committedIndex;
+    }
+    // get the max precommitIndex
+    for (auto precommit : _viewChange->preparedProposals())
+    {
+        auto precommitIndex = precommit->index();
+        if (!m_maxPrecommitIndex.count(reqView) || m_maxPrecommitIndex[reqView] < precommitIndex)
+        {
+            m_maxPrecommitIndex[reqView] = precommitIndex;
+        }
+    }
+    PBFT_LOG(DEBUG) << LOG_DESC("addViewChangeReq") << printPBFTMsgInfo(_viewChange)
+                    << LOG_KV("weight", m_viewChangeWeight[reqView])
+                    << LOG_KV("maxCommittedIndex", m_maxCommittedIndex[reqView])
+                    << LOG_KV("maxPrecommitIndex", m_maxPrecommitIndex[reqView]);
 }
 
 PBFTMessageList PBFTCacheProcessor::generatePrePrepareMsg(
@@ -360,10 +360,12 @@ NewViewMsgInterface::Ptr PBFTCacheProcessor::checkAndTryIntoNewView()
     ViewChangeMsgList viewChangeList;
     for (auto const& it : viewChangeCache)
     {
-        viewChangeList.push_back(m_config->pbftMessageFactory()->populateFrom(it.second));
+        viewChangeList.push_back(it.second);
     }
     // create newView message
     auto newViewMsg = m_config->pbftMessageFactory()->createNewViewMsg();
+    newViewMsg->setHash(m_config->committedProposal()->hash());
+    newViewMsg->setIndex(m_config->committedProposal()->index());
     newViewMsg->setPacketType(PacketType::NewViewPacket);
     newViewMsg->setVersion(m_config->pbftMsgDefaultVersion());
     newViewMsg->setView(toView);

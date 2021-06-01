@@ -78,6 +78,7 @@ public:
         bcos::ledger::LedgerConfig::Ptr _ledgerConfig, std::function<void(Error::Ptr)> _onRecv);
 
     virtual std::shared_ptr<PBFTCacheProcessor> cacheProcessor() { return m_cacheProcessor; }
+    virtual bool isTimeout() { return m_timeoutState; }
 
 protected:
     virtual void onRecvProposal(bytesConstRef _proposalData,

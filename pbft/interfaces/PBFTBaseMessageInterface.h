@@ -58,7 +58,7 @@ public:
         bcos::crypto::KeyPairInterface::Ptr _keyPair) const = 0;
     virtual void decode(bytesConstRef _data) = 0;
 
-    virtual bytes const& signatureData() = 0;
+    virtual bytesConstRef signatureData() = 0;
     virtual bcos::crypto::HashType const& signatureDataHash() = 0;
 
     virtual void setSignatureData(bytes&& _signatureData) = 0;
@@ -76,7 +76,8 @@ inline std::string printPBFTMsgInfo(PBFTBaseMessageInterface::Ptr _pbftMsg)
     std::ostringstream stringstream;
     stringstream << LOG_KV("reqHash", _pbftMsg->hash().abridged())
                  << LOG_KV("reqIndex", _pbftMsg->index()) << LOG_KV("reqV", _pbftMsg->view())
-                 << LOG_KV("fromIdx", _pbftMsg->generatedFrom());
+                 << LOG_KV("fromIdx", _pbftMsg->generatedFrom())
+                 << LOG_KV("type", _pbftMsg->packetType());
     return stringstream.str();
 }
 }  // namespace consensus

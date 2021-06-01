@@ -49,7 +49,6 @@ protected:
         return (_packetType == PacketType::ViewChangePacket ||
                 _packetType == PacketType::NewViewPacket);
     }
-    virtual bytesPointer signPayLoad(bytesPointer _payLoadData) const;
 
 private:
     bcos::crypto::KeyPairInterface::Ptr m_keyPair;

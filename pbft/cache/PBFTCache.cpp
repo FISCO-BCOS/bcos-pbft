@@ -29,8 +29,7 @@ PBFTCache::PBFTCache(PBFTConfig::Ptr _config, BlockNumber _index)
   : m_config(_config), m_index(_index)
 {
     // Timer is used to manage checkpoint timeout
-    // TODO: adjust the timer to configurable
-    m_timer = std::make_shared<PBFTTimer>(3000);
+    m_timer = std::make_shared<PBFTTimer>(m_config->checkPointTimeoutInterval());
     // register the timeout function
     m_timer->registerTimeoutHandler(boost::bind(&PBFTCache::onCheckPointTimeout, this));
 }
@@ -228,13 +227,13 @@ void PBFTCache::resetCache(ViewType _curView)
 {
     m_submitted = false;
     // reset pre-prepare
-    if (m_prePrepare->view() < _curView)
+    if (m_prePrepare && m_prePrepare->view() < _curView)
     {
         m_config->validator()->asyncResetTxsFlag(m_prePrepare->consensusProposal()->data(), false);
         m_prePrepare = nullptr;
     }
     // reset precommit
-    if (m_precommit->view() < _curView)
+    if (m_precommit && m_precommit->view() < _curView)
     {
         m_precommit = nullptr;
         m_precommitWithoutData = nullptr;

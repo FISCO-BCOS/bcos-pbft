@@ -22,6 +22,9 @@
 #include <bcos-framework/testutils/TestPromptFixture.h>
 #include <pbft/engine/PBFTTimer.h>
 #include <boost/test/unit_test.hpp>
+#include <chrono>
+#include <thread>
+
 using namespace bcos;
 using namespace bcos::consensus;
 namespace bcos
@@ -52,7 +55,7 @@ private:
 BOOST_FIXTURE_TEST_SUITE(TimerTest, TestPromptFixture)
 BOOST_AUTO_TEST_CASE(testTimer)
 {
-    auto timeoutInterval = 300;
+    auto timeoutInterval = 200;
     auto timer = std::make_shared<FakeTimer>(timeoutInterval);
     auto startT = utcTime();
     for (size_t i = 0; i < 4; i++)
@@ -62,7 +65,7 @@ BOOST_AUTO_TEST_CASE(testTimer)
         timer->start();
         // sleep
         startT = utcTime();
-        usleep((timeoutInterval + 200) * 1000);
+        std::this_thread::sleep_for(std::chrono::milliseconds(timeoutInterval + 100));
         std::cout << "#### sleep eclipse:" << utcTime() - startT;
         // stop the timer
         timer->stop();
@@ -77,7 +80,7 @@ BOOST_AUTO_TEST_CASE(testTimer)
     timer->setTriggerTimeout(false);
     timer->start();
     startT = utcTime();
-    usleep(1000 * (timeoutInterval - 200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(timeoutInterval - 100));
     std::cout << "#### sleep eclipse:" << utcTime() - startT;
     BOOST_CHECK(timer->triggerTimeout() == false);
     timer->stop();
@@ -89,7 +92,7 @@ BOOST_AUTO_TEST_CASE(testTimer)
     timer->reset(60);
     timer->start();
     startT = utcTime();
-    usleep(200 * 1000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
     std::cout << "#### sleep eclipse:" << utcTime() - startT;
     BOOST_CHECK(timer->triggerTimeout() == true);
     timer->stop();
@@ -102,14 +105,15 @@ BOOST_AUTO_TEST_CASE(testTimerWithoutWait)
     timer->start();
     BOOST_CHECK(timer->triggerTimeout() == false);
     // sleep 80ms
-    usleep(1000 * 150);
+    std::this_thread::sleep_for(std::chrono::milliseconds(150));
+
 
     // test restart
     timer->restart();
     // sleep 20ms
-    usleep(1000 * 100);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     BOOST_CHECK(timer->triggerTimeout() == false);
-    usleep(1000 * 150);
+    std::this_thread::sleep_for(std::chrono::milliseconds(150));
     BOOST_CHECK(timer->triggerTimeout() == true);
 }
 

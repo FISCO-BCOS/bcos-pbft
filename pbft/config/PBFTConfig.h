@@ -69,7 +69,11 @@ public:
     uint64_t minRequiredQuorum() const override;
 
     virtual ViewType view() const { return m_view; }
-    virtual void setView(ViewType _view) { m_view.store(_view); }
+    virtual void setView(ViewType _view)
+    {
+        m_view.store(_view);
+        setToView(_view + 1);
+    }
 
     virtual ViewType toView() const { return m_toView; }
     virtual void setToView(ViewType _toView) { m_toView.store(_toView); }
@@ -77,6 +81,7 @@ public:
 
     virtual IndexType leaderIndex(bcos::protocol::BlockNumber _proposalIndex);
     virtual bool leaderAfterViewChange();
+    IndexType leaderIndexInNewViewPeriod();
     virtual uint64_t leaderSwitchPeriod() const { return m_leaderSwitchPeriod; }
     virtual void setLeaderSwitchPeriod(uint64_t _leaderSwitchPeriod)
     {
@@ -135,6 +140,12 @@ public:
     int64_t warterMarkLimit() const { return m_warterMarkLimit; }
     void setWarterMarkLimit(int64_t _warterMarkLimit) { m_warterMarkLimit = _warterMarkLimit; }
 
+    int64_t checkPointTimeoutInterval() const { return m_checkPointTimeoutInterval; }
+    void setCheckPointTimeoutInterval(int64_t _timeoutInterval)
+    {
+        m_checkPointTimeoutInterval = _timeoutInterval;
+    }
+
 protected:
     void updateQuorum() override;
     virtual void notifySealer(bcos::protocol::BlockNumber _committedIndex, uint64_t _maxTxsToSeal);
@@ -169,6 +180,8 @@ private:
     std::atomic<bcos::protocol::BlockNumber> m_expectedCheckPoint = {0};
 
     int64_t m_warterMarkLimit = 10;
+    std::atomic<int64_t> m_checkPointTimeoutInterval = {3000};
+
     std::atomic<uint64_t> m_leaderSwitchPeriod = {1};
     const unsigned c_pbftMsgDefaultVersion = 0;
     const unsigned c_networkTimeoutInterval = 1000;

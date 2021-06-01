@@ -151,6 +151,8 @@ public:
             m_ledger->setSystemConfig(
                 SYSTEM_KEY_CONSENSUS_TIMEOUT, std::to_string(_consensusTimeout));
             m_ledger->setSystemConfig(SYSTEM_KEY_TX_COUNT_LIMIT, std::to_string(_txCountLimit));
+            m_ledger->ledgerConfig()->setConsensusTimeout(_consensusTimeout * 20);
+            m_ledger->ledgerConfig()->setBlockTxCountLimit(_txCountLimit);
         }
         else
         {
@@ -239,8 +241,8 @@ inline PBFTFixture::Ptr createPBFTFixture(CryptoSuite::Ptr _cryptoSuite,
 }
 
 inline std::map<IndexType, PBFTFixture::Ptr> createFakers(CryptoSuite::Ptr _cryptoSuite,
-    size_t _consensusNodeSize, size_t _currentBlockNumber, size_t _consensusTimeout = 3,
-    size_t _txCountLimit = 1000)
+    size_t _consensusNodeSize, size_t _currentBlockNumber, size_t _connectedNodes,
+    size_t _consensusTimeout = 3, size_t _txCountLimit = 1000)
 {
     PBFTFixtureList fakerList;
     // create block factory
@@ -255,7 +257,8 @@ inline std::map<IndexType, PBFTFixture::Ptr> createFakers(CryptoSuite::Ptr _cryp
         fakedLedger->setSystemConfig(
             SYSTEM_KEY_CONSENSUS_TIMEOUT, std::to_string(_consensusTimeout));
         fakedLedger->setSystemConfig(SYSTEM_KEY_TX_COUNT_LIMIT, std::to_string(_txCountLimit));
-
+        fakedLedger->ledgerConfig()->setConsensusTimeout(_consensusTimeout * 1000);
+        fakedLedger->ledgerConfig()->setBlockTxCountLimit(_txCountLimit);
         auto peerFaker =
             createPBFTFixture(_cryptoSuite, fakedLedger, _consensusTimeout, _txCountLimit);
         fakerList.push_back(peerFaker);
@@ -275,7 +278,6 @@ inline std::map<IndexType, PBFTFixture::Ptr> createFakers(CryptoSuite::Ptr _cryp
     {
         auto faker = fakerList[i];
         faker->init();
-        fakeGateWay->addConsensusInterface(faker->keyPair()->publicKey(), faker->pbft());
     }
     std::map<IndexType, PBFTFixture::Ptr> indexToFakerMap;
     for (size_t i = 0; i < _consensusNodeSize; i++)
@@ -283,6 +285,11 @@ inline std::map<IndexType, PBFTFixture::Ptr> createFakers(CryptoSuite::Ptr _cryp
         auto faker = fakerList[i];
         indexToFakerMap[faker->pbftConfig()->nodeIndex()] = faker;
         faker->frontService()->setGateWay(fakeGateWay);
+    }
+    for (IndexType i = 0; i < _connectedNodes; i++)
+    {
+        auto faker = indexToFakerMap[i];
+        fakeGateWay->addConsensusInterface(faker->keyPair()->publicKey(), faker->pbft());
     }
     return indexToFakerMap;
 }

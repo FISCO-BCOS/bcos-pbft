@@ -12,6 +12,8 @@ message BaseMessage
   int64 timestamp = 5;
   // the index of the node that generated the request
   int64 generatedFrom = 6;
+  bytes signatureHash = 7;
+  bytes signatureData = 8;
 }
 
 message PBFTRawProposal
