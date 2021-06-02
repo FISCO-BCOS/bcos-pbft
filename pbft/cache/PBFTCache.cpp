@@ -135,6 +135,12 @@ void PBFTCache::intoPrecommit()
 {
     m_precommit = m_prePrepare;
     m_precommit->setGeneratedFrom(m_config->nodeIndex());
+    setSignatureList(m_precommit->consensusProposal(), m_prepareCacheList);
+
+    m_precommitWithoutData = m_precommit->populateWithoutProposal();
+    auto precommitProposalWithoutData =
+        m_config->pbftMessageFactory()->populateFrom(m_precommit->consensusProposal(), false);
+    m_precommitWithoutData->setConsensusProposal(precommitProposalWithoutData);
     PBFT_LOG(DEBUG) << LOG_DESC("intoPrecommit") << printPBFTMsgInfo(m_precommit)
                     << LOG_KV("nodeIndex", m_config->nodeIndex());
 }
@@ -172,7 +178,11 @@ bool PBFTCache::conflictWithPrecommitReq(PBFTMessageInterface::Ptr _prePrepareMs
 bool PBFTCache::checkAndPreCommit()
 {
     // already precommitted
-    if (m_precommit != nullptr || m_checkpointProposal)
+    if (m_checkpointProposal)
+    {
+        return false;
+    }
+    if (m_precommit && m_precommit->view() >= m_prePrepare->view())
     {
         return false;
     }
@@ -182,14 +192,6 @@ bool PBFTCache::checkAndPreCommit()
     }
     // update and backup the proposal into precommit-status
     intoPrecommit();
-    m_precommit = m_prePrepare;
-    m_precommit->setGeneratedFrom(m_config->nodeIndex());
-
-    m_precommitWithoutData = m_config->pbftMessageFactory()->populateFrom(m_precommit);
-    auto precommitProposalWithoutData =
-        m_config->pbftMessageFactory()->populateFrom(m_precommit->consensusProposal(), false);
-    m_precommitWithoutData->setConsensusProposal(precommitProposalWithoutData);
-
     // generate the commitReq
     auto commitReq = m_config->pbftMessageFactory()->populateFrom(PacketType::CommitPacket,
         m_config->pbftMsgDefaultVersion(), m_config->view(), utcTime(), m_config->nodeIndex(),
@@ -214,7 +216,6 @@ bool PBFTCache::checkAndCommit()
     {
         return false;
     }
-    setSignatureList(m_precommit->consensusProposal(), m_commitCacheList);
     PBFT_LOG(DEBUG) << LOG_DESC("checkAndCommit")
                     << printPBFTProposal(m_precommit->consensusProposal())
                     << m_config->printCurrentState();
@@ -222,22 +223,18 @@ bool PBFTCache::checkAndCommit()
     return true;
 }
 
+bool PBFTCache::shouldStopTimer()
+{
+    if (m_index <= m_config->committedProposal()->index())
+    {
+        return true;
+    }
+    return m_submitted;
+}
 
 void PBFTCache::resetCache(ViewType _curView)
 {
     m_submitted = false;
-    // reset pre-prepare
-    if (m_prePrepare && m_prePrepare->view() < _curView)
-    {
-        m_config->validator()->asyncResetTxsFlag(m_prePrepare->consensusProposal()->data(), false);
-        m_prePrepare = nullptr;
-    }
-    // reset precommit
-    if (m_precommit && m_precommit->view() < _curView)
-    {
-        m_precommit = nullptr;
-        m_precommitWithoutData = nullptr;
-    }
     // clear the expired prepare cache
     resetCacheAfterViewChange(m_prepareCacheList, _curView);
     // clear the expired commit cache

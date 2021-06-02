@@ -68,7 +68,7 @@ bool PBFTCacheProcessor::tryToFillProposal(PBFTMessageInterface::Ptr _prePrepare
     {
         return false;
     }
-    auto const& proposalData = precommit->consensusProposal()->data();
+    auto proposalData = precommit->consensusProposal()->data();
     _prePrepareMsg->consensusProposal()->setData(proposalData);
     return true;
 }
@@ -100,7 +100,7 @@ void PBFTCacheProcessor::addCache(
     auto index = _pbftReq->index();
     if (!(_pbftCache.count(index)))
     {
-        _pbftCache[index] = std::make_shared<PBFTCache>(m_config, index);
+        _pbftCache[index] = m_cacheFactory->createPBFTCache(m_config, index);
     }
     _handler(_pbftCache[index], _pbftReq);
 }
@@ -128,15 +128,36 @@ void PBFTCacheProcessor::checkAndCommit()
             continue;
         }
         updateCommitQueue(it.second->preCommitCache()->consensusProposal());
+        // refresh the timer when commit success
+        m_config->timer()->restart();
     }
+    resetTimer();
+}
+
+void PBFTCacheProcessor::resetTimer()
+{
+    for (auto const& it : m_caches)
+    {
+        if (!it.second->shouldStopTimer())
+        {
+            // start the timer when there has proposals in consensus
+            if (!m_config->timer()->running())
+            {
+                m_config->timer()->start();
+            }
+            return;
+        }
+    }
+    // stop the timer when has no proposals in consensus
+    m_config->timer()->stop();
 }
 
 void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal)
 {
     assert(_committedProposal);
     m_committedQueue.push(_committedProposal);
-    PBFT_LOG(DEBUG) << LOG_DESC("updateCommitQueue: push committed proposal into the commitQueue")
-                    << LOG_KV("index", _committedProposal->index());
+    PBFT_LOG(INFO) << LOG_DESC("++++++++++++++++ CommitProposal")
+                   << printPBFTProposal(_committedProposal) << m_config->printCurrentState();
 
     while (!m_committedQueue.empty() &&
            m_committedQueue.top()->index() < m_config->expectedCheckPoint())
@@ -220,7 +241,7 @@ void PBFTCacheProcessor::setCheckPointProposal(PBFTProposalInterface::Ptr _propo
     auto index = _proposal->index();
     if (!(m_caches.count(index)))
     {
-        m_caches[index] = std::make_shared<PBFTCache>(m_config, index);
+        m_caches[index] = m_cacheFactory->createPBFTCache(m_config, index);
     }
     (m_caches[index])->setCheckPointProposal(_proposal);
 }
@@ -313,7 +334,7 @@ PBFTMessageList PBFTCacheProcessor::generatePrePrepareMsg(
     }
     // generate prepareMsg from maxCommittedIndex to  maxPrecommitIndex
     PBFTMessageList prePrepareMsgList;
-    for (auto i = maxCommittedIndex; i < maxPrecommitIndex; i++)
+    for (auto i = (maxCommittedIndex + 1); i <= maxPrecommitIndex; i++)
     {
         PBFTProposalInterface::Ptr prePrepareProposal = nullptr;
         auto generatedFrom = m_config->nodeIndex();
@@ -332,7 +353,6 @@ PBFTMessageList PBFTCacheProcessor::generatePrePrepareMsg(
             m_config->pbftMessageFactory()->populateFrom(PacketType::PrePreparePacket,
                 m_config->pbftMsgDefaultVersion(), m_config->toView(), utcTime(), generatedFrom,
                 prePrepareProposal, m_config->cryptoSuite(), m_config->keyPair(), false);
-
         prePrepareMsgList.push_back(prePrepareMsg);
         PBFT_LOG(DEBUG) << LOG_DESC("generatePrePrepareMsg") << printPBFTMsgInfo(prePrepareMsg);
     }
@@ -341,7 +361,7 @@ PBFTMessageList PBFTCacheProcessor::generatePrePrepareMsg(
 
 NewViewMsgInterface::Ptr PBFTCacheProcessor::checkAndTryIntoNewView()
 {
-    if (!m_config->leaderAfterViewChange())
+    if (m_newViewGenerated || !m_config->leaderAfterViewChange())
     {
         return nullptr;
     }
@@ -380,6 +400,7 @@ NewViewMsgInterface::Ptr PBFTCacheProcessor::checkAndTryIntoNewView()
     auto encodedData = m_config->codec()->encode(newViewMsg);
     m_config->frontService()->asyncSendMessageByNodeIDs(
         ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
+    m_newViewGenerated = true;
     PBFT_LOG(DEBUG) << LOG_DESC("The next leader broadcast NewView request")
                     << printPBFTMsgInfo(newViewMsg);
     return newViewMsg;
@@ -396,6 +417,11 @@ bool PBFTCacheProcessor::checkPrecommitMsg(PBFTMessageInterface::Ptr _precommitM
     {
         return false;
     }
+    return checkPrecommitWeight(_precommitMsg);
+}
+
+bool PBFTCacheProcessor::checkPrecommitWeight(PBFTMessageInterface::Ptr _precommitMsg)
+{
     auto precommitProposal = _precommitMsg->consensusProposal();
     // check the signature
     uint64_t weight = 0;
@@ -422,7 +448,7 @@ bool PBFTCacheProcessor::checkPrecommitMsg(PBFTMessageInterface::Ptr _precommitM
     return (weight >= m_config->minRequiredQuorum());
 }
 
-bytesPointer PBFTCacheProcessor::fetchPrecommitData(ViewChangeMsgInterface::Ptr _pbftMessage,
+ViewChangeMsgInterface::Ptr PBFTCacheProcessor::fetchPrecommitData(
     BlockNumber _index, bcos::crypto::HashType const& _hash)
 {
     if (!m_caches.count(_index))
@@ -434,10 +460,13 @@ bytesPointer PBFTCacheProcessor::fetchPrecommitData(ViewChangeMsgInterface::Ptr 
     {
         return nullptr;
     }
+
     PBFTMessageList precommitMessage;
     precommitMessage.push_back(cache->preCommitCache());
-    _pbftMessage->setPreparedProposals(precommitMessage);
-    return m_config->codec()->encode(_pbftMessage);
+
+    auto pbftMessage = m_config->pbftMessageFactory()->createViewChangeMsg();
+    pbftMessage->setPreparedProposals(precommitMessage);
+    return pbftMessage;
 }
 
 void PBFTCacheProcessor::removeConsensusedCache(ViewType _view, BlockNumber _consensusedNumber)
@@ -459,6 +488,7 @@ void PBFTCacheProcessor::removeConsensusedCache(ViewType _view, BlockNumber _con
     removeInvalidViewChange(_view, _consensusedNumber);
     m_maxPrecommitIndex.clear();
     m_maxCommittedIndex.clear();
+    m_newViewGenerated = false;
 }
 
 
@@ -471,6 +501,7 @@ void PBFTCacheProcessor::resetCacheAfterViewChange(
     }
     m_maxPrecommitIndex.clear();
     m_maxCommittedIndex.clear();
+    m_newViewGenerated = false;
     removeInvalidViewChange(_view, _latestCommittedProposal);
 }
 

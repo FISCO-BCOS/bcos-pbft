@@ -67,7 +67,9 @@ BOOST_AUTO_TEST_CASE(testPBFTInit)
     faker->init();
 
     BOOST_CHECK(pbftConfig->progressedIndex() == faker->ledger()->blockNumber() + 1);
-    BOOST_CHECK(pbftEngine->cacheProcessor()->stableCheckPointQueueSize() == 0);
+    auto cacheProcessor =
+        std::dynamic_pointer_cast<FakeCacheProcessor>(pbftEngine->cacheProcessor());
+    BOOST_CHECK(cacheProcessor->stableCheckPointQueueSize() == 0);
 
     fakedProposal = pbftMsgFixture->fakePBFTProposal(faker->ledger()->blockNumber(),
         ledgerConfig->hash(), bytes(), std::vector<int64_t>(), std::vector<bytes>());
@@ -75,7 +77,7 @@ BOOST_AUTO_TEST_CASE(testPBFTInit)
     faker->init();
 
     BOOST_CHECK(pbftConfig->progressedIndex() == faker->ledger()->blockNumber() + 1);
-    BOOST_CHECK(pbftEngine->cacheProcessor()->stableCheckPointQueueSize() == 0);
+    BOOST_CHECK(cacheProcessor->stableCheckPointQueueSize() == 0);
 
     faker->init();
     BOOST_CHECK(pbftConfig->nodeIndex() == 0);
@@ -156,8 +158,8 @@ BOOST_AUTO_TEST_CASE(testPBFTInit)
     }
     BOOST_CHECK(faker->ledger()->blockNumber() == proposalIndex);
     BOOST_CHECK(pbftConfig->progressedIndex() == proposalIndex + 1);
-    BOOST_CHECK(pbftEngine->cacheProcessor()->committedQueueSize() == 0);
-    BOOST_CHECK(pbftEngine->cacheProcessor()->stableCheckPointQueueSize() == 0);
+    BOOST_CHECK(cacheProcessor->committedQueueSize() == 0);
+    BOOST_CHECK(cacheProcessor->stableCheckPointQueueSize() == 0);
 }
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace test

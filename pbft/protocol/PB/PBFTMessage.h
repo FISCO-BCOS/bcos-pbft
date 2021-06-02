@@ -19,9 +19,9 @@
  * @date 2021-04-13
  */
 #pragma once
-#include "PBFTBaseMessage.h"
 #include "../../config/PBFTConfig.h"
 #include "../../interfaces/PBFTMessageInterface.h"
+#include "PBFTBaseMessage.h"
 #include "pbft/protocol/proto/PBFT.pb.h"
 
 namespace bcos
@@ -42,10 +42,6 @@ public:
     {
         m_pbftRawMessage = _pbftRawMessage;
         m_proposals = std::make_shared<PBFTProposalList>();
-        auto const& hashFieldsData = m_pbftRawMessage->hashfieldsdata();
-        auto baseMessageData =
-            bytesConstRef((byte const*)hashFieldsData.c_str(), hashFieldsData.size());
-        PBFTBaseMessage::decode(baseMessageData);
         PBFTMessage::deserializeToObject();
     }
 
@@ -57,7 +53,10 @@ public:
     ~PBFTMessage() override
     {
         // return back the ownership to m_consensusProposal
-        m_pbftRawMessage->unsafe_arena_release_consensusproposal();
+        if (m_pbftRawMessage->has_consensusproposal())
+        {
+            m_pbftRawMessage->unsafe_arena_release_consensusproposal();
+        }
         // return the ownership of rawProposal to the passed-in proposal
         auto allocatedProposalSize = m_pbftRawMessage->proposals_size();
         for (int i = 0; i < allocatedProposalSize; i++)
@@ -82,8 +81,33 @@ public:
 
     bool operator==(PBFTMessage const& _pbftMessage);
 
-protected:
+    bytesConstRef signatureData() override
+    {
+        auto const& signatureData = m_pbftRawMessage->signaturedata();
+        return bytesConstRef((byte const*)signatureData.data(), signatureData.size());
+    }
+
+    bcos::crypto::HashType const& signatureDataHash() override { return m_signatureDataHash; }
+
+    void setSignatureDataHash(bcos::crypto::HashType const& _hash) override
+    {
+        m_signatureDataHash = _hash;
+    }
+
+    PBFTMessageInterface::Ptr populateWithoutProposal() override
+    {
+        auto pbftMessage = std::make_shared<PBFTMessage>();
+        auto const& hashFieldData = m_pbftRawMessage->hashfieldsdata();
+        pbftMessage->pbftRawMessage()->set_hashfieldsdata(
+            hashFieldData.data(), hashFieldData.size());
+        pbftMessage->deserializeToObject();
+        return pbftMessage;
+    }
+
+    void encodeHashFields() const;
     void deserializeToObject() override;
+
+protected:
     virtual bcos::crypto::HashType getHashFieldsDataHash(
         bcos::crypto::CryptoSuite::Ptr _cryptoSuite) const;
     virtual void generateAndSetSignatureData(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
@@ -93,6 +117,8 @@ private:
     std::shared_ptr<PBFTRawMessage> m_pbftRawMessage;
     PBFTProposalInterface::Ptr m_consensusProposal;
     PBFTProposalListPtr m_proposals;
+
+    mutable bcos::crypto::HashType m_signatureDataHash;
 };
 }  // namespace consensus
 }  // namespace bcos

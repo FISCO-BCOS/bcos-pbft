@@ -24,6 +24,7 @@
 #include "../interfaces/PBFTMessageFactory.h"
 #include "../interfaces/PBFTMessageInterface.h"
 #include "../interfaces/ViewChangeMsgInterface.h"
+#include "PBFTCacheFactory.h"
 #include <queue>
 namespace bcos
 {
@@ -42,7 +43,9 @@ class PBFTCacheProcessor : public std::enable_shared_from_this<PBFTCacheProcesso
 {
 public:
     using Ptr = std::shared_ptr<PBFTCacheProcessor>;
-    explicit PBFTCacheProcessor(PBFTConfig::Ptr _config) : m_config(_config) {}
+    PBFTCacheProcessor(PBFTCacheFactory::Ptr _cacheFactory, PBFTConfig::Ptr _config)
+      : m_cacheFactory(_cacheFactory), m_config(_config)
+    {}
 
     virtual ~PBFTCacheProcessor() {}
     virtual void initState(PBFTProposalListPtr _committedProposals);
@@ -104,7 +107,7 @@ public:
     virtual void addViewChangeReq(ViewChangeMsgInterface::Ptr _viewChange);
     virtual NewViewMsgInterface::Ptr checkAndTryIntoNewView();
 
-    virtual bytesPointer fetchPrecommitData(ViewChangeMsgInterface::Ptr _pbftMessage,
+    virtual ViewChangeMsgInterface::Ptr fetchPrecommitData(
         bcos::protocol::BlockNumber _index, bcos::crypto::HashType const& _hash);
 
     virtual bool checkPrecommitMsg(PBFTMessageInterface::Ptr _precommitMsg);
@@ -120,10 +123,11 @@ public:
     virtual void addCheckPointMsg(PBFTMessageInterface::Ptr _checkPointMsg);
     virtual void checkAndCommitStableCheckPoint();
     virtual void tryToCommitStableCheckPoint();
-    size_t stableCheckPointQueueSize() const { return m_stableCheckPointQueue.size(); }
-    size_t committedQueueSize() const { return m_committedQueue.size(); }
+
+    virtual void resetTimer();
 
 protected:
+    virtual bool checkPrecommitWeight(PBFTMessageInterface::Ptr _precommitMsg);
     virtual void updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal);
     virtual void applyStateMachine(PBFTProposalInterface::Ptr _proposal);
     virtual void updateStableCheckPointQueue(PBFTProposalInterface::Ptr _stableCheckPoint);
@@ -140,6 +144,7 @@ protected:
     void reCalculateViewChangeWeight();
 
 protected:
+    PBFTCacheFactory::Ptr m_cacheFactory;
     PBFTConfig::Ptr m_config;
     PBFTCachesType m_caches;
 
@@ -151,6 +156,8 @@ protected:
     // only needed for viewchange
     std::map<ViewType, int64_t> m_maxCommittedIndex;
     std::map<ViewType, int64_t> m_maxPrecommitIndex;
+
+    std::atomic_bool m_newViewGenerated = {false};
 
     std::priority_queue<PBFTProposalInterface::Ptr, std::vector<PBFTProposalInterface::Ptr>,
         PBFTProposalCmp>

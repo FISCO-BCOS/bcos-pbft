@@ -155,9 +155,16 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
     auto leaderMsgFixture =
         std::make_shared<PBFTMessageFixture>(cryptoSuite, leaderFaker->keyPair());
     auto index = (expectedIndex - 1);
+
     auto pbftMsg = fakePBFTMessage(utcTime(), 1, leaderFaker->pbftConfig()->view(), expectedLeader,
         hash, index, bytes(), 0, leaderMsgFixture, PacketType::PrePreparePacket);
+
+    auto fakedProposal =
+        leaderMsgFixture->fakePBFTProposal(leaderFaker->ledger()->blockNumber() + 1, hash, bytes(),
+            std::vector<int64_t>(), std::vector<bytes>());
+    pbftMsg->setConsensusProposal(fakedProposal);
     auto data = leaderFaker->pbftConfig()->codec()->encode(pbftMsg);
+
     nonLeaderFaker->pbftEngine()->onReceivePBFTMessage(
         nullptr, nonLeaderFaker->keyPair()->publicKey(), ref(*data), nullptr);
     nonLeaderFaker->pbftEngine()->executeWorker();
@@ -174,6 +181,8 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
     leaderFaker = fakerMap[expectedLeader];
     pbftMsg = fakePBFTMessage(utcTime(), 1, (leaderFaker->pbftConfig()->view() - 1), expectedLeader,
         hash, index, bytes(), 0, leaderMsgFixture, PacketType::PrePreparePacket);
+    pbftMsg->setConsensusProposal(fakedProposal);
+
     data = leaderFaker->pbftConfig()->codec()->encode(pbftMsg);
     nonLeaderFaker = fakerMap[(expectedLeader + 1) % consensusNodeSize];
     nonLeaderFaker->pbftEngine()->onReceivePBFTMessage(
@@ -185,6 +194,8 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
     pbftMsg = fakePBFTMessage(utcTime(), 1, (nonLeaderFaker->pbftConfig()->view()),
         (expectedLeader + 1) % consensusNodeSize, hash, index, bytes(), 0, leaderMsgFixture,
         PacketType::PrePreparePacket);
+    pbftMsg->setConsensusProposal(fakedProposal);
+
     data = nonLeaderFaker->pbftConfig()->codec()->encode(pbftMsg);
     leaderFaker->pbftEngine()->onReceivePBFTMessage(
         nullptr, leaderFaker->keyPair()->publicKey(), ref(*data), nullptr);
@@ -194,6 +205,8 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
     // case4: invalid signature
     pbftMsg = fakePBFTMessage(utcTime(), 1, (leaderFaker->pbftConfig()->view()), expectedLeader,
         hash, index, bytes(), 0, leaderMsgFixture, PacketType::PrePreparePacket);
+    pbftMsg->setConsensusProposal(fakedProposal);
+
     data = nonLeaderFaker->pbftConfig()->codec()->encode(pbftMsg);
     nonLeaderFaker->pbftEngine()->onReceivePBFTMessage(
         nullptr, nonLeaderFaker->keyPair()->publicKey(), ref(*data), nullptr);

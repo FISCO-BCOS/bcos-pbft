@@ -96,7 +96,8 @@ protected:
         bool _needCheckSignature = true);
     virtual CheckResult checkPrePrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg);
     virtual CheckResult checkSignature(std::shared_ptr<PBFTBaseMessageInterface> _req);
-    virtual CheckResult checkPBFTMsgState(std::shared_ptr<PBFTBaseMessageInterface> _pbftReq) const;
+    virtual CheckResult checkPBFTMsgState(std::shared_ptr<PBFTMessageInterface> _pbftReq) const;
+
     virtual void broadcastPrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg);
 
     // Process the Prepare type message packet

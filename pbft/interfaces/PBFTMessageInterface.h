@@ -37,6 +37,8 @@ public:
 
     virtual void setProposals(PBFTProposalList const& _proposals) = 0;
     virtual PBFTProposalList const& proposals() const = 0;
+
+    virtual PBFTMessageInterface::Ptr populateWithoutProposal() = 0;
 };
 using PBFTMessageList = std::vector<PBFTMessageInterface::Ptr>;
 using PBFTMessageListPtr = std::shared_ptr<PBFTMessageList>;

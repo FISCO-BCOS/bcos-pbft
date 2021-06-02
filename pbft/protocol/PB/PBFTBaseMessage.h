@@ -71,6 +71,8 @@ public:
         return bcos::protocol::encodePBObject(m_baseMessage);
     }
 
+    bytesPointer encode() const { return bcos::protocol::encodePBObject(m_baseMessage); }
+
     void decode(bytesConstRef _data) override
     {
         bcos::protocol::decodePBObject(m_baseMessage, _data);
@@ -101,7 +103,7 @@ public:
     bool verifySignature(
         bcos::crypto::CryptoSuite::Ptr _cryptoSuite, bcos::crypto::PublicPtr _pubKey) override
     {
-        return _cryptoSuite->signatureImpl()->verify(_pubKey, m_dataHash, signatureData());
+        return _cryptoSuite->signatureImpl()->verify(_pubKey, signatureDataHash(), signatureData());
     }
 
     int64_t index() const override { return m_baseMessage->index(); }

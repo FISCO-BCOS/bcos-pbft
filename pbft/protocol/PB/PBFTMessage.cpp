@@ -31,32 +31,38 @@ bytesPointer PBFTMessage::encode(
     CryptoSuite::Ptr _cryptoSuite, KeyPairInterface::Ptr _keyPair) const
 {
     // encode the PBFTBaseMessage
-    auto hashFieldsData = PBFTBaseMessage::encode(_cryptoSuite, _keyPair);
-    m_pbftRawMessage->set_hashfieldsdata(hashFieldsData->data(), hashFieldsData->size());
+    encodeHashFields();
     generateAndSetSignatureData(_cryptoSuite, _keyPair);
     return encodePBObject(m_pbftRawMessage);
+}
+
+void PBFTMessage::encodeHashFields() const
+{
+    auto hashFieldsData = PBFTBaseMessage::encode();
+    m_pbftRawMessage->set_hashfieldsdata(hashFieldsData->data(), hashFieldsData->size());
 }
 
 void PBFTMessage::decode(bytesConstRef _data)
 {
     decodePBObject(m_pbftRawMessage, _data);
-    auto const& hashFieldsData = m_pbftRawMessage->hashfieldsdata();
-    auto baseMessageData =
-        bytesConstRef((byte const*)hashFieldsData.c_str(), hashFieldsData.size());
-    PBFTBaseMessage::decode(baseMessageData);
     PBFTMessage::deserializeToObject();
 }
 
 void PBFTMessage::deserializeToObject()
 {
-    PBFTBaseMessage::deserializeToObject();
+    auto const& hashFieldsData = m_pbftRawMessage->hashfieldsdata();
+    auto baseMessageData =
+        bytesConstRef((byte const*)hashFieldsData.c_str(), hashFieldsData.size());
+    PBFTBaseMessage::decode(baseMessageData);
+
     // decode the proposals
     m_proposals->clear();
-
-    std::shared_ptr<PBFTRawProposal> rawConsensusProposal(
-        m_pbftRawMessage->mutable_consensusproposal());
-    m_consensusProposal = std::make_shared<PBFTProposal>(rawConsensusProposal);
-
+    if (m_pbftRawMessage->has_consensusproposal())
+    {
+        auto consensusProposal = m_pbftRawMessage->mutable_consensusproposal();
+        std::shared_ptr<PBFTRawProposal> rawConsensusProposal(consensusProposal);
+        m_consensusProposal = std::make_shared<PBFTProposal>(rawConsensusProposal);
+    }
     for (int i = 0; i < m_pbftRawMessage->proposals_size(); i++)
     {
         std::shared_ptr<PBFTRawProposal> rawProposal(m_pbftRawMessage->mutable_proposals(i));
@@ -67,12 +73,7 @@ void PBFTMessage::deserializeToObject()
 void PBFTMessage::decodeAndSetSignature(CryptoSuite::Ptr _cryptoSuite, bytesConstRef _data)
 {
     decode(_data);
-    auto dataHash = getHashFieldsDataHash(_cryptoSuite);
-    setSignatureDataHash(dataHash);
-
-    auto const& signatureData = m_pbftRawMessage->signaturedata();
-    bytes signatureDataBytes(signatureData.begin(), signatureData.end());
-    setSignatureData(std::move(signatureDataBytes));
+    m_signatureDataHash = getHashFieldsDataHash(_cryptoSuite);
 }
 
 void PBFTMessage::setConsensusProposal(PBFTProposalInterface::Ptr _consensusProposal)
@@ -80,7 +81,12 @@ void PBFTMessage::setConsensusProposal(PBFTProposalInterface::Ptr _consensusProp
     m_consensusProposal = _consensusProposal;
     auto pbftProposal = std::dynamic_pointer_cast<PBFTProposal>(_consensusProposal);
     // set committed proposal
-    m_pbftRawMessage->set_allocated_consensusproposal(pbftProposal->pbftRawProposal().get());
+    if (m_pbftRawMessage->has_consensusproposal())
+    {
+        m_pbftRawMessage->unsafe_arena_release_consensusproposal();
+    }
+    m_pbftRawMessage->unsafe_arena_set_allocated_consensusproposal(
+        pbftProposal->pbftRawProposal().get());
 }
 
 HashType PBFTMessage::getHashFieldsDataHash(CryptoSuite::Ptr _cryptoSuite) const
@@ -94,8 +100,8 @@ HashType PBFTMessage::getHashFieldsDataHash(CryptoSuite::Ptr _cryptoSuite) const
 void PBFTMessage::generateAndSetSignatureData(
     CryptoSuite::Ptr _cryptoSuite, KeyPairInterface::Ptr _keyPair) const
 {
-    auto dataHash = getHashFieldsDataHash(_cryptoSuite);
-    auto signature = _cryptoSuite->signatureImpl()->sign(_keyPair, dataHash, false);
+    m_signatureDataHash = getHashFieldsDataHash(_cryptoSuite);
+    auto signature = _cryptoSuite->signatureImpl()->sign(_keyPair, m_signatureDataHash, false);
     // set the signature data
     m_pbftRawMessage->set_signaturedata(signature->data(), signature->size());
 }
@@ -103,6 +109,7 @@ void PBFTMessage::generateAndSetSignatureData(
 void PBFTMessage::setProposals(PBFTProposalList const& _proposals)
 {
     *m_proposals = _proposals;
+    m_pbftRawMessage->clear_proposals();
     for (auto proposal : _proposals)
     {
         auto proposalImpl = std::dynamic_pointer_cast<PBFTProposal>(proposal);

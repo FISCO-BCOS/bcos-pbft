@@ -152,7 +152,7 @@ protected:
     virtual void asyncNotifySealProposal(
         size_t _proposalIndex, size_t _proposalEndIndex, size_t _maxTxsToSeal);
 
-private:
+protected:
     bcos::crypto::CryptoSuite::Ptr m_cryptoSuite;
     // Factory for creating PBFT message package
     std::shared_ptr<PBFTMessageFactory> m_pbftMessageFactory;
