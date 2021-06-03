@@ -40,16 +40,16 @@ public:
     {
         addCache(m_prepareCacheList, m_prepareReqWeight, _prepareProposal);
         PBFT_LOG(DEBUG) << LOG_DESC("addPrepareCache") << printPBFTMsgInfo(_prepareProposal)
-                        << LOG_KV("nodeIndex", m_config->nodeIndex())
-                        << LOG_KV("prepareReqWeight", m_prepareReqWeight[_prepareProposal->hash()]);
+                        << m_config->printCurrentState()
+                        << LOG_KV("weight", m_prepareReqWeight[_prepareProposal->hash()]);
     }
 
     virtual void addCommitCache(PBFTMessageInterface::Ptr _commitProposal)
     {
         addCache(m_commitCacheList, m_commitReqWeight, _commitProposal);
         PBFT_LOG(DEBUG) << LOG_DESC("addCommitCache") << printPBFTMsgInfo(_commitProposal)
-                        << LOG_KV("nodeIndex", m_config->nodeIndex())
-                        << LOG_KV("commitReqWeight", m_commitReqWeight[_commitProposal->hash()]);
+                        << m_config->printCurrentState()
+                        << LOG_KV("weight", m_commitReqWeight[_commitProposal->hash()]);
     }
 
     virtual void addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepareMsg)
@@ -60,7 +60,7 @@ public:
         }
         m_prePrepare = _prePrepareMsg;
         PBFT_LOG(DEBUG) << LOG_DESC("addPrePrepareCache") << printPBFTMsgInfo(_prePrepareMsg)
-                        << LOG_KV("nodeIndex", m_config->nodeIndex());
+                        << m_config->printCurrentState();
     }
 
     bcos::protocol::BlockNumber index() const { return m_index; }
@@ -80,7 +80,7 @@ public:
     {
         addCache(m_checkpointCacheList, m_checkpointCacheWeight, _checkPointMsg);
         PBFT_LOG(DEBUG) << LOG_DESC("addCheckPointMsg") << printPBFTMsgInfo(_checkPointMsg)
-                        << LOG_KV("nodeIndex", m_config->nodeIndex())
+                        << LOG_KV("Idx", m_config->nodeIndex())
                         << LOG_KV("weight", m_checkpointCacheWeight[_checkPointMsg->hash()])
                         << LOG_KV("minRequiredWeight", m_config->minRequiredQuorum());
     }

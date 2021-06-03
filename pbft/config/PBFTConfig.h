@@ -81,7 +81,7 @@ public:
 
     virtual IndexType leaderIndex(bcos::protocol::BlockNumber _proposalIndex);
     virtual bool leaderAfterViewChange();
-    IndexType leaderIndexInNewViewPeriod();
+    IndexType leaderIndexInNewViewPeriod(ViewType _view);
     virtual uint64_t leaderSwitchPeriod() const { return m_leaderSwitchPeriod; }
     virtual void setLeaderSwitchPeriod(uint64_t _leaderSwitchPeriod)
     {
@@ -144,6 +144,12 @@ public:
     void setCheckPointTimeoutInterval(int64_t _timeoutInterval)
     {
         m_checkPointTimeoutInterval = _timeoutInterval;
+    }
+
+    void resetToView()
+    {
+        m_toView = m_view + 1;
+        m_timer->resetChangeCycle();
     }
 
 protected:

@@ -102,7 +102,7 @@ void testPBFTEngineWithFaulty(size_t _consensusNodes, size_t _connectedNodes)
     {
         for (auto const& node : fakerMap)
         {
-            node.second->pbftEngine()->executeWorker();
+            node.second->pbftEngine()->executeWorkerByRoundbin();
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
@@ -119,7 +119,7 @@ void testPBFTEngineWithFaulty(size_t _consensusNodes, size_t _connectedNodes)
     {
         for (auto const& node : fakerMap)
         {
-            node.second->pbftEngine()->executeWorker();
+            node.second->pbftEngine()->executeWorkerByRoundbin();
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
@@ -229,6 +229,7 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
     BOOST_CHECK(nonLeaderFaker->pbftEngine()->cacheProcessor()->existPrePrepare(pbftMsg));
     nonLeaderFaker->pbftConfig()->setConsensusTimeout(200);
     leaderFaker->pbftConfig()->setConsensusTimeout(200);
+    leaderFaker->pbftConfig()->timer()->start();
     BOOST_CHECK(nonLeaderFaker->pbftConfig()->timer()->running());
     while (!leaderFaker->pbftEngine()->isTimeout() || !nonLeaderFaker->pbftEngine()->isTimeout())
     {
@@ -237,8 +238,8 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
     // wait to trigger viewchange since not reach consensus
     while (leaderFaker->pbftEngine()->isTimeout() || nonLeaderFaker->pbftEngine()->isTimeout())
     {
-        nonLeaderFaker->pbftEngine()->executeWorker();
-        leaderFaker->pbftEngine()->executeWorker();
+        nonLeaderFaker->pbftEngine()->executeWorkerByRoundbin();
+        leaderFaker->pbftEngine()->executeWorkerByRoundbin();
     }
 }
 BOOST_AUTO_TEST_SUITE_END()
