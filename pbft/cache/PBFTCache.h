@@ -69,6 +69,7 @@ public:
     virtual PBFTMessageInterface::Ptr preCommitWithoutData() { return m_precommitWithoutData; }
     virtual bool checkAndPreCommit();
     virtual bool checkAndCommit();
+    virtual bool shouldStopTimer();
     // reset the cache after viewchange
     virtual void resetCache(ViewType _curView);
 
@@ -88,7 +89,7 @@ public:
     virtual void onCheckPointTimeout();
     bool stableCommitted() { return m_stableCommitted; }
 
-private:
+protected:
     bool checkPrePrepareProposalStatus();
     using CollectionCacheType =
         std::map<bcos::crypto::HashType, std::map<IndexType, PBFTMessageInterface::Ptr>>;
@@ -100,7 +101,7 @@ private:
     bool collectEnoughPrepareReq();
     bool collectEnoughCommitReq();
     bool collectEnoughCheckpoint();
-    void intoPrecommit();
+    virtual void intoPrecommit();
     virtual void setSignatureList(
         PBFTProposalInterface::Ptr _proposal, CollectionCacheType& _cache);
 
@@ -154,7 +155,7 @@ private:
         }
     }
 
-private:
+protected:
     PBFTConfig::Ptr m_config;
     // avoid submitting the same committed proposal multiple times
     std::atomic_bool m_submitted = {false};

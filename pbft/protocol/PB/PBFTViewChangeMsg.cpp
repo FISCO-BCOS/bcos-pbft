@@ -55,7 +55,12 @@ void PBFTViewChangeMsg::setCommittedProposal(PBFTProposalInterface::Ptr _proposa
     m_committedProposal = _proposal;
     auto pbftProposal = std::dynamic_pointer_cast<PBFTProposal>(_proposal);
     // set committed proposal
-    m_rawViewChange->set_allocated_committedproposal(pbftProposal->pbftRawProposal().get());
+    if (m_rawViewChange->has_committedproposal())
+    {
+        m_rawViewChange->unsafe_arena_release_committedproposal();
+    }
+    m_rawViewChange->unsafe_arena_set_allocated_committedproposal(
+        pbftProposal->pbftRawProposal().get());
 }
 
 void PBFTViewChangeMsg::setPreparedProposals(PBFTMessageList const& _preparedProposals)

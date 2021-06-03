@@ -19,8 +19,10 @@
  * @date 2021-05-28
  */
 #pragma once
+#include "core/StateMachine.h"
 #include "pbft/PBFTFactory.h"
 #include "pbft/PBFTImpl.h"
+#include "pbft/storage/LedgerStorage.h"
 #include "test/unittests/faker/FakeDispatcher.h"
 #include "test/unittests/faker/FakeStorage.h"
 #include "test/unittests/faker/FakeTxPool.h"
@@ -50,14 +52,69 @@ namespace bcos
 {
 namespace test
 {
+class FakePBFTConfig : public PBFTConfig
+{
+public:
+    using Ptr = std::shared_ptr<FakePBFTConfig>;
+    FakePBFTConfig(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
+        bcos::crypto::KeyPairInterface::Ptr _keyPair,
+        std::shared_ptr<PBFTMessageFactory> _pbftMessageFactory,
+        std::shared_ptr<PBFTCodecInterface> _codec, std::shared_ptr<ValidatorInterface> _validator,
+        std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
+        bcos::sealer::SealerInterface::Ptr _sealer, StateMachineInterface::Ptr _stateMachine,
+        PBFTStorage::Ptr _storage)
+      : PBFTConfig(_cryptoSuite, _keyPair, _pbftMessageFactory, _codec, _validator, _frontService,
+            _sealer, _stateMachine, _storage)
+    {}
+
+    ~FakePBFTConfig() override {}
+
+    virtual void setMinRequiredQuorum(uint64_t _quorum) { m_minRequiredQuorum = _quorum; }
+};
+class FakePBFTCache : public PBFTCache
+{
+public:
+    using Ptr = std::shared_ptr<FakePBFTCache>;
+    FakePBFTCache(PBFTConfig::Ptr _config, BlockNumber _index) : PBFTCache(_config, _index) {}
+    ~FakePBFTCache() override {}
+
+    PBFTMessageInterface::Ptr prePrepare() { return m_prePrepare; }
+    void intoPrecommit() override { PBFTCache::intoPrecommit(); }
+};
+
+class FakePBFTCacheFactory : public PBFTCacheFactory
+{
+public:
+    using Ptr = std::shared_ptr<FakePBFTCacheFactory>;
+    FakePBFTCacheFactory() = default;
+    ~FakePBFTCacheFactory() override {}
+
+    PBFTCache::Ptr createPBFTCache(PBFTConfig::Ptr _config, BlockNumber _index) override
+    {
+        return std::make_shared<FakePBFTCache>(_config, _index);
+    }
+};
+
 class FakeCacheProcessor : public PBFTCacheProcessor
 {
 public:
     using Ptr = std::shared_ptr<FakeCacheProcessor>;
-    explicit FakeCacheProcessor(PBFTConfig::Ptr _config) : PBFTCacheProcessor(_config) {}
+    explicit FakeCacheProcessor(PBFTCacheFactory::Ptr _cacheFactory, PBFTConfig::Ptr _config)
+      : PBFTCacheProcessor(_cacheFactory, _config)
+    {}
 
     ~FakeCacheProcessor() override {}
+
+    PBFTCachesType& caches() { return m_caches; }
+    size_t stableCheckPointQueueSize() const { return m_stableCheckPointQueue.size(); }
+    size_t committedQueueSize() const { return m_committedQueue.size(); }
+    bool checkPrecommitWeight(PBFTMessageInterface::Ptr _precommitMsg) override
+    {
+        PBFTCacheProcessor::checkPrecommitWeight(_precommitMsg);
+        return true;
+    }
 };
+
 
 class FakePBFTEngine : public PBFTEngine
 {
@@ -65,7 +122,8 @@ public:
     using Ptr = std::shared_ptr<FakePBFTEngine>;
     explicit FakePBFTEngine(PBFTConfig::Ptr _config) : PBFTEngine(_config)
     {
-        m_cacheProcessor = std::make_shared<FakeCacheProcessor>(_config);
+        auto cacheFactory = std::make_shared<FakePBFTCacheFactory>();
+        m_cacheProcessor = std::make_shared<FakeCacheProcessor>(cacheFactory, _config);
         m_logSync = std::make_shared<PBFTLogSync>(_config, m_cacheProcessor);
     }
     ~FakePBFTEngine() override {}
@@ -92,7 +150,7 @@ public:
     }
 
     bool handlePrePrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg,
-        bool _needVerifyProposal, bool _generatedFromNewView = false,
+        bool _needVerifyProposal = true, bool _generatedFromNewView = false,
         bool _needCheckSignature = true) override
     {
         return PBFTEngine::handlePrePrepareMsg(
@@ -117,6 +175,16 @@ public:
       : PBFTFactory(_cryptoSuite, _keyPair, _frontService, _storage, _ledger, _txpool, _sealer,
             _dispatcher, _blockFactory)
     {
+        auto stateMachine = std::make_shared<StateMachine>(_dispatcher, _blockFactory);
+
+        PBFT_LOG(DEBUG) << LOG_DESC("create pbftStorage");
+        auto pbftStorage = std::make_shared<LedgerStorage>(
+            _ledger, _storage, _blockFactory, m_pbftConfig->pbftMessageFactory());
+
+        auto pbftConfig = std::make_shared<FakePBFTConfig>(_cryptoSuite, _keyPair,
+            m_pbftConfig->pbftMessageFactory(), m_pbftConfig->codec(), m_pbftConfig->validator(),
+            m_pbftConfig->frontService(), m_pbftConfig->sealer(), stateMachine, pbftStorage);
+        m_pbftConfig = pbftConfig;
         PBFT_LOG(DEBUG) << LOG_DESC("create PBFTEngine");
         m_pbftEngine = std::make_shared<FakePBFTEngine>(m_pbftConfig);
 

@@ -50,7 +50,10 @@ public:
         // return back the ownership of message to PBFTBaseMessage
         m_rawViewChange->unsafe_arena_release_message();
         // return back the ownership to m_committedProposal
-        m_rawViewChange->unsafe_arena_release_committedproposal();
+        if (m_rawViewChange->has_committedproposal())
+        {
+            m_rawViewChange->unsafe_arena_release_committedproposal();
+        }
         // return back the ownership to m_preparedProposalList
         auto preparedProposalSize = m_rawViewChange->preparedproposals_size();
         for (auto i = 0; i < preparedProposalSize; i++)

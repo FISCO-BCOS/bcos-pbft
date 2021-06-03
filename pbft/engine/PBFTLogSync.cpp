@@ -50,6 +50,9 @@ void PBFTLogSync::requestPrecommitData(bcos::crypto::PublicPtr _from,
 {
     auto pbftRequest = m_config->pbftMessageFactory()->populateFrom(
         PacketType::PreparedProposalRequest, _prePrepareMsg->index(), _prePrepareMsg->hash());
+    PBFT_LOG(DEBUG) << LOG_DESC("request the missed precommit proposal")
+                    << LOG_KV("index", _prePrepareMsg->index())
+                    << LOG_KV("hash", _prePrepareMsg->hash().abridged());
     requestPBFTData(_from, pbftRequest,
         [this, _prePrepareMsg, _prePrepareCallback](Error::Ptr _error, NodeIDPtr _nodeID,
             bytesConstRef _data, std::string const&, SendResponseCallback _sendResponse) {
@@ -77,6 +80,10 @@ void PBFTLogSync::requestPBFTData(
             // send the request
             config->frontService()->asyncSendMessageByNodeID(ModuleID::PBFT, _from,
                 ref(*encodedData), config->networkTimeoutInterval(), _callback);
+            PBFT_LOG(DEBUG) << LOG_DESC("request the missed precommit proposal")
+                            << LOG_KV("peer", _from->shortHex())
+                            << LOG_KV("index", _pbftRequest->index())
+                            << LOG_KV("hash", _pbftRequest->hash().abridged());
         }
         catch (std::exception const& e)
         {
@@ -130,12 +137,20 @@ void PBFTLogSync::onReceivePrecommitRequest(
                 return;
             }
             // get the local precommitData
-            auto pbftMessage = pbftLogSync->m_config->pbftMessageFactory()->createViewChangeMsg();
-            pbftMessage->setPacketType(PacketType::PreparedProposalResponse);
-            auto precommitData = pbftLogSync->m_pbftCache->fetchPrecommitData(
-                pbftMessage, pbftRequest->index(), pbftRequest->hash());
+            auto precommitMsg = pbftLogSync->m_pbftCache->fetchPrecommitData(
+                pbftRequest->index(), pbftRequest->hash());
+            if (!precommitMsg)
+            {
+                PBFT_LOG(DEBUG) << LOG_DESC(
+                                       "onReceivePrecommitRequest: miss the requested precommit")
+                                << LOG_KV("hash", pbftRequest->hash().abridged())
+                                << LOG_KV("index", pbftRequest->index());
+                return;
+            }
+            precommitMsg->setPacketType(PacketType::PreparedProposalResponse);
+            auto encodedData = pbftLogSync->m_config->codec()->encode(precommitMsg);
             // response the precommitData
-            _sendResponse(ref(*precommitData));
+            _sendResponse(ref(*encodedData));
             PBFT_LOG(DEBUG) << LOG_DESC("Receive precommitRequest and send response")
                             << LOG_KV("hash", pbftRequest->hash().abridged())
                             << LOG_KV("index", pbftRequest->index());
@@ -182,6 +197,7 @@ void PBFTLogSync::onRecvPrecommitResponse(Error::Ptr _error, bcos::crypto::NodeI
     {
         return;
     }
+    PBFT_LOG(DEBUG) << LOG_DESC("onRecvPrecommitResponse") << printPBFTMsgInfo(response);
     auto pbftMessage = std::dynamic_pointer_cast<ViewChangeMsgInterface>(response);
     assert(pbftMessage->preparedProposals().size() == 1);
     auto precommitMsg = (pbftMessage->preparedProposals())[0];

@@ -71,10 +71,10 @@ PBFTBaseMessageInterface::Ptr PBFTCodec::decode(bytesConstRef _data) const
     case PacketType::PreparePacket:
     case PacketType::CommitPacket:
     case PacketType::CommittedProposalResponse:
-    case PacketType::PreparedProposalResponse:
     case PacketType::CheckPoint:
         decodedMsg = m_pbftMessageFactory->createPBFTMsg(m_cryptoSuite, payLoadRefData);
         break;
+    case PacketType::PreparedProposalResponse:
     case PacketType::ViewChangePacket:
         decodedMsg = m_pbftMessageFactory->createViewChangeMsg(payLoadRefData);
         break;

@@ -75,6 +75,7 @@ void PBFTNewViewMsg::setPrePrepareList(PBFTMessageList const& _prePrepareList)
     for (auto prePrepare : _prePrepareList)
     {
         auto pbPrePrepare = std::dynamic_pointer_cast<PBFTMessage>(prePrepare);
+        pbPrePrepare->encodeHashFields();
         m_rawNewView->mutable_prepreparelist()->AddAllocated(pbPrePrepare->pbftRawMessage().get());
     }
 }

@@ -72,17 +72,6 @@ public:
         return pbftRequest;
     }
 
-    virtual PBFTMessageInterface::Ptr populateFrom(PBFTBaseMessageInterface::Ptr _message)
-    {
-        auto pbftMessage = createPBFTMsg();
-        pbftMessage->setPacketType(_message->packetType());
-        pbftMessage->setVersion(_message->version());
-        pbftMessage->setView(_message->view());
-        pbftMessage->setTimestamp(_message->timestamp());
-        pbftMessage->setGeneratedFrom(_message->generatedFrom());
-        return pbftMessage;
-    }
-
     virtual PBFTMessageInterface::Ptr populateFrom(PacketType _packetType, int32_t _version,
         ViewType _view, int64_t _timestamp, IndexType _generatedFrom,
         PBFTProposalInterface::Ptr _proposal, bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
@@ -134,7 +123,7 @@ public:
         proposal->setHash(_proposal->hash());
         if (_withData)
         {
-            proposal->setData(_proposal->data().toBytes());
+            proposal->setData(_proposal->data());
         }
         // set the signature proof
         if (_withProof)
