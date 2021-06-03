@@ -137,15 +137,6 @@ public:
         }
         return proposal;
     }
-
-    virtual PBFTProposalInterface::Ptr populateEmptyProposal(
-        int64_t _index, bcos::crypto::HashType const& _emptyHash)
-    {
-        auto proposal = createPBFTProposal();
-        proposal->setIndex(_index);
-        proposal->setHash(_emptyHash);
-        return proposal;
-    }
 };
 }  // namespace consensus
 }  // namespace bcos

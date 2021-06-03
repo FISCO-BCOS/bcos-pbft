@@ -142,7 +142,7 @@ protected:
 
     std::shared_ptr<BaseMessage> m_baseMessage;
     bcos::crypto::HashType m_hash;
-    PacketType m_packetType;
+    PacketType m_packetType = PacketType::PrePreparePacket;
 
     bcos::crypto::HashType m_dataHash;
     bytesPointer m_signatureData;

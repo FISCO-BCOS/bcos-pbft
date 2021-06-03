@@ -76,8 +76,7 @@ inline std::string printPBFTMsgInfo(PBFTBaseMessageInterface::Ptr _pbftMsg)
     std::ostringstream stringstream;
     stringstream << LOG_KV("reqHash", _pbftMsg->hash().abridged())
                  << LOG_KV("reqIndex", _pbftMsg->index()) << LOG_KV("reqV", _pbftMsg->view())
-                 << LOG_KV("fromIdx", _pbftMsg->generatedFrom())
-                 << LOG_KV("type", _pbftMsg->packetType());
+                 << LOG_KV("fromIdx", _pbftMsg->generatedFrom());
     return stringstream.str();
 }
 }  // namespace consensus

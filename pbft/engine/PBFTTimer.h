@@ -32,41 +32,46 @@ public:
 
     ~PBFTTimer() override {}
 
-    void updateChangeCycle(int64_t _changeCycle)
+    void updateChangeCycle(uint64_t _changeCycle)
     {
-        m_changeCycle = _changeCycle;
+        m_changeCycle.store(std::min(_changeCycle, c_maxChangeCycle));
         updateAdjustedTimeout();
     }
-    void incChangeCycle(int64_t _increasedValue)
+    void incChangeCycle(uint64_t _increasedValue)
     {
-        m_changeCycle += _increasedValue;
-        updateAdjustedTimeout();
+        updateChangeCycle(m_changeCycle.load() + _increasedValue);
     }
-    void resetChangeCycle()
-    {
-        m_changeCycle = 0;
-        updateAdjustedTimeout();
-    }
+    void resetChangeCycle() { updateChangeCycle(0); }
     uint64_t changeCycle() const { return m_changeCycle; }
 
     void reset(uint64_t _timeout) override
     {
-        Timer::reset(_timeout);
+        m_timeout = _timeout;
         updateAdjustedTimeout();
     }
 
 protected:
     void updateAdjustedTimeout()
     {
-        uint64_t timeout = m_timeout.load() * std::pow(m_base, m_changeCycle.load());
+        auto changeCycle = std::min(m_changeCycle.load(), c_maxChangeCycle);
+        uint64_t timeout = m_timeout.load() * std::pow(m_base, changeCycle);
+        if (timeout == m_adjustedTimeout)
+        {
+            return;
+        }
         m_adjustedTimeout.store(timeout);
+        if (running())
+        {
+            restart();
+        }
     }
     uint64_t adjustTimeout() override { return m_adjustedTimeout; }
 
 private:
-    std::atomic<uint64_t> m_adjustedTimeout;
-    std::atomic<uint64_t> m_changeCycle = 0;
+    std::atomic<uint64_t> m_adjustedTimeout = {0};
+    std::atomic<uint64_t> m_changeCycle = {0};
     double const m_base = 1.5;
+    uint64_t c_maxChangeCycle = 10;
 };
 }  // namespace consensus
 }  // namespace bcos

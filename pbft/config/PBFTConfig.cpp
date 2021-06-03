@@ -132,13 +132,13 @@ IndexType PBFTConfig::leaderIndex(BlockNumber _proposalIndex)
 
 bool PBFTConfig::leaderAfterViewChange()
 {
-    auto expectedLeader = leaderIndexInNewViewPeriod();
+    auto expectedLeader = leaderIndexInNewViewPeriod(m_toView);
     return (m_nodeIndex == expectedLeader);
 }
 
-IndexType PBFTConfig::leaderIndexInNewViewPeriod()
+IndexType PBFTConfig::leaderIndexInNewViewPeriod(ViewType _view)
 {
-    return (m_committedProposal->index() / m_leaderSwitchPeriod + m_toView) % m_consensusNodeNum;
+    return (m_committedProposal->index() / m_leaderSwitchPeriod + _view) % m_consensusNodeNum;
 }
 
 PBFTProposalInterface::Ptr PBFTConfig::populateCommittedProposal()

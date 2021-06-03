@@ -114,8 +114,7 @@ void PBFTEngine::onRecvProposal(
         ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
 
     PBFT_LOG(INFO) << LOG_DESC("++++++++++++++++ Generating seal on")
-                   << LOG_KV("index", pbftMessage->index())
-                   << LOG_KV("nodeIdx", m_config->nodeIndex())
+                   << LOG_KV("index", pbftMessage->index()) << LOG_KV("Idx", m_config->nodeIndex())
                    << LOG_KV("hash", pbftMessage->hash().abridged());
 
     // handle the pre-prepare packet
@@ -173,7 +172,7 @@ void PBFTEngine::onReceivePBFTMessage(Error::Ptr _error, NodeIDPtr _fromNode, by
     {
         PBFT_LOG(WARNING) << LOG_DESC("onReceivePBFTMessage exception")
                           << LOG_KV("fromNode", _fromNode->hex())
-                          << LOG_KV("idx", m_config->nodeIndex())
+                          << LOG_KV("Idx", m_config->nodeIndex())
                           << LOG_KV("nodeId", m_config->nodeID()->hex())
                           << LOG_KV("error", boost::diagnostic_information(_e));
     }
@@ -475,6 +474,8 @@ bool PBFTEngine::handlePrepareMsg(PBFTMessageInterface::Ptr _prepareMsg)
 
 bool PBFTEngine::handleCommitMsg(PBFTMessageInterface::Ptr _commitMsg)
 {
+    PBFT_LOG(TRACE) << LOG_DESC("handleCommitMsg") << printPBFTMsgInfo(_commitMsg)
+                    << m_config->printCurrentState();
     auto result = checkPBFTMsg(_commitMsg);
     if (result == CheckResult::INVALID)
     {
@@ -604,10 +605,11 @@ bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
 bool PBFTEngine::isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg)
 {
     // check the newViewMsg
-    if (m_config->leaderIndexInNewViewPeriod() != _newViewMsg->generatedFrom())
+    auto expectedLeader = m_config->leaderIndexInNewViewPeriod(_newViewMsg->view());
+    if (expectedLeader != _newViewMsg->generatedFrom())
     {
         PBFT_LOG(DEBUG) << LOG_DESC("InvalidNewViewMsg for invalid nextLeader")
-                        << LOG_KV("expectedLeader", m_config->leaderIndexInNewViewPeriod())
+                        << LOG_KV("expectedLeader", expectedLeader)
                         << LOG_KV("recvIdx", _newViewMsg->generatedFrom())
                         << m_config->printCurrentState();
         return false;
@@ -683,8 +685,8 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
     auto const& prePrepareList = _newViewReq->prePrepareList();
     for (auto prePrepare : prePrepareList)
     {
-        // empty block
-        if (prePrepare->hash() == m_config->cryptoSuite()->hashImpl()->emptyHash())
+        // empty block proposal
+        if (prePrepare->consensusProposal()->data().size() > 0)
         {
             PBFT_LOG(DEBUG) << LOG_DESC("reHandlePrePrepareProposals: emptyBlock")
                             << printPBFTMsgInfo(prePrepare) << m_config->printCurrentState();
@@ -733,7 +735,8 @@ bool PBFTEngine::handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _chec
         PBFT_LOG(WARNING) << LOG_DESC("handleCheckPointMsg: Invalid expired checkpoint msg")
                           << LOG_KV("committedIndex", m_config->committedProposal()->index())
                           << LOG_KV("recvIndex", _checkPointMsg->index())
-                          << LOG_KV("hash", _checkPointMsg->hash().abridged());
+                          << LOG_KV("hash", _checkPointMsg->hash().abridged())
+                          << m_config->printCurrentState();
         return false;
     }
     // check signature

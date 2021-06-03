@@ -19,6 +19,7 @@
  * @date 2021-04-21
  */
 #pragma once
+#include "../interfaces/PBFTMessageFactory.h"
 #include "../interfaces/PBFTProposalInterface.h"
 #include "bcos-framework/interfaces/txpool/TxPoolInterface.h"
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
@@ -39,6 +40,8 @@ public:
         std::function<void(Error::Ptr, bool)> _verifyFinishedHandler) = 0;
 
     virtual void asyncResetTxsFlag(bytesConstRef _data, bool _flag) = 0;
+    virtual PBFTProposalInterface::Ptr generateEmptyProposal(
+        PBFTMessageFactory::Ptr _factory, int64_t _index, int64_t _sealerId) = 0;
 };
 
 class TxsValidator : public ValidatorInterface, public std::enable_shared_from_this<TxsValidator>
@@ -61,6 +64,22 @@ public:
     }
 
     void asyncResetTxsFlag(bytesConstRef _data, bool _flag = false) override;
+
+    PBFTProposalInterface::Ptr generateEmptyProposal(
+        PBFTMessageFactory::Ptr _factory, int64_t _index, int64_t _sealerId) override
+    {
+        auto proposal = _factory->createPBFTProposal();
+        proposal->setIndex(_index);
+        auto block = m_blockFactory->createBlock();
+        auto blockHeader = m_blockFactory->blockHeaderFactory()->createBlockHeader();
+        blockHeader->populateEmptyBlock(_index, _sealerId);
+        block->setBlockHeader(blockHeader);
+        auto encodedData = std::make_shared<bytes>();
+        block->encode(*encodedData);
+        proposal->setHash(block->blockHeader()->hash());
+        proposal->setData(std::move(*encodedData));
+        return proposal;
+    }
 
 protected:
     virtual void asyncResetTxsFlag(bcos::crypto::HashListPtr _txsHashList, bool _flag);

@@ -64,24 +64,41 @@ BOOST_AUTO_TEST_CASE(testViewChangeWithPrecommitProposals)
     auto blockData = std::make_shared<bytes>();
     block->encode(*blockData);
 
+    // blockNumber + 3
+    BlockNumber futureBlockIndex = expectedProposal + 2;
+    IndexType futureLeaderIndex = fakerMap[0]->pbftConfig()->leaderIndex(futureBlockIndex);
+    auto futureLeader = fakerMap[futureLeaderIndex];
+    auto futureBlock = fakeBlock(cryptoSuite, futureLeader, futureBlockIndex, 10);
+    auto futureBlockData = std::make_shared<bytes>();
+    futureBlock->encode(*futureBlockData);
+
     // the leader submit proposal
     leaderFaker->pbftEngine()->asyncSubmitProposal(
         ref(*blockData), block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
-    FakeCacheProcessor::Ptr cacheProcessor =
+    // the future leader submit the proposal
+    futureLeader->pbftEngine()->asyncSubmitProposal(ref(*futureBlockData),
+        futureBlock->blockHeader()->number(), futureBlock->blockHeader()->hash(), nullptr);
+
+    auto cacheProcessor =
         std::dynamic_pointer_cast<FakeCacheProcessor>(leaderFaker->pbftEngine()->cacheProcessor());
     BOOST_CHECK(cacheProcessor->caches().size() == 1);
-    FakePBFTCache::Ptr cache =
+    auto cache =
         std::dynamic_pointer_cast<FakePBFTCache>((cacheProcessor->caches())[expectedProposal]);
     BOOST_CHECK(cache->prePrepare());
     BOOST_CHECK(cache->index() == expectedProposal);
-    auto prePrepareMsg = cache->prePrepare();
+    BOOST_CHECK(cache->prePrepare());
+
+    auto futureCacheProcessor =
+        std::dynamic_pointer_cast<FakeCacheProcessor>(futureLeader->pbftEngine()->cacheProcessor());
+    auto futureCache = std::dynamic_pointer_cast<FakePBFTCache>(
+        (futureCacheProcessor->caches())[futureBlockIndex]);
+    BOOST_CHECK(futureCacheProcessor->caches().size() == 1);
+    BOOST_CHECK(futureCache->prePrepare());
+    BOOST_CHECK(futureCache->index() == futureBlockIndex);
+    BOOST_CHECK(futureCache->prePrepare());
 
     for (auto const& otherNode : fakerMap)
     {
-        if (otherNode.second->nodeID()->data() == leaderFaker->nodeID()->data())
-        {
-            continue;
-        }
         otherNode.second->pbftEngine()->executeWorker();
     }
     // assume five nodes into preCommit
@@ -91,26 +108,33 @@ BOOST_AUTO_TEST_CASE(testViewChangeWithPrecommitProposals)
         auto faker = fakerMap[i];
         FakeCacheProcessor::Ptr cacheProcessor =
             std::dynamic_pointer_cast<FakeCacheProcessor>(faker->pbftEngine()->cacheProcessor());
-        BOOST_CHECK(cacheProcessor->caches().size() == 1);
-        FakePBFTCache::Ptr cache =
+        BOOST_CHECK(cacheProcessor->caches().size() == 2);
+        auto cache =
             std::dynamic_pointer_cast<FakePBFTCache>((cacheProcessor->caches())[expectedProposal]);
         BOOST_CHECK(cache->prePrepare());
         BOOST_CHECK(cache->index() == expectedProposal);
         cache->intoPrecommit();
+
+        auto futureCache =
+            std::dynamic_pointer_cast<FakePBFTCache>((cacheProcessor->caches())[futureBlockIndex]);
+        BOOST_CHECK(futureCache->prePrepare());
+        BOOST_CHECK(futureCache->index() == futureBlockIndex);
+        BOOST_CHECK(futureCache->prePrepare());
+        futureCache->intoPrecommit();
     }
+
     for (size_t i = 0; i < fakerMap.size(); i++)
     {
         auto faker = fakerMap[i];
-        faker->pbftConfig()->setConsensusTimeout(200);
+        faker->pbftConfig()->setConsensusTimeout(500);
     }
     auto startT = utcTime();
-    while (
-        !shouldExit(fakerMap, block->blockHeader()->number()) && (utcTime() - startT <= 10 * 3000))
+    while (!shouldExit(fakerMap, futureBlockIndex) && (utcTime() - startT <= 10 * 3000))
     {
         for (size_t i = 0; i < fakerMap.size(); i++)
         {
             auto faker = fakerMap[i];
-            faker->pbftEngine()->executeWorker();
+            faker->pbftEngine()->executeWorkerByRoundbin();
         }
     }
     // check reach new view
@@ -121,6 +145,7 @@ BOOST_AUTO_TEST_CASE(testViewChangeWithPrecommitProposals)
         BOOST_CHECK(faker->pbftConfig()->toView() == 2);
         BOOST_CHECK(faker->pbftConfig()->timer()->changeCycle() == 0);
         BOOST_CHECK(faker->pbftEngine()->isTimeout() == false);
+        BOOST_CHECK(faker->ledger()->blockNumber() == futureBlockIndex);
     }
 }
 BOOST_AUTO_TEST_SUITE_END()

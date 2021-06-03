@@ -130,6 +130,7 @@ void PBFTCacheProcessor::checkAndCommit()
         updateCommitQueue(it.second->preCommitCache()->consensusProposal());
         // refresh the timer when commit success
         m_config->timer()->restart();
+        m_config->resetToView();
     }
     resetTimer();
 }
@@ -291,7 +292,8 @@ void PBFTCacheProcessor::addViewChangeReq(ViewChangeMsgInterface::Ptr _viewChang
     PBFT_LOG(DEBUG) << LOG_DESC("addViewChangeReq") << printPBFTMsgInfo(_viewChange)
                     << LOG_KV("weight", m_viewChangeWeight[reqView])
                     << LOG_KV("maxCommittedIndex", m_maxCommittedIndex[reqView])
-                    << LOG_KV("maxPrecommitIndex", m_maxPrecommitIndex[reqView]);
+                    << LOG_KV("maxPrecommitIndex", m_maxPrecommitIndex[reqView])
+                    << m_config->printCurrentState();
 }
 
 PBFTMessageList PBFTCacheProcessor::generatePrePrepareMsg(
@@ -338,6 +340,7 @@ PBFTMessageList PBFTCacheProcessor::generatePrePrepareMsg(
     {
         PBFTProposalInterface::Ptr prePrepareProposal = nullptr;
         auto generatedFrom = m_config->nodeIndex();
+        bool empty = false;
         if (preparedProposals.count(i))
         {
             prePrepareProposal = preparedProposals[i]->consensusProposal();
@@ -346,15 +349,16 @@ PBFTMessageList PBFTCacheProcessor::generatePrePrepareMsg(
         else
         {
             // empty prePrepare
-            prePrepareProposal = m_config->pbftMessageFactory()->populateEmptyProposal(
-                i, m_config->cryptoSuite()->hashImpl()->emptyHash());
+            prePrepareProposal = m_config->validator()->generateEmptyProposal(
+                m_config->pbftMessageFactory(), i, m_config->nodeIndex());
+            empty = true;
         }
-        auto prePrepareMsg =
-            m_config->pbftMessageFactory()->populateFrom(PacketType::PrePreparePacket,
-                m_config->pbftMsgDefaultVersion(), m_config->toView(), utcTime(), generatedFrom,
-                prePrepareProposal, m_config->cryptoSuite(), m_config->keyPair(), false);
+        auto prePrepareMsg = m_config->pbftMessageFactory()->populateFrom(
+            PacketType::PrePreparePacket, prePrepareProposal, m_config->pbftMsgDefaultVersion(),
+            m_config->toView(), utcTime(), generatedFrom);
         prePrepareMsgList.push_back(prePrepareMsg);
-        PBFT_LOG(DEBUG) << LOG_DESC("generatePrePrepareMsg") << printPBFTMsgInfo(prePrepareMsg);
+        PBFT_LOG(DEBUG) << LOG_DESC("generatePrePrepareMsg") << printPBFTMsgInfo(prePrepareMsg)
+                        << LOG_KV("emptyProposal", empty);
     }
     return prePrepareMsgList;
 }
@@ -402,7 +406,7 @@ NewViewMsgInterface::Ptr PBFTCacheProcessor::checkAndTryIntoNewView()
         ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
     m_newViewGenerated = true;
     PBFT_LOG(DEBUG) << LOG_DESC("The next leader broadcast NewView request")
-                    << printPBFTMsgInfo(newViewMsg);
+                    << printPBFTMsgInfo(newViewMsg) << LOG_KV("Idx", m_config->nodeIndex());
     return newViewMsg;
 }
 

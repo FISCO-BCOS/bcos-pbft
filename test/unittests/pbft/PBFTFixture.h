@@ -143,6 +143,8 @@ public:
         }
     }
 
+    void executeWorkerByRoundbin() { return PBFTEngine::executeWorker(); }
+
     void onRecvProposal(bytesConstRef _proposalData, bcos::protocol::BlockNumber _proposalIndex,
         bcos::crypto::HashType const& _proposalHash) override
     {

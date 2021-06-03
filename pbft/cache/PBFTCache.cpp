@@ -38,7 +38,8 @@ void PBFTCache::onCheckPointTimeout()
 {
     PBFT_LOG(WARNING) << LOG_DESC("onCheckPointTimeout: resend the checkpoint message package")
                       << LOG_KV("index", m_checkpointProposal->index())
-                      << LOG_KV("hash", m_checkpointProposal->hash().abridged());
+                      << LOG_KV("hash", m_checkpointProposal->hash().abridged())
+                      << m_config->printCurrentState();
     auto checkPointMsg = m_config->pbftMessageFactory()->populateFrom(PacketType::CheckPoint,
         m_config->pbftMsgDefaultVersion(), m_config->view(), utcTime(), m_config->nodeIndex(),
         m_checkpointProposal, m_config->cryptoSuite(), m_config->keyPair(), true);
@@ -142,7 +143,7 @@ void PBFTCache::intoPrecommit()
         m_config->pbftMessageFactory()->populateFrom(m_precommit->consensusProposal(), false);
     m_precommitWithoutData->setConsensusProposal(precommitProposalWithoutData);
     PBFT_LOG(DEBUG) << LOG_DESC("intoPrecommit") << printPBFTMsgInfo(m_precommit)
-                    << LOG_KV("nodeIndex", m_config->nodeIndex());
+                    << m_config->printCurrentState();
 }
 
 void PBFTCache::setSignatureList(PBFTProposalInterface::Ptr _proposal, CollectionCacheType& _cache)
@@ -199,6 +200,10 @@ bool PBFTCache::checkAndPreCommit()
     // add the commitReq to local cache
     addCommitCache(commitReq);
     // broadcast the commitReq
+    PBFT_LOG(DEBUG) << LOG_DESC("checkAndPreCommit: broadcast commitMsg")
+                    << LOG_KV("Idx", m_config->nodeIndex())
+                    << LOG_KV("hash", commitReq->hash().abridged())
+                    << LOG_KV("index", commitReq->index());
     auto encodedData = m_config->codec()->encode(commitReq, m_config->pbftMsgDefaultVersion());
     m_config->frontService()->asyncSendMessageByNodeIDs(
         bcos::protocol::ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
@@ -288,8 +293,8 @@ bool PBFTCache::checkAndCommitStableCheckPoint()
     if (m_config->committedProposal()->index() >= m_checkpointProposal->index())
     {
         PBFT_LOG(WARNING) << LOG_DESC("checkAndCommitStableCheckPoint: expired checkpointProposal")
-                          << LOG_KV("committedIndex", m_config->committedProposal()->index())
-                          << LOG_KV("checkPointIndex", m_checkpointProposal->index());
+                          << LOG_KV("checkPointIndex", m_checkpointProposal->index())
+                          << m_config->printCurrentState();
         return false;
     }
     return true;
