@@ -152,6 +152,8 @@ public:
         m_timer->resetChangeCycle();
     }
 
+    uint64_t maxFaultyQuorum() const { return m_maxFaultyQuorum; }
+
 protected:
     void updateQuorum() override;
     virtual void notifySealer(bcos::protocol::BlockNumber _committedIndex, uint64_t _maxTxsToSeal);

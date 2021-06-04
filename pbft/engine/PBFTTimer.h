@@ -51,6 +51,8 @@ public:
     }
 
 protected:
+    // ensure that this period of time increases exponentially until some requested operation
+    // executes
     void updateAdjustedTimeout()
     {
         auto changeCycle = std::min(m_changeCycle.load(), c_maxChangeCycle);

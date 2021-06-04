@@ -111,10 +111,8 @@ BOOST_AUTO_TEST_CASE(testTimerWithoutWait)
     // test restart
     timer->restart();
     // sleep 20ms
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    BOOST_CHECK(timer->triggerTimeout() == false);
     std::this_thread::sleep_for(std::chrono::milliseconds(150));
-    BOOST_CHECK(timer->triggerTimeout() == true);
+    BOOST_CHECK(timer->triggerTimeout() == false);
 }
 
 BOOST_AUTO_TEST_CASE(testPBFTTimer)

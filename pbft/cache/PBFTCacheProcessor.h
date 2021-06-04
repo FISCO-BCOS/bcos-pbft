@@ -106,6 +106,7 @@ public:
 
     virtual void addViewChangeReq(ViewChangeMsgInterface::Ptr _viewChange);
     virtual NewViewMsgInterface::Ptr checkAndTryIntoNewView();
+    virtual ViewType tryToTriggerFastViewChange();
 
     virtual ViewChangeMsgInterface::Ptr fetchPrecommitData(
         bcos::protocol::BlockNumber _index, bcos::crypto::HashType const& _hash);
