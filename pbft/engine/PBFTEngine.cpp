@@ -594,12 +594,6 @@ bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
     }
     // TODO: sync the proposal when the committedProposal is older than the index of the viewchange
     m_cacheProcessor->addViewChangeReq(_viewChangeMsg);
-    auto newViewMsg = m_cacheProcessor->checkAndTryIntoNewView();
-    if (newViewMsg)
-    {
-        reHandlePrePrepareProposals(newViewMsg);
-        return true;
-    }
     // try to trigger fast view change if receive more than (f+1) valid view change messages whose
     // view is greater than the current view:
     // sends a view-change message for the smallest view in the set, even if its timer has not
@@ -608,6 +602,12 @@ bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
     if (view > 0)
     {
         broadcastViewChangeReq();
+    }
+    auto newViewMsg = m_cacheProcessor->checkAndTryIntoNewView();
+    if (newViewMsg)
+    {
+        reHandlePrePrepareProposals(newViewMsg);
+        return true;
     }
     return true;
 }
