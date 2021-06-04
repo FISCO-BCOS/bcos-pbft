@@ -410,6 +410,51 @@ NewViewMsgInterface::Ptr PBFTCacheProcessor::checkAndTryIntoNewView()
     return newViewMsg;
 }
 
+ViewType PBFTCacheProcessor::tryToTriggerFastViewChange()
+{
+    uint64_t greaterViewWeight = 0;
+    ViewType viewToReach = 0;
+    for (auto const& it : m_viewChangeCache)
+    {
+        if (it.first <= m_config->view())
+        {
+            continue;
+        }
+        auto view = it.first;
+        if (viewToReach == 0)
+        {
+            viewToReach = view;
+        }
+        if (viewToReach > view)
+        {
+            viewToReach = view;
+        }
+        // check the quorum
+        auto viewChangeCache = it.second;
+        for (auto const& cache : viewChangeCache)
+        {
+            auto fromIdx = cache.first;
+            auto nodeInfo = m_config->getConsensusNodeByIndex(fromIdx);
+            if (!nodeInfo)
+            {
+                continue;
+            }
+            greaterViewWeight += nodeInfo->weight();
+        }
+    }
+    if (greaterViewWeight < (m_config->maxFaultyQuorum() + 1))
+    {
+        return 0;
+    }
+    if (m_config->toView() == viewToReach)
+    {
+        return 0;
+    }
+    m_config->setToView(viewToReach);
+    PBFT_LOG(INFO) << LOG_DESC("tryToTriggerFastViewChange") << m_config->printCurrentState();
+    return viewToReach;
+}
+
 bool PBFTCacheProcessor::checkPrecommitMsg(PBFTMessageInterface::Ptr _precommitMsg)
 {
     // check the view

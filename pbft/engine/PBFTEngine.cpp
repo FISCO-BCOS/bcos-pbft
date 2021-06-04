@@ -281,9 +281,9 @@ CheckResult PBFTEngine::checkPBFTMsgState(PBFTMessageInterface::Ptr _pbftReq) co
         return CheckResult::INVALID;
     }
     // case index equal
-    if (_pbftReq->view() < m_config->view())
+    if (_pbftReq->view() != m_config->view())
     {
-        PBFT_LOG(TRACE) << LOG_DESC("checkPBFTMsgState: invalid pbftMsg for expired view")
+        PBFT_LOG(TRACE) << LOG_DESC("checkPBFTMsgState: invalid pbftMsg for invalid view")
                         << printPBFTMsgInfo(_pbftReq) << m_config->printCurrentState();
         return CheckResult::INVALID;
     }
@@ -598,6 +598,16 @@ bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
     if (newViewMsg)
     {
         reHandlePrePrepareProposals(newViewMsg);
+        return true;
+    }
+    // try to trigger fast view change if receive more than (f+1) valid view change messages whose
+    // view is greater than the current view:
+    // sends a view-change message for the smallest view in the set, even if its timer has not
+    // expired
+    auto view = m_cacheProcessor->tryToTriggerFastViewChange();
+    if (view > 0)
+    {
+        broadcastViewChangeReq();
     }
     return true;
 }
