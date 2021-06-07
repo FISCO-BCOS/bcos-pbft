@@ -73,6 +73,10 @@ public:
     ProposalInterface::ConstPtr committedProposal() override
     {
         ReadGuard l(x_committedProposal);
+        if (!m_committedProposal)
+        {
+            return nullptr;
+        }
         return std::const_pointer_cast<ProposalInterface const>(m_committedProposal);
     }
 

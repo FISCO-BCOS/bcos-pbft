@@ -60,6 +60,13 @@ public:
         m_finalizeHandler = _finalizeHandler;
     }
 
+    void registerNotifyHandler(
+        std::function<void(bcos::protocol::Block::Ptr, bcos::protocol::BlockHeader::Ptr)>
+            _notifyHandler) override
+    {
+        m_notifyHandler = _notifyHandler;
+    }
+
     void asyncGetCommittedProposals(bcos::protocol::BlockNumber _start, size_t _offset,
         std::function<void(PBFTProposalListPtr)> _onSuccess) override;
 
@@ -72,7 +79,8 @@ protected:
     virtual void asyncRemove(std::string const& _dbName, std::string const& _key);
     virtual void asyncRemoveStabledCheckPoint(size_t _stabledCheckPointIndex);
 
-    virtual void asyncCommitStableCheckPoint(bcos::protocol::BlockHeader::Ptr _blockHeader);
+    virtual void asyncCommitStableCheckPoint(
+        bcos::protocol::BlockHeader::Ptr _blockHeader, bcos::protocol::Block::Ptr _blockInfo);
     virtual void asyncGetLatestCommittedProposalIndex();
 
 protected:
@@ -96,6 +104,9 @@ protected:
 
     std::function<void(bcos::ledger::LedgerConfig::Ptr)> m_resetConfigHandler;
     std::function<void(bcos::ledger::LedgerConfig::Ptr)> m_finalizeHandler;
+
+    std::function<void(bcos::protocol::Block::Ptr, bcos::protocol::BlockHeader::Ptr)>
+        m_notifyHandler;
 };
 }  // namespace consensus
 }  // namespace bcos

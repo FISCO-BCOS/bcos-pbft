@@ -46,7 +46,6 @@ void PBFTCache::onCheckPointTimeout()
     auto encodedData = m_config->codec()->encode(checkPointMsg);
     m_config->frontService()->asyncSendMessageByNodeIDs(
         ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
-    checkAndCommitStableCheckPoint();
     m_timer->restart();
 }
 
@@ -69,6 +68,10 @@ void PBFTCache::addCache(CollectionCacheType& _cachedReq, QuorumRecoderType& _we
     }
     auto const& proposalHash = _pbftCache->hash();
     auto generatedFrom = _pbftCache->generatedFrom();
+    if (_cachedReq.count(proposalHash) && _cachedReq[proposalHash].count(generatedFrom))
+    {
+        return;
+    }
     auto nodeInfo = m_config->getConsensusNodeByIndex(generatedFrom);
     if (!nodeInfo)
     {

@@ -19,8 +19,8 @@
  * @date 2021-04-09
  */
 #pragma once
-#include "core/proto/Consensus.pb.h"
 #include "../framework/ProposalInterface.h"
+#include "core/proto/Consensus.pb.h"
 #include <bcos-framework/interfaces/protocol/BlockHeader.h>
 #include <bcos-framework/libprotocol/Common.h>
 
@@ -72,6 +72,26 @@ public:
     void setData(bcos::bytesConstRef _data) override
     {
         m_rawProposal->set_data(_data.data(), _data.size());
+    }
+
+    bytesConstRef extraData() const override
+    {
+        auto const& extraData = m_rawProposal->extradata();
+        return bytesConstRef((byte const*)extraData.data(), extraData.size());
+    }
+    void setExtraData(bytes const& _data) override
+    {
+        m_rawProposal->set_extradata(_data.data(), _data.size());
+    }
+
+    void setExtraData(bytes&& _data) override
+    {
+        auto dataSize = _data.size();
+        m_rawProposal->set_extradata(std::move(_data).data(), dataSize);
+    }
+    void setExtraData(bcos::bytesConstRef _data) override
+    {
+        m_rawProposal->set_extradata(_data.data(), _data.size());
     }
 
     bytesConstRef signature() const override

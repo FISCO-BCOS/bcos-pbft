@@ -49,13 +49,20 @@ PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
 
 void PBFTEngine::start()
 {
-    // TODO: init the storage state
     ConsensusEngine::start();
+    if (m_config->blockSync())
+    {
+        m_config->blockSync()->start();
+    }
 }
 
 void PBFTEngine::stop()
 {
     ConsensusEngine::stop();
+    if (m_config->blockSync())
+    {
+        m_config->blockSync()->stop();
+    }
 }
 
 void PBFTEngine::asyncSubmitProposal(bytesConstRef _proposalData, BlockNumber _proposalIndex,
@@ -130,8 +137,12 @@ void PBFTEngine::asyncNotifyNewBlock(
     {
         _onRecv(nullptr);
     }
-    m_config->resetConfig(_ledgerConfig);
-    finalizeConsensus(_ledgerConfig);
+    Guard l(m_mutex);
+    if (m_config->shouldResetConfig(_ledgerConfig->blockNumber()))
+    {
+        m_config->resetConfig(_ledgerConfig);
+        finalizeConsensus(_ledgerConfig);
+    }
 }
 
 void PBFTEngine::onReceivePBFTMessage(Error::Ptr _error, NodeIDPtr _fromNode, bytesConstRef _data,
@@ -215,7 +226,6 @@ void PBFTEngine::executeWorker()
 
 void PBFTEngine::handleMsg(std::shared_ptr<PBFTBaseMessageInterface> _msg)
 {
-    // TODO: Consider carefully whether this lock can be removed
     Guard l(m_mutex);
     switch (_msg->packetType())
     {
@@ -331,6 +341,8 @@ CheckResult PBFTEngine::checkSignature(PBFTBaseMessageInterface::Ptr _req)
 bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
     bool _needVerifyProposal, bool _generatedFromNewView, bool _needCheckSignature)
 {
+    PBFT_LOG(DEBUG) << LOG_DESC("handlePrePrepareMsg") << printPBFTMsgInfo(_prePrepareMsg)
+                    << m_config->printCurrentState();
     auto result = checkPrePrepareMsg(_prePrepareMsg);
     if (result == CheckResult::INVALID)
     {
@@ -361,6 +373,7 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
             {
                 m_config->validator()->asyncResetTxsFlag(
                     _prePrepareMsg->consensusProposal()->data(), false);
+                m_config->notifySealer(_prePrepareMsg->index(), true);
                 return false;
             }
         }
@@ -370,16 +383,31 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
     {
         // add the pre-prepare packet into the cache
         m_cacheProcessor->addPrePrepareCache(_prePrepareMsg);
+        m_config->validator()->asyncResetTxsFlag(_prePrepareMsg->consensusProposal()->data(), true);
         m_config->timer()->start();
+        auto nextProposalIndex = _prePrepareMsg->index();
+        if (nextProposalIndex <= m_config->highWaterMark())
+        {
+            m_config->notifySealer(nextProposalIndex);
+        }
         // broadcast PrepareMsg the packet
         broadcastPrepareMsg(_prePrepareMsg);
         PBFT_LOG(DEBUG) << LOG_DESC("handlePrePrepareMsg and broadcast prepare packet")
                         << printPBFTMsgInfo(_prePrepareMsg) << m_config->printCurrentState();
+        m_cacheProcessor->checkAndPreCommit();
         return true;
     }
     // verify the proposal
     auto self = std::weak_ptr<PBFTEngine>(shared_from_this());
-    m_config->validator()->verifyProposal(m_config->nodeID(), _prePrepareMsg->consensusProposal(),
+    auto leaderNodeInfo = m_config->getConsensusNodeByIndex(_prePrepareMsg->generatedFrom());
+    if (!leaderNodeInfo)
+    {
+        m_config->validator()->asyncResetTxsFlag(
+            _prePrepareMsg->consensusProposal()->data(), false);
+        return false;
+    }
+    m_config->validator()->verifyProposal(leaderNodeInfo->nodeID(),
+        _prePrepareMsg->consensusProposal(),
         [self, _prePrepareMsg](Error::Ptr _error, bool _verifyResult) {
             try
             {
@@ -395,6 +423,7 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
                                       << printPBFTMsgInfo(_prePrepareMsg)
                                       << LOG_KV("errorCode", _error->errorCode())
                                       << LOG_KV("errorMsg", _error->errorMessage());
+                    pbftEngine->m_config->notifySealer(_prePrepareMsg->index(), true);
                     return;
                 }
                 // verify failed
@@ -402,8 +431,11 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
                 {
                     PBFT_LOG(WARNING)
                         << LOG_DESC("verify proposal failed") << printPBFTMsgInfo(_prePrepareMsg);
+                    pbftEngine->m_config->notifySealer(_prePrepareMsg->index(), true);
+                    return;
                 }
                 // verify success
+                Guard l(pbftEngine->m_mutex);
                 pbftEngine->handlePrePrepareMsg(_prePrepareMsg, false, false, false);
             }
             catch (std::exception const& _e)
@@ -461,6 +493,8 @@ CheckResult PBFTEngine::checkPBFTMsg(std::shared_ptr<PBFTMessageInterface> _prep
 
 bool PBFTEngine::handlePrepareMsg(PBFTMessageInterface::Ptr _prepareMsg)
 {
+    PBFT_LOG(TRACE) << LOG_DESC("handlePrepareMsg") << printPBFTMsgInfo(_prepareMsg)
+                    << m_config->printCurrentState();
     auto result = checkPBFTMsg(_prepareMsg);
     if (result == CheckResult::INVALID)
     {
@@ -693,6 +727,10 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
 {
     reachNewView();
     auto const& prePrepareList = _newViewReq->prePrepareList();
+    if (prePrepareList.size() == 0)
+    {
+        m_config->notifySealer(m_config->progressedIndex(), true);
+    }
     for (auto prePrepare : prePrepareList)
     {
         // empty block proposal
@@ -721,6 +759,7 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
                     << LOG_DESC(
                            "reHandlePrePrepareProposals: get the missed proposal and handle now")
                     << printPBFTMsgInfo(_prePrepare) << m_config->printCurrentState();
+                Guard l(m_mutex);
                 handlePrePrepareMsg(_prePrepare, false, true, false);
             });
     }

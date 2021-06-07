@@ -24,6 +24,7 @@
 #include "pbft/PBFTImpl.h"
 #include "pbft/storage/LedgerStorage.h"
 #include <bcos-framework/interfaces/consensus/ConsensusNode.h>
+#include <bcos-framework/libprotocol/TransactionSubmitResultFactoryImpl.h>
 #include <bcos-framework/libprotocol/protobuf/PBBlockFactory.h>
 #include <bcos-framework/libprotocol/protobuf/PBBlockHeaderFactory.h>
 #include <bcos-framework/libprotocol/protobuf/PBTransactionFactory.h>
@@ -173,9 +174,10 @@ public:
         std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
         bcos::txpool::TxPoolInterface::Ptr _txpool, bcos::sealer::SealerInterface::Ptr _sealer,
         bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
-        bcos::protocol::BlockFactory::Ptr _blockFactory)
+        bcos::protocol::BlockFactory::Ptr _blockFactory,
+        bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory)
       : PBFTFactory(_cryptoSuite, _keyPair, _frontService, _storage, _ledger, _txpool, _sealer,
-            _dispatcher, _blockFactory)
+            _dispatcher, _blockFactory, _txResultFactory)
     {
         auto stateMachine = std::make_shared<StateMachine>(_dispatcher, _blockFactory);
 
@@ -237,15 +239,17 @@ public:
         // create FakeDispatcher
         m_dispatcher = std::make_shared<FakeDispatcher>();
 
+        auto txResultFactory = std::make_shared<TransactionSubmitResultFactoryImpl>();
+
         m_pbftFactory = std::make_shared<FakePBFTFactory>(_cryptoSuite, _keyPair, m_frontService,
-            m_storage, m_ledger, m_txpool, m_sealer, m_dispatcher, m_blockFactory);
+            m_storage, m_ledger, m_txpool, m_sealer, m_dispatcher, m_blockFactory, txResultFactory);
         m_pbft = std::dynamic_pointer_cast<PBFTImpl>(m_pbftFactory->consensus());
         m_pbftEngine = std::dynamic_pointer_cast<FakePBFTEngine>(m_pbftFactory->pbftEngine());
     }
 
     virtual ~PBFTFixture() {}
 
-    void init() { m_pbftFactory->init(); }
+    void init() { m_pbftFactory->init(nullptr); }
 
     void appendConsensusNode(ConsensusNode::Ptr _node)
     {

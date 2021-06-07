@@ -48,6 +48,12 @@ public:
     virtual void setData(bytes&& _data) = 0;
     virtual void setData(bcos::bytesConstRef _data) = 0;
 
+    // the extra data of the proposal
+    virtual bcos::bytesConstRef extraData() const = 0;
+    virtual void setExtraData(bytes const& _data) = 0;
+    virtual void setExtraData(bytes&& _data) = 0;
+    virtual void setExtraData(bcos::bytesConstRef _data) = 0;
+
     // the signature to the proposal(optional)
     virtual bytesConstRef signature() const = 0;
     virtual void setSignature(bytes const& _signature) = 0;

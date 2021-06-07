@@ -24,6 +24,7 @@
 #include <bcos-framework/interfaces/dispatcher/DispatcherInterface.h>
 #include <bcos-framework/interfaces/ledger/LedgerInterface.h>
 #include <bcos-framework/interfaces/storage/StorageInterface.h>
+#include <bcos-framework/interfaces/sync/BlockSyncInterface.h>
 #include <bcos-framework/libtool/LedgerConfigFetcher.h>
 
 namespace bcos
@@ -41,10 +42,11 @@ public:
         std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
         bcos::txpool::TxPoolInterface::Ptr _txpool, bcos::sealer::SealerInterface::Ptr _sealer,
         bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
-        bcos::protocol::BlockFactory::Ptr _blockFactory);
+        bcos::protocol::BlockFactory::Ptr _blockFactory,
+        bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory);
 
     virtual ~PBFTFactory() {}
-    virtual void init();
+    virtual void init(bcos::sync::BlockSyncInterface::Ptr _blockSync);
 
     ConsensusInterface::Ptr consensus() { return m_pbft; }
     PBFTConfig::Ptr pbftConfig() { return m_pbftConfig; }

@@ -40,7 +40,8 @@ PBFTFactory::PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
     std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
     bcos::txpool::TxPoolInterface::Ptr _txpool, bcos::sealer::SealerInterface::Ptr _sealer,
     bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
-    bcos::protocol::BlockFactory::Ptr _blockFactory)
+    bcos::protocol::BlockFactory::Ptr _blockFactory,
+    bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory)
 {
     m_ledgerFetcher = std::make_shared<LedgerConfigFetcher>(_ledger);
     auto pbftMessageFactory = std::make_shared<PBFTMessageFactoryImpl>();
@@ -48,7 +49,7 @@ PBFTFactory::PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
     auto pbftCodec = std::make_shared<PBFTCodec>(_keyPair, _cryptoSuite, pbftMessageFactory);
 
     PBFT_LOG(DEBUG) << LOG_DESC("create PBFT validator");
-    auto validator = std::make_shared<TxsValidator>(_txpool, _blockFactory);
+    auto validator = std::make_shared<TxsValidator>(_txpool, _blockFactory, _txResultFactory);
 
     PBFT_LOG(DEBUG) << LOG_DESC("create StateMachine");
     auto stateMachine = std::make_shared<StateMachine>(_dispatcher, _blockFactory);
@@ -69,8 +70,9 @@ PBFTFactory::PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
     PBFT_LOG(INFO) << LOG_DESC("create PBFT success");
 }
 
-void PBFTFactory::init()
+void PBFTFactory::init(bcos::sync::BlockSyncInterface::Ptr _blockSync)
 {
+    m_pbftConfig->setBlockSync(_blockSync);
     PBFT_LOG(INFO) << LOG_DESC("fetch LedgerConfig information");
     m_ledgerFetcher->fetchBlockNumberAndHash();
     m_ledgerFetcher->fetchConsensusNodeList();

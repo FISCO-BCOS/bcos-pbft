@@ -290,14 +290,18 @@ void LedgerStorage::asyncCommmitStableCheckPoint(PBFTProposalInterface::Ptr _sta
     auto blockHeader =
         m_blockFactory->blockHeaderFactory()->createBlockHeader(_stableProposal->data());
     blockHeader->setSignatureList(*signatureList);
-    asyncCommitStableCheckPoint(blockHeader);
+
+    // get the transactions list
+    auto txsInfo = m_blockFactory->createBlock(_stableProposal->extraData());
+    asyncCommitStableCheckPoint(blockHeader, txsInfo);
 }
 
-void LedgerStorage::asyncCommitStableCheckPoint(BlockHeader::Ptr _blockHeader)
+void LedgerStorage::asyncCommitStableCheckPoint(
+    BlockHeader::Ptr _blockHeader, Block::Ptr _blockInfo)
 {
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
-    m_ledger->asyncCommitBlock(
-        _blockHeader, [_blockHeader, self](Error::Ptr _error, LedgerConfig::Ptr _ledgerConfig) {
+    m_ledger->asyncCommitBlock(_blockHeader,
+        [_blockHeader, _blockInfo, self](Error::Ptr _error, LedgerConfig::Ptr _ledgerConfig) {
             try
             {
                 auto ledgerStorage = self.lock();
@@ -312,7 +316,7 @@ void LedgerStorage::asyncCommitStableCheckPoint(BlockHeader::Ptr _blockHeader)
                                             << LOG_KV("errorInfo", _error->errorMessage())
                                             << LOG_KV("proposalIndex", _blockHeader->number());
                     // retry to commit
-                    ledgerStorage->asyncCommitStableCheckPoint(_blockHeader);
+                    ledgerStorage->asyncCommitStableCheckPoint(_blockHeader, _blockInfo);
                     return;
                 }
                 PBFT_STORAGE_LOG(INFO) << LOG_DESC("asyncCommitStableCheckPoint success")
@@ -327,6 +331,11 @@ void LedgerStorage::asyncCommitStableCheckPoint(BlockHeader::Ptr _blockHeader)
                 if (ledgerStorage->m_finalizeHandler)
                 {
                     ledgerStorage->m_finalizeHandler(_ledgerConfig);
+                }
+                // notify txpool the result
+                if (ledgerStorage->m_notifyHandler)
+                {
+                    ledgerStorage->m_notifyHandler(_blockInfo, _blockHeader);
                 }
                 // remove the proposal committed into the ledger
                 ledgerStorage->asyncRemoveStabledCheckPoint(_blockHeader->number());
