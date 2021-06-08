@@ -157,15 +157,16 @@ void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committed
 {
     assert(_committedProposal);
     m_committedQueue.push(_committedProposal);
-    PBFT_LOG(INFO) << LOG_DESC("++++++++++++++++ CommitProposal")
-                   << printPBFTProposal(_committedProposal) << m_config->printCurrentState();
+    PBFT_LOG(INFO) << LOG_DESC("######## CommitProposal") << printPBFTProposal(_committedProposal)
+                   << m_config->printCurrentState();
 
     while (!m_committedQueue.empty() &&
            m_committedQueue.top()->index() < m_config->expectedCheckPoint())
     {
         PBFT_LOG(DEBUG) << LOG_DESC("updateCommitQueue: remove invalid proposal")
                         << LOG_KV("index", m_committedQueue.top()->index())
-                        << LOG_KV("expectedIndex", m_config->expectedCheckPoint());
+                        << LOG_KV("expectedIndex", m_config->expectedCheckPoint())
+                        << m_config->printCurrentState();
         m_committedQueue.pop();
     }
     // try to execute the proposal

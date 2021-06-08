@@ -65,7 +65,7 @@ void StateMachine::asyncApply(ProposalInterface::ConstPtr _committedProposal,
     // calls dispatcher to execute the block
     auto blockNumber = block->blockHeader()->number();
     m_dispatcher->asyncExecuteBlock(block, false,
-        [blockNumber, _onExecuteFinished, _executedProposal](
+        [blockNumber, _onExecuteFinished, _proposal, _executedProposal](
             Error::Ptr _error, BlockHeader::Ptr _blockHeader) {
             if (!_onExecuteFinished)
             {
@@ -93,6 +93,8 @@ void StateMachine::asyncApply(ProposalInterface::ConstPtr _committedProposal,
             _executedProposal->setIndex(_blockHeader->number());
             _executedProposal->setHash(_blockHeader->hash());
             _executedProposal->setData(_blockHeader->encode(false));
+            // the transactions hash list
+            _executedProposal->setExtraData(_proposal->data());
             _onExecuteFinished(true);
         });
     return;

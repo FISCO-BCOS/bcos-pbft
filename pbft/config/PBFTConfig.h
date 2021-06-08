@@ -30,6 +30,7 @@
 #include <bcos-framework/interfaces/crypto/CryptoSuite.h>
 #include <bcos-framework/interfaces/front/FrontServiceInterface.h>
 #include <bcos-framework/interfaces/sealer/SealerInterface.h>
+#include <bcos-framework/interfaces/sync/BlockSyncInterface.h>
 
 namespace bcos
 {
@@ -59,6 +60,10 @@ public:
         m_storage = _storage;
         m_storage->registerConfigResetHandler(
             [this](bcos::ledger::LedgerConfig::Ptr _ledgerConfig) { resetConfig(_ledgerConfig); });
+        m_storage->registerNotifyHandler(
+            [this](bcos::protocol::Block::Ptr _block, bcos::protocol::BlockHeader::Ptr _header) {
+                m_validator->notifyTransactionsResult(_block, _header);
+            });
         m_timer = std::make_shared<PBFTTimer>(consensusTimeout());
     }
 
@@ -120,6 +125,7 @@ public:
         if (_committedProposal->index() + 1 > m_expectedCheckPoint)
         {
             PBFT_LOG(DEBUG) << LOG_DESC("PBFTConfig: resetExpectedCheckPoint")
+                            << printCurrentState()
                             << LOG_KV("expectedCheckPoint", m_expectedCheckPoint);
             m_expectedCheckPoint = _committedProposal->index() + 1;
         }
@@ -129,13 +135,15 @@ public:
     void setExpectedCheckPoint(bcos::protocol::BlockNumber _expectedCheckPoint)
     {
         m_expectedCheckPoint = std::max(committedProposal()->index() + 1, _expectedCheckPoint);
-        PBFT_LOG(DEBUG) << LOG_DESC("PBFTConfig: setExpectedCheckPoint")
+        PBFT_LOG(DEBUG) << LOG_DESC("PBFTConfig: setExpectedCheckPoint") << printCurrentState()
                         << LOG_KV("expectedCheckPoint", m_expectedCheckPoint);
     }
 
     StateMachineInterface::Ptr stateMachine() { return m_stateMachine; }
 
     bcos::sealer::SealerInterface::Ptr sealer() { return m_sealer; }
+    bcos::sync::BlockSyncInterface::Ptr blockSync() { return m_blockSync; }
+    void setBlockSync(bcos::sync::BlockSyncInterface::Ptr _blockSync) { m_blockSync = _blockSync; }
 
     int64_t warterMarkLimit() const { return m_warterMarkLimit; }
     void setWarterMarkLimit(int64_t _warterMarkLimit) { m_warterMarkLimit = _warterMarkLimit; }
@@ -154,9 +162,19 @@ public:
 
     uint64_t maxFaultyQuorum() const { return m_maxFaultyQuorum; }
 
+    virtual void notifySealer(bcos::protocol::BlockNumber _progressedIndex, bool _enforce = false);
+    virtual bool shouldResetConfig(bcos::protocol::BlockNumber _index)
+    {
+        ReadGuard l(x_committedProposal);
+        if (!m_committedProposal)
+        {
+            return false;
+        }
+        return m_committedProposal->index() < _index;
+    }
+
 protected:
     void updateQuorum() override;
-    virtual void notifySealer(bcos::protocol::BlockNumber _committedIndex, uint64_t _maxTxsToSeal);
     virtual void asyncNotifySealProposal(
         size_t _proposalIndex, size_t _proposalEndIndex, size_t _maxTxsToSeal);
 
@@ -171,6 +189,7 @@ protected:
     // FrontService, used to send/receive P2P message packages
     std::shared_ptr<bcos::front::FrontServiceInterface> m_frontService;
     bcos::sealer::SealerInterface::Ptr m_sealer;
+    bcos::sync::BlockSyncInterface::Ptr m_blockSync;
     StateMachineInterface::Ptr m_stateMachine;
     PBFTStorage::Ptr m_storage;
     // Timer
@@ -182,10 +201,11 @@ protected:
     std::atomic<uint64_t> m_minRequiredQuorum = {0};
     std::atomic<ViewType> m_view = {0};
     std::atomic<ViewType> m_toView = {0};
-    // invalid leaderIndex
-    std::atomic<IndexType> m_leaderIndex = InvalidNodeIndex;
 
     std::atomic<bcos::protocol::BlockNumber> m_expectedCheckPoint = {0};
+
+    std::atomic<bcos::protocol::BlockNumber> m_sealStartIndex = {0};
+    std::atomic<bcos::protocol::BlockNumber> m_sealEndIndex = {0};
 
     int64_t m_warterMarkLimit = 10;
     std::atomic<int64_t> m_checkPointTimeoutInterval = {3000};

@@ -28,7 +28,7 @@ using namespace bcos::ledger;
 void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
 {
     PBFT_LOG(INFO) << LOG_DESC("resetConfig")
-                   << LOG_KV("committedProp", _ledgerConfig->blockNumber())
+                   << LOG_KV("committedIndex", _ledgerConfig->blockNumber())
                    << LOG_KV("propHash", _ledgerConfig->hash().abridged())
                    << LOG_KV("consensusTimeout", _ledgerConfig->consensusTimeout())
                    << LOG_KV("blockCountLimit", _ledgerConfig->blockTxCountLimit());
@@ -46,32 +46,59 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
     setConsensusNodeList(consensusList);
     // stop the timer
     m_timer->stop();
-    notifySealer(progressedIndex(), _ledgerConfig->blockTxCountLimit());
+    notifySealer(progressedIndex());
+    if (!m_blockSync)
+    {
+        return;
+    }
+    m_blockSync->asyncNotifyNewBlock(_ledgerConfig, [_ledgerConfig](Error::Ptr _error) {
+        if (_error)
+        {
+            PBFT_LOG(WARNING) << LOG_DESC("asyncNotifyNewBlock to sync module failed")
+                              << LOG_KV("number", _ledgerConfig->blockNumber())
+                              << LOG_KV("hash", _ledgerConfig->hash().abridged())
+                              << LOG_KV("code", _error->errorCode())
+                              << LOG_KV("msg", _error->errorMessage());
+        }
+    });
 }
 
-void PBFTConfig::notifySealer(BlockNumber _progressedIndex, uint64_t _maxTxsToSeal)
+void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
 {
     auto currentLeader = leaderIndex(_progressedIndex);
-    if (m_leaderIndex != currentLeader || m_leaderIndex == InvalidNodeIndex ||
-        m_leaderSwitchPeriodUpdated)
+    if (currentLeader != nodeIndex())
     {
-        m_leaderIndex = currentLeader;
-        m_leaderSwitchPeriodUpdated = false;
-        if (m_leaderIndex != nodeIndex())
-        {
-            return;
-        }
-        auto endProposalIndex =
-            (_progressedIndex / m_leaderSwitchPeriod + 1) * m_leaderSwitchPeriod - 1;
-        PBFT_LOG(INFO) << LOG_DESC(
-                              "notifySealer for new block submitted, notify the new "
-                              "leader to seal block")
-                       << LOG_KV("preLeader", m_leaderIndex) << LOG_KV("curLeader", currentLeader)
-                       << LOG_KV("startIndex", m_progressedIndex)
-                       << LOG_KV("endIndex", endProposalIndex)
-                       << LOG_KV("maxTxsToSeal", _maxTxsToSeal);
-        asyncNotifySealProposal(m_progressedIndex, endProposalIndex, _maxTxsToSeal);
+        return;
     }
+    if (_enforce)
+    {
+        asyncNotifySealProposal(_progressedIndex, _progressedIndex, blockTxCountLimit());
+        m_sealEndIndex = std::max(_progressedIndex, m_sealEndIndex.load());
+        m_sealStartIndex = std::min(_progressedIndex, m_sealStartIndex.load());
+        return;
+    }
+    int64_t endProposalIndex =
+        (_progressedIndex / m_leaderSwitchPeriod + 1) * m_leaderSwitchPeriod - 1;
+    endProposalIndex = std::min(endProposalIndex, highWaterMark());
+    if (m_sealEndIndex >= endProposalIndex)
+    {
+        return;
+    }
+    auto startSealIndex = std::max(m_sealStartIndex.load(), _progressedIndex);
+    if (startSealIndex > endProposalIndex)
+    {
+        return;
+    }
+    asyncNotifySealProposal(startSealIndex, endProposalIndex, blockTxCountLimit());
+
+    m_sealStartIndex = startSealIndex;
+    m_sealEndIndex = endProposalIndex;
+
+
+    PBFT_LOG(INFO) << LOG_DESC("notifySealer: notify the new leader to seal block")
+                   << LOG_KV("idx", nodeIndex()) << LOG_KV("startIndex", startSealIndex)
+                   << LOG_KV("endIndex", endProposalIndex)
+                   << LOG_KV("maxTxsToSeal", blockTxCountLimit());
 }
 
 void PBFTConfig::asyncNotifySealProposal(
@@ -165,6 +192,7 @@ std::string PBFTConfig::printCurrentState()
                  << LOG_KV("committedHash", committedProposal()->hash().abridged())
                  << LOG_KV("committedIndex", committedProposal()->index()) << LOG_KV("view", view())
                  << LOG_KV("toView", toView()) << LOG_KV("changeCycle", m_timer->changeCycle())
-                 << LOG_KV("Idx", nodeIndex()) << LOG_KV("nodeId", nodeID()->shortHex());
+                 << LOG_KV("expectedCheckPoint", m_expectedCheckPoint) << LOG_KV("Idx", nodeIndex())
+                 << LOG_KV("nodeId", nodeID()->shortHex());
     return stringstream.str();
 }

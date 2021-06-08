@@ -226,11 +226,14 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
     nonLeaderFaker->pbftEngine()->onReceivePBFTMessage(
         nullptr, nonLeaderFaker->keyPair()->publicKey(), ref(*data), nullptr);
     nonLeaderFaker->pbftEngine()->executeWorker();
+    while (!nonLeaderFaker->pbftEngine()->cacheProcessor()->existPrePrepare(pbftMsg))
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
     BOOST_CHECK(nonLeaderFaker->pbftEngine()->cacheProcessor()->existPrePrepare(pbftMsg));
     nonLeaderFaker->pbftConfig()->setConsensusTimeout(200);
     leaderFaker->pbftConfig()->setConsensusTimeout(200);
     leaderFaker->pbftConfig()->timer()->start();
-    BOOST_CHECK(nonLeaderFaker->pbftConfig()->timer()->running());
     while (!leaderFaker->pbftEngine()->isTimeout() || !nonLeaderFaker->pbftEngine()->isTimeout())
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));

@@ -10,4 +10,5 @@ message RawProposal
   bytes data = 3;
   // the proposal signature, optional
   bytes signature = 4;
+  bytes extraData = 5;
 };

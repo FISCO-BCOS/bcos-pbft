@@ -22,6 +22,8 @@
 #include "PBFTMessageInterface.h"
 #include "PBFTProposalInterface.h"
 #include <bcos-framework/interfaces/ledger/LedgerConfig.h>
+#include <bcos-framework/interfaces/protocol/Block.h>
+#include <bcos-framework/interfaces/protocol/BlockHeader.h>
 #include <bcos-framework/interfaces/protocol/ProtocolTypeDef.h>
 namespace bcos
 {
@@ -47,6 +49,9 @@ public:
 
     virtual void registerFinalizeHandler(
         std::function<void(bcos::ledger::LedgerConfig::Ptr)> _finalizeHandler) = 0;
+    virtual void registerNotifyHandler(
+        std::function<void(bcos::protocol::Block::Ptr, bcos::protocol::BlockHeader::Ptr)>
+            _notifyHandler) = 0;
 };
 }  // namespace consensus
 }  // namespace bcos
