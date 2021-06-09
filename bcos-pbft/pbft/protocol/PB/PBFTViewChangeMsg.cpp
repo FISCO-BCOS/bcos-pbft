@@ -21,7 +21,7 @@
 #include "PBFTViewChangeMsg.h"
 #include "PBFTMessage.h"
 #include "PBFTProposal.h"
-#include "pbft/protocol/proto/PBFT.pb.h"
+#include "bcos-pbft/pbft/protocol/proto/PBFT.pb.h"
 #include <bcos-framework/libprotocol/Common.h>
 
 using namespace bcos;

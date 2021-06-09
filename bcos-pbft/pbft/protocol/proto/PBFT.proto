@@ -1,5 +1,5 @@
 syntax = "proto3";
-import "core/proto/Consensus.proto";
+import "bcos-pbft/core/proto/Consensus.proto";
 package bcos.consensus;
 
 message BaseMessage

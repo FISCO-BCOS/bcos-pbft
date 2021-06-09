@@ -19,14 +19,14 @@
  * @date 2021-04-12
  */
 #pragma once
-#include "../../core/ConsensusConfig.h"
-#include "../../framework/StateMachineInterface.h"
-#include "../engine/PBFTTimer.h"
-#include "../engine/Validator.h"
-#include "../interfaces/PBFTCodecInterface.h"
-#include "../interfaces/PBFTMessageFactory.h"
-#include "../interfaces/PBFTStorage.h"
-#include "../utilities/Common.h"
+#include "bcos-pbft/core/ConsensusConfig.h"
+#include "bcos-pbft/framework/StateMachineInterface.h"
+#include "bcos-pbft/pbft/engine/PBFTTimer.h"
+#include "bcos-pbft/pbft/engine/Validator.h"
+#include "bcos-pbft/pbft/interfaces/PBFTCodecInterface.h"
+#include "bcos-pbft/pbft/interfaces/PBFTMessageFactory.h"
+#include "bcos-pbft/pbft/interfaces/PBFTStorage.h"
+#include "bcos-pbft/pbft/utilities/Common.h"
 #include <bcos-framework/interfaces/crypto/CryptoSuite.h>
 #include <bcos-framework/interfaces/front/FrontServiceInterface.h>
 #include <bcos-framework/interfaces/sealer/SealerInterface.h>

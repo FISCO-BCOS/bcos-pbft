@@ -52,7 +52,7 @@ configure_project()
 include(CompilerSettings)
 
 include_directories(${CMAKE_INSTALL_INCLUDEDIR})
-# include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 set(PROTO_PATH ${PROJECT_SOURCE_DIR})
@@ -63,12 +63,14 @@ include(InstallBcosFrameworkDependencies)
 # for proto generation
 set(PBFT_PROTO_GENERATE_BASE_DIR ${CMAKE_CURRENT_BINARY_DIR})
 set(CONSENSUS_PROTO_GENERATE_BASE_DIR ${CMAKE_CURRENT_BINARY_DIR})
+set(CONSENSUS_PROTO_SUB_DIR "bcos-pbft/core/proto")
+set(PBFT_PROTO_SUB_DIR "bcos-pbft/pbft/protocol/proto")
 
 set(BCOS_CONSENSUS_CORE_TARGET "bcos-consensus-core")
 set(BCOS_PBFT_TARGET "bcos-pbft")
 
-add_subdirectory(core)
-add_subdirectory(pbft)
+add_subdirectory(bcos-pbft/core)
+add_subdirectory(bcos-pbft/pbft)
 
 if (TESTS)
     # fetch bcos-test    
