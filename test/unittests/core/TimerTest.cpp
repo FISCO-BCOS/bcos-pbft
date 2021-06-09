@@ -18,9 +18,9 @@
  * @author: yujiechen
  * @date 2021-04-26
  */
+#include "bcos-pbft/pbft/engine/PBFTTimer.h"
 #include <bcos-framework/libutilities/Timer.h>
 #include <bcos-framework/testutils/TestPromptFixture.h>
-#include <pbft/engine/PBFTTimer.h>
 #include <boost/test/unit_test.hpp>
 #include <chrono>
 #include <thread>
@@ -55,7 +55,7 @@ private:
 BOOST_FIXTURE_TEST_SUITE(TimerTest, TestPromptFixture)
 BOOST_AUTO_TEST_CASE(testTimer)
 {
-    auto timeoutInterval = 200;
+    uint64_t timeoutInterval = 200;
     auto timer = std::make_shared<FakeTimer>(timeoutInterval);
     auto startT = utcTime();
     for (size_t i = 0; i < 4; i++)
@@ -65,14 +65,18 @@ BOOST_AUTO_TEST_CASE(testTimer)
         timer->start();
         // sleep
         startT = utcTime();
-        std::this_thread::sleep_for(std::chrono::milliseconds(timeoutInterval + 100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(timeoutInterval + 200));
         std::cout << "#### sleep eclipse:" << utcTime() - startT;
         // stop the timer
         timer->stop();
         // check the value
         std::cout << "##### testTimer: index" << i << std::endl;
         std::cout << std::endl;
-        BOOST_CHECK(timer->triggerTimeout() == true);
+        auto eclipse = utcTime() - startT;
+        if (eclipse > timeoutInterval)
+        {
+            BOOST_CHECK(timer->triggerTimeout() == true);
+        }
     }
 
     std::cout << std::endl;
@@ -82,7 +86,11 @@ BOOST_AUTO_TEST_CASE(testTimer)
     startT = utcTime();
     std::this_thread::sleep_for(std::chrono::milliseconds(timeoutInterval - 100));
     std::cout << "#### sleep eclipse:" << utcTime() - startT;
-    BOOST_CHECK(timer->triggerTimeout() == false);
+    auto eclipse = utcTime() - startT;
+    if (eclipse < timeoutInterval)
+    {
+        BOOST_CHECK(timer->triggerTimeout() == false);
+    }
     timer->stop();
 
     std::cout << std::endl;
@@ -100,7 +108,7 @@ BOOST_AUTO_TEST_CASE(testTimer)
 
 BOOST_AUTO_TEST_CASE(testTimerWithoutWait)
 {
-    auto timeoutInterval = 200;
+    uint64_t timeoutInterval = 200;
     auto timer = std::make_shared<FakeTimer>(timeoutInterval);
     timer->start();
     BOOST_CHECK(timer->triggerTimeout() == false);
@@ -111,13 +119,17 @@ BOOST_AUTO_TEST_CASE(testTimerWithoutWait)
     // test restart
     timer->restart();
     // sleep 20ms
+    auto startT = utcTime();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    BOOST_CHECK(timer->triggerTimeout() == false);
+    if (utcTime() - startT < timeoutInterval)
+    {
+        BOOST_CHECK(timer->triggerTimeout() == false);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testPBFTTimer)
 {
-    auto timeoutInterval = 100;
+    uint64_t timeoutInterval = 100;
     auto timer = std::make_shared<PBFTTimer>(timeoutInterval);
     timer->start();
 }

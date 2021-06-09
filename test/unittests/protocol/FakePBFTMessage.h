@@ -19,13 +19,13 @@
  * @date 2021-04-16
  */
 #pragma once
-#include "core/Proposal.h"
-#include "pbft/protocol/PB/PBFTCodec.h"
-#include "pbft/protocol/PB/PBFTMessage.h"
-#include "pbft/protocol/PB/PBFTMessageFactoryImpl.h"
-#include "pbft/protocol/PB/PBFTNewViewMsg.h"
-#include "pbft/protocol/PB/PBFTProposal.h"
-#include "pbft/protocol/PB/PBFTViewChangeMsg.h"
+#include "bcos-pbft/core/Proposal.h"
+#include "bcos-pbft/pbft/protocol/PB/PBFTCodec.h"
+#include "bcos-pbft/pbft/protocol/PB/PBFTMessage.h"
+#include "bcos-pbft/pbft/protocol/PB/PBFTMessageFactoryImpl.h"
+#include "bcos-pbft/pbft/protocol/PB/PBFTNewViewMsg.h"
+#include "bcos-pbft/pbft/protocol/PB/PBFTProposal.h"
+#include "bcos-pbft/pbft/protocol/PB/PBFTViewChangeMsg.h"
 #include <boost/test/unit_test.hpp>
 
 using namespace bcos::consensus;

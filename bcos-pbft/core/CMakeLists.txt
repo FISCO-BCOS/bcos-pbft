@@ -2,7 +2,6 @@ file(GLOB SRC_LIST "*.cpp")
 file(GLOB HEADERS "*.h")
 set(MESSAGES_PROTOS Consensus.proto)
 
-set(CONSENSUS_PROTO_SUB_DIR "core/proto")
 set(CONSENSUS_PROTO_GENERATE_DIR ${CONSENSUS_PROTO_GENERATE_BASE_DIR}/${CONSENSUS_PROTO_SUB_DIR})
 
 include(GenerateSources)

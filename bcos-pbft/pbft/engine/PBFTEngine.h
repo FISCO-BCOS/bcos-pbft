@@ -19,8 +19,8 @@
  * @date 2021-04-20
  */
 #pragma once
-#include "../../core/ConsensusEngine.h"
 #include "PBFTLogSync.h"
+#include "bcos-pbft/core/ConsensusEngine.h"
 #include <bcos-framework/libutilities/ConcurrentQueue.h>
 #include <bcos-framework/libutilities/Error.h>
 

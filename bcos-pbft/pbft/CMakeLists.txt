@@ -1,7 +1,7 @@
 file(GLOB SRC_LIST "*.cpp")
 file(GLOB HEADERS "*.h")
 set(MESSAGES_PROTOS PBFT.proto)
-set(PBFT_PROTO_SUB_DIR "pbft/protocol/proto")
+
 set(PBFT_PROTO_GENERATE_DIR ${PBFT_PROTO_GENERATE_BASE_DIR}/${PBFT_PROTO_SUB_DIR})
 
 include(GenerateSources)

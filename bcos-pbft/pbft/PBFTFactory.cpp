@@ -19,7 +19,7 @@
  * @date 2021-05-19
  */
 #include "PBFTFactory.h"
-#include "../core/StateMachine.h"
+#include "bcos-pbft/core/StateMachine.h"
 #include "engine/Validator.h"
 #include "protocol/PB/PBFTCodec.h"
 #include "protocol/PB/PBFTMessageFactoryImpl.h"

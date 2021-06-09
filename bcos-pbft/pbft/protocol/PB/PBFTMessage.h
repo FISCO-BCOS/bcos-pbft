@@ -22,7 +22,7 @@
 #include "../../config/PBFTConfig.h"
 #include "../../interfaces/PBFTMessageInterface.h"
 #include "PBFTBaseMessage.h"
-#include "pbft/protocol/proto/PBFT.pb.h"
+#include "bcos-pbft/pbft/protocol/proto/PBFT.pb.h"
 
 namespace bcos
 {

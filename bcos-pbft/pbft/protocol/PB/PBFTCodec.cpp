@@ -19,7 +19,7 @@
  * @date 2021-04-13
  */
 #include "PBFTCodec.h"
-#include "pbft/protocol/proto/PBFT.pb.h"
+#include "bcos-pbft/pbft/protocol/proto/PBFT.pb.h"
 #include <bcos-framework/libprotocol/Common.h>
 
 using namespace bcos;
