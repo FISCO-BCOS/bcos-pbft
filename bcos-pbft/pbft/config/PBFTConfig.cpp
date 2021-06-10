@@ -61,6 +61,7 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
                               << LOG_KV("msg", _error->errorMessage());
         }
     });
+    PBFT_LOG(DEBUG) << LOG_DESC("^^^^^^^^Report") << printCurrentState();
 }
 
 void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)

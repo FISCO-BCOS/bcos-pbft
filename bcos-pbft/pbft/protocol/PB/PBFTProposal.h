@@ -65,6 +65,12 @@ public:
         m_pbftRawProposal->add_signaturelist(_signatureData.data(), _signatureData.size());
     }
 
+    void clearSignatureProof() override
+    {
+        m_pbftRawProposal->clear_nodelist();
+        m_pbftRawProposal->clear_signaturelist();
+    }
+
     bool operator==(PBFTProposal const& _proposal)
     {
         if (!Proposal::operator==(_proposal))

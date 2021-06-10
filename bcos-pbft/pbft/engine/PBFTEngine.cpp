@@ -94,7 +94,7 @@ void PBFTEngine::onRecvProposal(
         m_config->validator()->asyncResetTxsFlag(_proposalData, false);
         return;
     }
-    if (m_timeoutState)
+    if (m_config->timeout())
     {
         PBFT_LOG(WARNING) << LOG_DESC("onRecvProposal failed for timout now")
                           << LOG_KV("index", _proposalIndex)
@@ -137,7 +137,6 @@ void PBFTEngine::asyncNotifyNewBlock(
     {
         _onRecv(nullptr);
     }
-    Guard l(m_mutex);
     if (m_config->shouldResetConfig(_ledgerConfig->blockNumber()))
     {
         m_config->resetConfig(_ledgerConfig);
@@ -201,7 +200,7 @@ void PBFTEngine::executeWorker()
     auto messageResult = m_msgQueue->tryPop(c_PopWaitSeconds);
     if (messageResult.first)
     {
-        if (m_timeoutState == true)
+        if (m_config->timeout() == true)
         {
             auto pbftMsg = messageResult.second;
             auto packetType = pbftMsg->packetType();
@@ -524,18 +523,12 @@ bool PBFTEngine::handleCommitMsg(PBFTMessageInterface::Ptr _commitMsg)
 void PBFTEngine::onTimeout()
 {
     Guard l(m_mutex);
-    m_timeoutState.store(true);
-    // update toView
-    m_config->incToView(1);
-    // increase the changeCycle
-    m_config->timer()->incChangeCycle(1);
+    m_config->resetTimeoutState();
     // clear the viewchange cache
     m_cacheProcessor->removeInvalidViewChange(
         m_config->view(), m_config->committedProposal()->index());
     // broadcast viewchange and try to the new-view phase
     broadcastViewChangeReq();
-    // start the timer again(the timer here must be restarted)
-    m_config->timer()->restart();
     PBFT_LOG(WARNING) << LOG_DESC("onTimeout") << m_config->printCurrentState();
 }
 
@@ -574,7 +567,8 @@ void PBFTEngine::broadcastViewChangeReq()
     }
 }
 
-bool PBFTEngine::isValidViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg)
+bool PBFTEngine::isValidViewChangeMsg(
+    std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg, bool _shouldCheckSig)
 {
     // check the committed-proposal index
     if (_viewChangeMsg->committedProposal()->index() < m_config->committedProposal()->index())
@@ -612,6 +606,10 @@ bool PBFTEngine::isValidViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _v
             return false;
         }
     }
+    if (!_shouldCheckSig)
+    {
+        return true;
+    }
     auto ret = checkSignature(_viewChangeMsg);
     if (ret == CheckResult::INVALID)
     {
@@ -622,7 +620,25 @@ bool PBFTEngine::isValidViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _v
 
 bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
 {
-    if (!isValidViewChangeMsg(_viewChangeMsg))
+    auto ret = checkSignature(_viewChangeMsg);
+    if (ret == CheckResult::INVALID)
+    {
+        return false;
+    }
+    // receive the viewchange message from the leader
+    if (!m_config->timeout() &&
+        _viewChangeMsg->generatedFrom() == m_config->leaderIndex(m_config->progressedIndex()))
+    {
+        m_config->resetTimeoutState();
+        // clear the viewchange cache
+        m_cacheProcessor->removeInvalidViewChange(
+            m_config->view(), m_config->committedProposal()->index());
+        broadcastViewChangeReq();
+        PBFT_LOG(INFO) << LOG_DESC(
+                              "Receive the viewchange from the leader, try to trigger viewchange")
+                       << m_config->printCurrentState();
+    }
+    if (!isValidViewChangeMsg(_viewChangeMsg, false))
     {
         return false;
     }
@@ -710,14 +726,9 @@ bool PBFTEngine::handleNewViewMsg(NewViewMsgInterface::Ptr _newViewMsg)
     return true;
 }
 
-void PBFTEngine::reachNewView()
+void PBFTEngine::reachNewView(ViewType _view)
 {
-    // stop the timer when reach a new-view
-    m_config->timer()->stop();
-    // update the changeCycle
-    m_config->timer()->resetChangeCycle();
-    m_config->setView(m_config->toView());
-    m_timeoutState.store(false);
+    m_config->resetNewViewState(_view);
     m_cacheProcessor->resetCacheAfterViewChange(
         m_config->view(), m_config->committedProposal()->index());
     PBFT_LOG(DEBUG) << LOG_DESC("reachNewView") << m_config->printCurrentState();
@@ -725,7 +736,7 @@ void PBFTEngine::reachNewView()
 
 void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewReq)
 {
-    reachNewView();
+    reachNewView(_newViewReq->view());
     auto const& prePrepareList = _newViewReq->prePrepareList();
     if (prePrepareList.size() == 0)
     {
@@ -767,8 +778,6 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
 
 void PBFTEngine::finalizeConsensus(LedgerConfig::Ptr _ledgerConfig)
 {
-    PBFT_LOG(DEBUG) << LOG_DESC("^^^^^^^^Report") << LOG_KV("num", _ledgerConfig->blockNumber())
-                    << m_config->printCurrentState();
     Guard l(m_mutex);
     // tried to commit the stable checkpoint
     m_cacheProcessor->removeConsensusedCache(m_config->view(), _ledgerConfig->blockNumber());

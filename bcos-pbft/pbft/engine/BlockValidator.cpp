@@ -30,6 +30,8 @@ void BlockValidator::asyncCheckBlock(
 {
     auto self = std::weak_ptr<BlockValidator>(shared_from_this());
     m_taskPool->enqueue([self, _block, _onVerifyFinish]() {
+// TODO: remove this when everything ready
+#if 0
         // ignore the genesis block
         if (_block->blockHeader()->number() == 0)
         {
@@ -68,6 +70,8 @@ void BlockValidator::asyncCheckBlock(
                               << LOG_KV("error", boost::diagnostic_information(e));
             _onVerifyFinish(nullptr, false);
         }
+#endif
+        _onVerifyFinish(nullptr, true);
     });
 }
 

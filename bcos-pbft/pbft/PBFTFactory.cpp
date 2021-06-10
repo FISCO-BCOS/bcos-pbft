@@ -90,7 +90,7 @@ void PBFTFactory::init(bcos::sync::BlockSyncInterface::Ptr _blockSync)
 
     PBFT_LOG(INFO) << LOG_DESC("fetch PBFT state");
     auto stateProposals = m_pbftConfig->storage()->loadState(ledgerConfig->blockNumber());
-    if (stateProposals)
+    if (stateProposals && stateProposals->size() > 0)
     {
         PBFT_LOG(INFO) << LOG_DESC("init PBFT state")
                        << LOG_KV("stateProposals", stateProposals->size());

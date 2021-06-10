@@ -81,7 +81,7 @@ public:
     }
 
 protected:
-    std::atomic_bool m_started;
+    std::atomic_bool m_started = {false};
 };
 }  // namespace consensus
 }  // namespace bcos

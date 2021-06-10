@@ -75,7 +75,10 @@ PBFTProposalListPtr LedgerStorage::loadState(BlockNumber _stabledIndex)
                 {
                     return;
                 }
-                storage->m_stateProposals = _proposalList;
+                if (_proposalList)
+                {
+                    storage->m_stateProposals = _proposalList;
+                }
                 storage->m_stateFetched = true;
                 storage->m_signalled.notify_all();
             }
@@ -104,6 +107,10 @@ PBFTProposalListPtr LedgerStorage::loadState(BlockNumber _stabledIndex)
             "loadState failed for fetch committedProposal failed");
         BOOST_THROW_EXCEPTION(InitPBFTException() << errinfo_comment(
                                   "loadState failed for fetch committedProposal failed"));
+    }
+    if (!m_stateProposals)
+    {
+        m_maxCommittedProposalIndex = _stabledIndex;
     }
     return m_stateProposals;
 }
@@ -152,7 +159,8 @@ void LedgerStorage::asyncGetCommittedProposals(
                     {
                         PBFT_STORAGE_LOG(WARNING) << LOG_DESC(
                             "asyncGetCommittedProposals: Discontinuous committed proposal");
-                        break;
+                        _onSuccess(nullptr);
+                        return;
                     }
                     auto proposalData = bytesConstRef((byte const*)value.data(), value.size());
                     proposalList->push_back(
@@ -316,7 +324,7 @@ void LedgerStorage::asyncCommitStableCheckPoint(
                                             << LOG_KV("errorInfo", _error->errorMessage())
                                             << LOG_KV("proposalIndex", _blockHeader->number());
                     // retry to commit
-                    ledgerStorage->asyncCommitStableCheckPoint(_blockHeader, _blockInfo);
+                    // ledgerStorage->asyncCommitStableCheckPoint(_blockHeader, _blockInfo);
                     return;
                 }
                 PBFT_STORAGE_LOG(INFO) << LOG_DESC("asyncCommitStableCheckPoint success")

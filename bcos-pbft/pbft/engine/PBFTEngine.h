@@ -78,7 +78,7 @@ public:
         bcos::ledger::LedgerConfig::Ptr _ledgerConfig, std::function<void(Error::Ptr)> _onRecv);
 
     virtual std::shared_ptr<PBFTCacheProcessor> cacheProcessor() { return m_cacheProcessor; }
-    virtual bool isTimeout() { return m_timeoutState; }
+    virtual bool isTimeout() { return m_config->timeout(); }
 
 protected:
     virtual void onRecvProposal(bytesConstRef _proposalData,
@@ -110,12 +110,13 @@ protected:
     virtual void broadcastViewChangeReq();
 
     virtual bool handleViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg);
-    virtual bool isValidViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg);
+    virtual bool isValidViewChangeMsg(
+        std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg, bool _shouldCheckSig = true);
 
     virtual bool handleNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
     virtual void reHandlePrePrepareProposals(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
     virtual bool isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
-    virtual void reachNewView();
+    virtual void reachNewView(ViewType _view);
 
     // handle the checkpoint message
     virtual bool handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _checkPointMsg);
@@ -143,8 +144,6 @@ protected:
     std::shared_ptr<PBFTCacheProcessor> m_cacheProcessor;
     // for log syncing
     PBFTLogSync::Ptr m_logSync;
-    // state variable that identifies whether has timed out
-    std::atomic_bool m_timeoutState = {false};
 
     boost::condition_variable m_signalled;
     boost::mutex x_signalled;

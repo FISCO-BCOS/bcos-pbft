@@ -173,6 +173,34 @@ public:
         return m_committedProposal->index() < _index;
     }
 
+    virtual void setTimeoutState(bool _timeoutState) { m_timeoutState = _timeoutState; }
+    virtual bool timeout() { return m_timeoutState; }
+
+    virtual void resetTimeoutState()
+    {
+        m_timeoutState.store(true);
+        // update toView
+        incToView(1);
+        // increase the changeCycle
+        timer()->incChangeCycle(1);
+        // start the timer again(the timer here must be restarted)
+        timer()->restart();
+    }
+
+    virtual void resetNewViewState(ViewType _view)
+    {
+        if (m_view > _view)
+        {
+            return;
+        }
+        // stop the timer when reach a new-view
+        timer()->stop();
+        // update the changeCycle
+        timer()->resetChangeCycle();
+        setView(_view);
+        m_timeoutState.store(false);
+    }
+
 protected:
     void updateQuorum() override;
     virtual void asyncNotifySealProposal(
@@ -213,6 +241,8 @@ protected:
     std::atomic<uint64_t> m_leaderSwitchPeriod = {1};
     const unsigned c_pbftMsgDefaultVersion = 0;
     const unsigned c_networkTimeoutInterval = 1000;
+    // state variable that identifies whether has timed out
+    std::atomic_bool m_timeoutState = {false};
 };
 }  // namespace consensus
 }  // namespace bcos
