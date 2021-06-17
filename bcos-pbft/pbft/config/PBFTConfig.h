@@ -201,6 +201,12 @@ public:
         m_timeoutState.store(false);
     }
 
+    bcos::protocol::BlockNumber syncingHighestNumber() const { return m_syncingHighestNumber; }
+    void setSyncingHighestNumber(bcos::protocol::BlockNumber _number)
+    {
+        m_syncingHighestNumber = _number;
+    }
+
 protected:
     void updateQuorum() override;
     virtual void asyncNotifySealProposal(
@@ -243,6 +249,8 @@ protected:
     const unsigned c_networkTimeoutInterval = 1000;
     // state variable that identifies whether has timed out
     std::atomic_bool m_timeoutState = {false};
+
+    bcos::protocol::BlockNumber m_syncingHighestNumber = {0};
 };
 }  // namespace consensus
 }  // namespace bcos

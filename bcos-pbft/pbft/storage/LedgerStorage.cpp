@@ -108,7 +108,7 @@ PBFTProposalListPtr LedgerStorage::loadState(BlockNumber _stabledIndex)
         BOOST_THROW_EXCEPTION(InitPBFTException() << errinfo_comment(
                                   "loadState failed for fetch committedProposal failed"));
     }
-    if (!m_stateProposals)
+    if (!m_stateProposals || m_stateProposals->size() == 0)
     {
         m_maxCommittedProposalIndex = _stabledIndex;
     }
@@ -248,12 +248,12 @@ void LedgerStorage::asyncCommitProposal(PBFTProposalInterface::Ptr _committedPro
 }
 
 void LedgerStorage::asyncPutProposal(std::string const& _dbName, std::string const& _key,
-    bytesPointer _committedData, BlockNumber _proposalIndex)
+    bytesPointer _committedData, BlockNumber _proposalIndex, size_t _retryTime)
 {
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
     m_storage->asyncPut(_dbName, _key,
         std::string_view((const char*)_committedData->data(), _committedData->size()),
-        [_dbName, _committedData, _key, _proposalIndex, self](Error::Ptr _error) {
+        [_dbName, _committedData, _key, _proposalIndex, _retryTime, self](Error::Ptr _error) {
             if (_error == nullptr)
             {
                 PBFT_STORAGE_LOG(INFO)
@@ -262,10 +262,9 @@ void LedgerStorage::asyncPutProposal(std::string const& _dbName, std::string con
                 return;
             }
             PBFT_STORAGE_LOG(WARNING)
-                << LOG_DESC("asyncPutProposal failed: retry again")
-                << LOG_KV("proposalIndex", _proposalIndex) << LOG_KV("key", _key)
-                << LOG_KV("dbName", _dbName) << LOG_KV("errorCode", _error->errorCode())
-                << LOG_KV("errorMessage", _error->errorMessage());
+                << LOG_DESC("asyncPutProposal failed") << LOG_KV("proposalIndex", _proposalIndex)
+                << LOG_KV("key", _key) << LOG_KV("dbName", _dbName)
+                << LOG_KV("code", _error->errorCode()) << LOG_KV("msg", _error->errorMessage());
             try
             {
                 auto ledgerStorage = self.lock();
@@ -273,7 +272,12 @@ void LedgerStorage::asyncPutProposal(std::string const& _dbName, std::string con
                 {
                     return;
                 }
-                ledgerStorage->asyncPutProposal(_dbName, _key, _committedData, _proposalIndex);
+                if (_retryTime >= 3)
+                {
+                    return;
+                }
+                ledgerStorage->asyncPutProposal(
+                    _dbName, _key, _committedData, _proposalIndex, (_retryTime + 1));
             }
             catch (std::exception const& e)
             {
@@ -308,8 +312,10 @@ void LedgerStorage::asyncCommitStableCheckPoint(
     BlockHeader::Ptr _blockHeader, Block::Ptr _blockInfo)
 {
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
-    m_ledger->asyncCommitBlock(_blockHeader,
-        [_blockHeader, _blockInfo, self](Error::Ptr _error, LedgerConfig::Ptr _ledgerConfig) {
+    auto startT = utcTime();
+    m_ledger->asyncCommitBlock(
+        _blockHeader, [_blockHeader, _blockInfo, startT, self](
+                          Error::Ptr _error, LedgerConfig::Ptr _ledgerConfig) {
             try
             {
                 auto ledgerStorage = self.lock();
@@ -322,14 +328,14 @@ void LedgerStorage::asyncCommitStableCheckPoint(
                     PBFT_STORAGE_LOG(ERROR) << LOG_DESC("asyncCommitStableCheckPoint failed")
                                             << LOG_KV("errorCode", _error->errorCode())
                                             << LOG_KV("errorInfo", _error->errorMessage())
-                                            << LOG_KV("proposalIndex", _blockHeader->number());
-                    // retry to commit
-                    // ledgerStorage->asyncCommitStableCheckPoint(_blockHeader, _blockInfo);
+                                            << LOG_KV("proposalIndex", _blockHeader->number())
+                                            << LOG_KV("timecost", utcTime() - startT);
                     return;
                 }
                 PBFT_STORAGE_LOG(INFO) << LOG_DESC("asyncCommitStableCheckPoint success")
                                        << LOG_KV("index", _blockHeader->number())
-                                       << LOG_KV("hash", _ledgerConfig->hash().abridged());
+                                       << LOG_KV("hash", _ledgerConfig->hash().abridged())
+                                       << LOG_KV("timeCost", utcTime() - startT);
                 // resetConfig
                 if (ledgerStorage->m_resetConfigHandler)
                 {

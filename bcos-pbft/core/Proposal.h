@@ -121,6 +121,10 @@ public:
         deserializeObject();
     }
 
+    void setSealerId(int64_t _sealerId) override { m_rawProposal->set_sealerid(_sealerId); }
+
+    int64_t sealerId() override { return m_rawProposal->sealerid(); }
+
 protected:
     void setRawProposal(std::shared_ptr<RawProposal> _rawProposal)
     {

@@ -74,7 +74,8 @@ public:
 
 protected:
     virtual void asyncPutProposal(std::string const& _dbName, std::string const& _key,
-        bytesPointer _committedData, bcos::protocol::BlockNumber _proposalIndex);
+        bytesPointer _committedData, bcos::protocol::BlockNumber _proposalIndex,
+        size_t _retryTime = 0);
 
     virtual void asyncRemove(std::string const& _dbName, std::string const& _key);
     virtual void asyncRemoveStabledCheckPoint(size_t _stabledCheckPointIndex);

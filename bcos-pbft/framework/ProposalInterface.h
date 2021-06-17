@@ -54,6 +54,10 @@ public:
     virtual void setExtraData(bytes&& _data) = 0;
     virtual void setExtraData(bcos::bytesConstRef _data) = 0;
 
+    // the sealerId
+    virtual void setSealerId(int64_t _sealerId) = 0;
+    virtual int64_t sealerId() = 0;
+
     // the signature to the proposal(optional)
     virtual bytesConstRef signature() const = 0;
     virtual void setSignature(bytes const& _signature) = 0;

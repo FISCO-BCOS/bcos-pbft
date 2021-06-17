@@ -82,6 +82,15 @@ void PBFTEngine::onRecvProposal(
     {
         return;
     }
+    if (_proposalIndex <= m_config->committedProposal()->index())
+    {
+        PBFT_LOG(WARNING) << LOG_DESC("asyncSubmitProposal failed for invalid index")
+                          << LOG_KV("index", _proposalIndex)
+                          << LOG_KV("hash", _proposalHash.abridged())
+                          << m_config->printCurrentState();
+        m_config->validator()->asyncResetTxsFlag(_proposalData, false);
+        return;
+    }
     auto leaderIndex = m_config->leaderIndex(_proposalIndex);
     if (leaderIndex != m_config->nodeIndex())
     {
@@ -110,6 +119,7 @@ void PBFTEngine::onRecvProposal(
     pbftProposal->setData(_proposalData);
     pbftProposal->setIndex(_proposalIndex);
     pbftProposal->setHash(_proposalHash);
+    pbftProposal->setSealerId(m_config->nodeIndex());
 
     auto pbftMessage =
         m_config->pbftMessageFactory()->populateFrom(PacketType::PrePreparePacket, pbftProposal,
@@ -626,7 +636,7 @@ bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
         return false;
     }
     // receive the viewchange message from the leader
-    if (!m_config->timeout() &&
+    if (!m_config->timeout() && _viewChangeMsg->view() > m_config->view() &&
         _viewChangeMsg->generatedFrom() == m_config->leaderIndex(m_config->progressedIndex()))
     {
         m_config->resetTimeoutState();

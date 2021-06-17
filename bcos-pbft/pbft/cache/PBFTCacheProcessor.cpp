@@ -159,7 +159,26 @@ void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committed
     m_committedQueue.push(_committedProposal);
     PBFT_LOG(INFO) << LOG_DESC("######## CommitProposal") << printPBFTProposal(_committedProposal)
                    << m_config->printCurrentState();
+    tryToApplyCommitQueue();
+}
 
+ProposalInterface::ConstPtr PBFTCacheProcessor::getAppliedCheckPointProposal(
+    bcos::protocol::BlockNumber _index)
+{
+    if (_index == m_config->committedProposal()->index())
+    {
+        return m_config->committedProposal();
+    }
+
+    if (!(m_caches.count(_index)))
+    {
+        return nullptr;
+    }
+    return (m_caches[_index])->checkPointProposal();
+}
+
+void PBFTCacheProcessor::tryToApplyCommitQueue()
+{
     while (!m_committedQueue.empty() &&
            m_committedQueue.top()->index() < m_config->expectedCheckPoint())
     {
@@ -170,28 +189,34 @@ void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committed
         m_committedQueue.pop();
     }
     // try to execute the proposal
-    while (!m_committedQueue.empty() &&
-           m_committedQueue.top()->index() == m_config->expectedCheckPoint())
+    if (!m_committedQueue.empty() &&
+        m_committedQueue.top()->index() == m_config->expectedCheckPoint())
     {
         auto proposal = m_committedQueue.top();
-        m_config->setExpectedCheckPoint(proposal->index() + 1);
-        applyStateMachine(proposal);
+        auto lastAppliedProposal = getAppliedCheckPointProposal(m_config->expectedCheckPoint() - 1);
+        if (!lastAppliedProposal)
+        {
+            PBFT_LOG(WARNING) << LOG_DESC("The last proposal has not been applied")
+                              << m_config->printCurrentState();
+            return;
+        }
         // commit the proposal
         m_committedQueue.pop();
+        applyStateMachine(lastAppliedProposal, proposal);
     }
 }
 
 // execute the proposal and broadcast checkpoint message
-void PBFTCacheProcessor::applyStateMachine(PBFTProposalInterface::Ptr _proposal)
+void PBFTCacheProcessor::applyStateMachine(
+    ProposalInterface::ConstPtr _lastAppliedProposal, PBFTProposalInterface::Ptr _proposal)
 {
-    auto committedProposal = m_config->committedProposal();
     PBFT_LOG(DEBUG) << LOG_DESC("applyStateMachine") << LOG_KV("index", _proposal->index())
                     << LOG_KV("hash", _proposal->hash().abridged())
                     << m_config->printCurrentState();
     auto executedProposal = m_config->pbftMessageFactory()->createPBFTProposal();
     auto self = std::weak_ptr<PBFTCacheProcessor>(shared_from_this());
-    m_config->stateMachine()->asyncApply(committedProposal, _proposal, executedProposal,
-        [self, _proposal, executedProposal](bool _ret) {
+    m_config->stateMachine()->asyncApply(m_config->consensusNodeList(), _lastAppliedProposal,
+        _proposal, executedProposal, [self, _proposal, executedProposal](bool _ret) {
             try
             {
                 auto cache = self.lock();
@@ -201,10 +226,6 @@ void PBFTCacheProcessor::applyStateMachine(PBFTProposalInterface::Ptr _proposal)
                 }
                 if (!_ret)
                 {
-                    if (cache->m_config->expectedCheckPoint() > _proposal->index())
-                    {
-                        cache->m_config->setExpectedCheckPoint(_proposal->index());
-                    }
                     return;
                 }
                 auto config = cache->m_config;
@@ -222,7 +243,9 @@ void PBFTCacheProcessor::applyStateMachine(PBFTProposalInterface::Ptr _proposal)
 
                 cache->addCheckPointMsg(checkPointMsg);
                 cache->setCheckPointProposal(executedProposal);
+                config->setExpectedCheckPoint(_proposal->index() + 1);
                 cache->checkAndCommitStableCheckPoint();
+                cache->tryToApplyCommitQueue();
                 PBFT_LOG(DEBUG) << LOG_DESC(
                                        "applyStateMachine success and broadcast checkpoint message")
                                 << LOG_KV("index", checkPointMsg->index())
