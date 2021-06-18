@@ -152,6 +152,7 @@ void PBFTCache::intoPrecommit()
 void PBFTCache::setSignatureList(PBFTProposalInterface::Ptr _proposal, CollectionCacheType& _cache)
 {
     assert(_cache.count(_proposal->hash()));
+    _proposal->clearSignatureProof();
     for (auto const& it : _cache[_proposal->hash()])
     {
         _proposal->appendSignatureProof(it.first, it.second->consensusProposal()->signature());
@@ -182,7 +183,7 @@ bool PBFTCache::conflictWithPrecommitReq(PBFTMessageInterface::Ptr _prePrepareMs
 bool PBFTCache::checkAndPreCommit()
 {
     // already precommitted
-    if (m_checkpointProposal)
+    if (m_precommitted)
     {
         return false;
     }
@@ -210,13 +211,14 @@ bool PBFTCache::checkAndPreCommit()
     auto encodedData = m_config->codec()->encode(commitReq, m_config->pbftMsgDefaultVersion());
     m_config->frontService()->asyncSendMessageByNodeIDs(
         bcos::protocol::ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
+    m_precommitted = true;
     // collect the commitReq and try to commit
     return checkAndCommit();
 }
 
 bool PBFTCache::checkAndCommit()
 {
-    if (m_submitted == true || m_checkpointProposal)
+    if (m_submitted)
     {
         return false;
     }
@@ -243,6 +245,7 @@ bool PBFTCache::shouldStopTimer()
 void PBFTCache::resetCache(ViewType _curView)
 {
     m_submitted = false;
+    m_precommitted = false;
     // clear the expired prepare cache
     resetCacheAfterViewChange(m_prepareCacheList, _curView);
     // clear the expired commit cache

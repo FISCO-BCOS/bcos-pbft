@@ -26,15 +26,15 @@ using namespace bcos::consensus;
 using namespace bcos::protocol;
 using namespace bcos::crypto;
 
-void StateMachine::asyncApply(ProposalInterface::ConstPtr _committedProposal,
-    ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
-    std::function<void(bool)> _onExecuteFinished)
+void StateMachine::asyncApply(ConsensusNodeList const& _consensusNodeInfo,
+    ProposalInterface::ConstPtr _lastAppliedProposal, ProposalInterface::Ptr _proposal,
+    ProposalInterface::Ptr _executedProposal, std::function<void(bool)> _onExecuteFinished)
 {
-    if (_proposal->index() <= _committedProposal->index())
+    if (_proposal->index() <= _lastAppliedProposal->index())
     {
-        CONSENSUS_LOG(WARNING) << LOG_DESC("asyncApply: the proposal has already been committed")
+        CONSENSUS_LOG(WARNING) << LOG_DESC("asyncApply: the proposal has already been applied")
                                << LOG_KV("proposalIndex", _proposal->index())
-                               << LOG_KV("committedIndex", _committedProposal->index());
+                               << LOG_KV("lastAppliedProposal", _lastAppliedProposal->index());
         if (_onExecuteFinished)
         {
             _onExecuteFinished(false);
@@ -52,16 +52,34 @@ void StateMachine::asyncApply(ProposalInterface::ConstPtr _committedProposal,
         return;
     }
     // set the parentHash information
-    if (_proposal->index() == _committedProposal->index() + 1)
+    if (_proposal->index() == _lastAppliedProposal->index() + 1)
     {
         ParentInfoList parentInfoList;
-        ParentInfo parentInfo{_committedProposal->index(), _committedProposal->hash()};
+        ParentInfo parentInfo{_lastAppliedProposal->index(), _lastAppliedProposal->hash()};
         parentInfoList.push_back(parentInfo);
         block->blockHeader()->setParentInfo(std::move(parentInfoList));
         CONSENSUS_LOG(DEBUG) << LOG_DESC("setParentInfo for the proposal")
                              << LOG_KV("proposalIndex", _proposal->index())
-                             << LOG_KV("committedIndex", _committedProposal->index());
+                             << LOG_KV("lastAppliedProposal", _lastAppliedProposal->index())
+                             << LOG_KV("parentHash", _lastAppliedProposal->hash().abridged());
     }
+    else
+    {
+        CONSENSUS_LOG(FATAL) << LOG_DESC("invalid lastAppliedProposal")
+                             << LOG_KV("lastAppliedIndex", _lastAppliedProposal->index())
+                             << LOG_KV("proposal", _proposal->index());
+    }
+    // supplement the header info
+    block->blockHeader()->setSealer(_proposal->sealerId());
+    std::vector<bytes> sealerList;
+    std::vector<uint64_t> weightList;
+    for (auto const& consensusNode : _consensusNodeInfo)
+    {
+        sealerList.push_back(consensusNode->nodeID()->data());
+        weightList.push_back(consensusNode->weight());
+    }
+    block->blockHeader()->setSealerList(std::move(sealerList));
+    block->blockHeader()->setConsensusWeights(std::move(weightList));
     // calls dispatcher to execute the block
     auto blockNumber = block->blockHeader()->number();
     m_dispatcher->asyncExecuteBlock(block, false,

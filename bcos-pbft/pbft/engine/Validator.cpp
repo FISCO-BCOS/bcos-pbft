@@ -56,15 +56,22 @@ void TxsValidator::asyncResetTxsFlag(bytesConstRef _data, bool _flag)
     });
 }
 
-void TxsValidator::asyncResetTxsFlag(HashListPtr _txsHashList, bool _flag)
+void TxsValidator::asyncResetTxsFlag(HashListPtr _txsHashList, bool _flag, size_t _retryTime)
 {
-    m_txPool->asyncMarkTxs(_txsHashList, _flag, [this, _txsHashList, _flag](Error::Ptr _error) {
-        if (_error == nullptr)
-        {
-            PBFT_LOG(DEBUG) << LOG_DESC("asyncMarkTxs success");
-            return;
-        }
-        PBFT_LOG(DEBUG) << LOG_DESC("asyncMarkTxs failed, retry now");
-        this->asyncResetTxsFlag(_txsHashList, _flag);
-    });
+    m_txPool->asyncMarkTxs(
+        _txsHashList, _flag, [this, _txsHashList, _flag, _retryTime](Error::Ptr _error) {
+            if (_error == nullptr)
+            {
+                PBFT_LOG(DEBUG) << LOG_DESC("asyncMarkTxs success");
+                return;
+            }
+            PBFT_LOG(DEBUG) << LOG_DESC("asyncMarkTxs failed")
+                            << LOG_KV("code", _error->errorCode())
+                            << LOG_KV("msg", _error->errorMessage());
+            if (_retryTime >= 3)
+            {
+                return;
+            }
+            this->asyncResetTxsFlag(_txsHashList, _flag, _retryTime + 1);
+        });
 }

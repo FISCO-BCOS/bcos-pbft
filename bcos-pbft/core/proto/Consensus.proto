@@ -11,4 +11,5 @@ message RawProposal
   // the proposal signature, optional
   bytes signature = 4;
   bytes extraData = 5;
+  int64 sealerId = 6;
 };

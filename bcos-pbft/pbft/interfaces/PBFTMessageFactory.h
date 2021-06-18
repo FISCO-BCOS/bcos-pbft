@@ -90,6 +90,7 @@ public:
         auto signedProposal = createPBFTProposal();
         signedProposal->setIndex(_proposal->index());
         signedProposal->setHash(_proposal->hash());
+        signedProposal->setSealerId(_proposal->sealerId());
         if (_needSign)
         {
             auto signatureData = _cryptoSuite->signatureImpl()->sign(_keyPair, _proposal->hash());
@@ -121,6 +122,7 @@ public:
         auto proposal = createPBFTProposal();
         proposal->setIndex(_proposal->index());
         proposal->setHash(_proposal->hash());
+        proposal->setSealerId(_proposal->sealerId());
         if (_withData)
         {
             proposal->setData(_proposal->data());

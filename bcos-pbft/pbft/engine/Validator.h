@@ -113,7 +113,8 @@ public:
     }
 
 protected:
-    virtual void asyncResetTxsFlag(bcos::crypto::HashListPtr _txsHashList, bool _flag);
+    virtual void asyncResetTxsFlag(
+        bcos::crypto::HashListPtr _txsHashList, bool _flag, size_t _retryTime = 0);
 
     bcos::txpool::TxPoolInterface::Ptr m_txPool;
     bcos::protocol::BlockFactory::Ptr m_blockFactory;

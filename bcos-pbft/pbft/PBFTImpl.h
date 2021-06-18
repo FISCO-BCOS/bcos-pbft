@@ -83,6 +83,11 @@ public:
         m_pbftEngine->asyncNotifyNewBlock(_ledgerConfig, _onRecv);
     }
 
+    void notifyHighestSyncingNumber(bcos::protocol::BlockNumber _blockNumber) override
+    {
+        m_pbftEngine->pbftConfig()->setSyncingHighestNumber(_blockNumber);
+    }
+
 private:
     PBFTEngine::Ptr m_pbftEngine;
     BlockValidator::Ptr m_blockValidator;

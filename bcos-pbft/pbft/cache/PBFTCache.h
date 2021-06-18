@@ -54,7 +54,13 @@ public:
 
     virtual void addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepareMsg)
     {
-        if (m_stableCommitted || m_checkpointProposal)
+        if (m_stableCommitted)
+        {
+            return;
+        }
+        if (m_checkpointProposal && m_prePrepare &&
+            _prePrepareMsg->consensusProposal()->hash() !=
+                m_prePrepare->consensusProposal()->hash())
         {
             return;
         }
@@ -161,6 +167,7 @@ protected:
     std::atomic_bool m_submitted = {false};
     // avoid submitting the same stable checkpoint multiple times
     std::atomic_bool m_stableCommitted = {false};
+    std::atomic_bool m_precommitted = {false};
     std::atomic<bcos::protocol::BlockNumber> m_index;
     // prepareCacheList
     CollectionCacheType m_prepareCacheList;

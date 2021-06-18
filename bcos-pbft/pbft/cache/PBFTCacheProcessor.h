@@ -130,8 +130,13 @@ public:
 protected:
     virtual bool checkPrecommitWeight(PBFTMessageInterface::Ptr _precommitMsg);
     virtual void updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal);
-    virtual void applyStateMachine(PBFTProposalInterface::Ptr _proposal);
+    void tryToApplyCommitQueue();
+    virtual void applyStateMachine(
+        ProposalInterface::ConstPtr _lastAppliedProposal, PBFTProposalInterface::Ptr _proposal);
     virtual void updateStableCheckPointQueue(PBFTProposalInterface::Ptr _stableCheckPoint);
+
+    virtual ProposalInterface::ConstPtr getAppliedCheckPointProposal(
+        bcos::protocol::BlockNumber _index);
 
 protected:
     using PBFTCachesType = std::map<bcos::protocol::BlockNumber, PBFTCache::Ptr>;

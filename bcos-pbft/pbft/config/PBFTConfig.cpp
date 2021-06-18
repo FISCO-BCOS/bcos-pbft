@@ -46,6 +46,12 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
     setConsensusNodeList(consensusList);
     // stop the timer
     m_timer->stop();
+    PBFT_LOG(DEBUG) << LOG_DESC("^^^^^^^^Report") << printCurrentState();
+    if (m_syncingHighestNumber > _ledgerConfig->blockNumber())
+    {
+        return;
+    }
+
     notifySealer(progressedIndex());
     if (!m_blockSync)
     {
