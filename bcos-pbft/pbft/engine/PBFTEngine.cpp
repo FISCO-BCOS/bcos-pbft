@@ -417,7 +417,7 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
     }
     m_config->validator()->verifyProposal(leaderNodeInfo->nodeID(),
         _prePrepareMsg->consensusProposal(),
-        [self, _prePrepareMsg](Error::Ptr _error, bool _verifyResult) {
+        [self, _prePrepareMsg, _generatedFromNewView](Error::Ptr _error, bool _verifyResult) {
             try
             {
                 auto pbftEngine = self.lock();
@@ -445,7 +445,8 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
                 }
                 // verify success
                 Guard l(pbftEngine->m_mutex);
-                pbftEngine->handlePrePrepareMsg(_prePrepareMsg, false, false, false);
+                pbftEngine->handlePrePrepareMsg(
+                    _prePrepareMsg, false, _generatedFromNewView, false);
             }
             catch (std::exception const& _e)
             {
@@ -769,7 +770,7 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
                 << LOG_DESC(
                        "reHandlePrePrepareProposals: hit the cache, into prepare phase directly")
                 << printPBFTMsgInfo(prePrepare) << m_config->printCurrentState();
-            handlePrePrepareMsg(prePrepare, false, true, false);
+            handlePrePrepareMsg(prePrepare, true, true, false);
             continue;
         }
         // miss the cache, request to from node
@@ -781,7 +782,7 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
                            "reHandlePrePrepareProposals: get the missed proposal and handle now")
                     << printPBFTMsgInfo(_prePrepare) << m_config->printCurrentState();
                 Guard l(m_mutex);
-                handlePrePrepareMsg(_prePrepare, false, true, false);
+                handlePrePrepareMsg(_prePrepare, true, true, false);
             });
     }
 }

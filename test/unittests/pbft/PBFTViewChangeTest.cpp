@@ -141,8 +141,8 @@ BOOST_AUTO_TEST_CASE(testViewChangeWithPrecommitProposals)
     for (size_t i = 0; i < fakerMap.size(); i++)
     {
         auto faker = fakerMap[i];
-        BOOST_CHECK(faker->pbftConfig()->view() == 1);
-        BOOST_CHECK(faker->pbftConfig()->toView() == 2);
+        BOOST_CHECK(faker->pbftConfig()->view() > 0);
+        BOOST_CHECK(faker->pbftConfig()->toView() == (faker->pbftConfig()->view() + 1));
         BOOST_CHECK(faker->pbftConfig()->timer()->changeCycle() == 0);
         BOOST_CHECK(faker->pbftEngine()->isTimeout() == false);
         BOOST_CHECK(faker->ledger()->blockNumber() == futureBlockIndex);

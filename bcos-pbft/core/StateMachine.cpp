@@ -81,9 +81,8 @@ void StateMachine::asyncApply(ConsensusNodeList const& _consensusNodeInfo,
     block->blockHeader()->setSealerList(std::move(sealerList));
     block->blockHeader()->setConsensusWeights(std::move(weightList));
     // calls dispatcher to execute the block
-    auto blockNumber = block->blockHeader()->number();
     m_dispatcher->asyncExecuteBlock(block, false,
-        [blockNumber, _onExecuteFinished, _proposal, _executedProposal](
+        [block, _onExecuteFinished, _proposal, _executedProposal](
             Error::Ptr _error, BlockHeader::Ptr _blockHeader) {
             if (!_onExecuteFinished)
             {
@@ -91,20 +90,22 @@ void StateMachine::asyncApply(ConsensusNodeList const& _consensusNodeInfo,
             }
             if (_error != nullptr)
             {
-                CONSENSUS_LOG(WARNING)
-                    << LOG_DESC("asyncExecuteBlock failed") << LOG_KV("number", blockNumber)
-                    << LOG_KV("errorCode", _error->errorCode())
-                    << LOG_KV("errorInfo", _error->errorMessage());
+                CONSENSUS_LOG(WARNING) << LOG_DESC("asyncExecuteBlock failed")
+                                       << LOG_KV("number", block->blockHeader()->number())
+                                       << LOG_KV("errorCode", _error->errorCode())
+                                       << LOG_KV("errorInfo", _error->errorMessage());
                 _onExecuteFinished(false);
                 return;
             }
             CONSENSUS_LOG(INFO) << LOG_DESC("asyncExecuteBlock success")
                                 << LOG_KV("number", _blockHeader->number())
-                                << LOG_KV("result", _blockHeader->hash().abridged());
-            if (_blockHeader->number() != blockNumber)
+                                << LOG_KV("result", _blockHeader->hash().abridged())
+                                << LOG_KV("txsSize", block->transactionsHashSize())
+                                << LOG_KV("txsRoot", _blockHeader->txsRoot().abridged());
+            if (_blockHeader->number() != block->blockHeader()->number())
             {
                 CONSENSUS_LOG(WARNING) << LOG_DESC("asyncExecuteBlock exception")
-                                       << LOG_KV("expectedNumber", blockNumber)
+                                       << LOG_KV("expectedNumber", block->blockHeader()->number())
                                        << LOG_KV("number", _blockHeader->number());
                 return;
             }
