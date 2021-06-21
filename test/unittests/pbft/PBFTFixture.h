@@ -203,7 +203,7 @@ class PBFTFixture
 public:
     using Ptr = std::shared_ptr<PBFTFixture>;
     PBFTFixture(CryptoSuite::Ptr _cryptoSuite, KeyPairInterface::Ptr _keyPair,
-        FakeLedger::Ptr _ledger = nullptr, size_t _consensusTimeout = 3,
+        FakeLedger::Ptr _ledger = nullptr, size_t _consensusTimeout = 3000,
         size_t _txCountLimit = 1000)
       : m_cryptoSuite(_cryptoSuite), m_keyPair(_keyPair), m_nodeId(_keyPair->publicKey())
     {
@@ -307,7 +307,7 @@ private:
 using PBFTFixtureList = std::vector<PBFTFixture::Ptr>;
 
 inline PBFTFixture::Ptr createPBFTFixture(CryptoSuite::Ptr _cryptoSuite,
-    FakeLedger::Ptr _ledger = nullptr, size_t _consensusTimeout = 3, size_t _txCountLimit = 1000)
+    FakeLedger::Ptr _ledger = nullptr, size_t _consensusTimeout = 3000, size_t _txCountLimit = 1000)
 {
     auto keyPair = _cryptoSuite->signatureImpl()->generateKeyPair();
     return std::make_shared<PBFTFixture>(
@@ -316,7 +316,7 @@ inline PBFTFixture::Ptr createPBFTFixture(CryptoSuite::Ptr _cryptoSuite,
 
 inline std::map<IndexType, PBFTFixture::Ptr> createFakers(CryptoSuite::Ptr _cryptoSuite,
     size_t _consensusNodeSize, size_t _currentBlockNumber, size_t _connectedNodes,
-    size_t _consensusTimeout = 3, size_t _txCountLimit = 1000)
+    size_t _consensusTimeout = 3000, size_t _txCountLimit = 1000)
 {
     PBFTFixtureList fakerList;
     // create block factory

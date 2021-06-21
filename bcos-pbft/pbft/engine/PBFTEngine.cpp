@@ -543,7 +543,7 @@ void PBFTEngine::onTimeout()
     PBFT_LOG(WARNING) << LOG_DESC("onTimeout") << m_config->printCurrentState();
 }
 
-void PBFTEngine::broadcastViewChangeReq()
+ViewChangeMsgInterface::Ptr PBFTEngine::generateViewChange()
 {
     // broadcast the viewChangeReq
     auto committedProposal = m_config->populateCommittedProposal();
@@ -564,6 +564,29 @@ void PBFTEngine::broadcastViewChangeReq()
     viewChangeReq->setCommittedProposal(committedProposal);
     // set prepared proposals
     viewChangeReq->setPreparedProposals(m_cacheProcessor->preCommitCachesWithoutData());
+    return viewChangeReq;
+}
+
+void PBFTEngine::sendViewChange(bcos::crypto::NodeIDPtr _dstNode)
+{
+    auto viewChangeReq = generateViewChange();
+    // encode and broadcast the viewchangeReq
+    auto encodedData = m_config->codec()->encode(viewChangeReq);
+    // only broadcast to the consensus nodes
+    m_config->frontService()->asyncSendMessageByNodeID(
+        ModuleID::PBFT, _dstNode, ref(*encodedData), 0, nullptr);
+    // collect the viewchangeReq
+    m_cacheProcessor->addViewChangeReq(viewChangeReq);
+    auto newViewMsg = m_cacheProcessor->checkAndTryIntoNewView();
+    if (newViewMsg)
+    {
+        reHandlePrePrepareProposals(newViewMsg);
+    }
+}
+
+void PBFTEngine::broadcastViewChangeReq()
+{
+    auto viewChangeReq = generateViewChange();
     // encode and broadcast the viewchangeReq
     auto encodedData = m_config->codec()->encode(viewChangeReq);
     // only broadcast to the consensus nodes
@@ -588,12 +611,13 @@ bool PBFTEngine::isValidViewChangeMsg(
                         << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
         return false;
     }
-    // TODO: catchup view
     // check the view
-    if (_viewChangeMsg->view() <= m_config->view())
+    if (_viewChangeMsg->view() < m_config->view())
     {
-        PBFT_LOG(DEBUG) << LOG_DESC("InvalidViewChangeReq: invalid view")
+        PBFT_LOG(DEBUG) << LOG_DESC("send viewchange to the node whose view falling behind")
+                        << LOG_KV("dst", _viewChangeMsg->from()->shortHex())
                         << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
+        sendViewChange(_viewChangeMsg->from());
         return false;
     }
     // check the committed proposal hash

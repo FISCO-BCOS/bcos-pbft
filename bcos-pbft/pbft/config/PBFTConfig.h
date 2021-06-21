@@ -251,6 +251,7 @@ protected:
     std::atomic_bool m_timeoutState = {false};
 
     bcos::protocol::BlockNumber m_syncingHighestNumber = {0};
+    std::atomic_bool m_syncingState = {false};
 };
 }  // namespace consensus
 }  // namespace bcos
