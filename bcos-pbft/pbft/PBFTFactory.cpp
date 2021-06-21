@@ -94,7 +94,8 @@ void PBFTFactory::init(bcos::sync::BlockSyncInterface::Ptr _blockSync)
     {
         PBFT_LOG(INFO) << LOG_DESC("init PBFT state")
                        << LOG_KV("stateProposals", stateProposals->size());
-        m_pbftConfig->setExpectedCheckPoint(m_pbftConfig->storage()->maxCommittedProposalIndex());
+        auto consensusedProposalIndex = m_pbftConfig->storage()->maxCommittedProposalIndex();
+        m_pbftConfig->setProgressedIndex(consensusedProposalIndex + 1);
         m_pbftEngine->initState(stateProposals);
     }
     PBFT_LOG(INFO) << LOG_DESC("init PBFT success");
