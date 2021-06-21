@@ -107,7 +107,9 @@ protected:
     virtual bool handleCommitMsg(std::shared_ptr<PBFTMessageInterface> _commitMsg);
 
     virtual void onTimeout();
+    virtual ViewChangeMsgInterface::Ptr generateViewChange();
     virtual void broadcastViewChangeReq();
+    virtual void sendViewChange(bcos::crypto::NodeIDPtr _dstNode);
 
     virtual bool handleViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg);
     virtual bool isValidViewChangeMsg(

@@ -49,9 +49,15 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
     PBFT_LOG(DEBUG) << LOG_DESC("^^^^^^^^Report") << printCurrentState();
     if (m_syncingHighestNumber > _ledgerConfig->blockNumber())
     {
+        m_syncingState = true;
         return;
     }
-
+    // try to reach a new view after syncing completed
+    if (m_syncingState)
+    {
+        m_syncingState = false;
+        m_timer->start();
+    }
     notifySealer(progressedIndex());
     if (!m_blockSync)
     {
