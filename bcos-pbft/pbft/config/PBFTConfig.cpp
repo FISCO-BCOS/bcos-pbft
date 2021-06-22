@@ -31,7 +31,8 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
                    << LOG_KV("committedIndex", _ledgerConfig->blockNumber())
                    << LOG_KV("propHash", _ledgerConfig->hash().abridged())
                    << LOG_KV("consensusTimeout", _ledgerConfig->consensusTimeout())
-                   << LOG_KV("blockCountLimit", _ledgerConfig->blockTxCountLimit());
+                   << LOG_KV("blockCountLimit", _ledgerConfig->blockTxCountLimit())
+                   << LOG_KV("leaderPeriod", _ledgerConfig->leaderSwitchPeriod());
     // set committed proposal
     auto committedProposal = m_pbftMessageFactory->createPBFTProposal();
     committedProposal->setIndex(_ledgerConfig->blockNumber());
@@ -44,9 +45,21 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
     // set ConsensusNodeList
     auto& consensusList = _ledgerConfig->mutableConsensusNodeList();
     setConsensusNodeList(consensusList);
-    // stop the timer
-    m_timer->stop();
-    PBFT_LOG(DEBUG) << LOG_DESC("^^^^^^^^Report") << printCurrentState();
+    // set leader_period
+    setLeaderSwitchPeriod(_ledgerConfig->leaderSwitchPeriod());
+    // reset the timer
+    resetTimer();
+
+    if (_ledgerConfig->sealerId() == -1)
+    {
+        PBFT_LOG(DEBUG) << LOG_DESC("^^^^^^^^Report") << printCurrentState();
+    }
+    else
+    {
+        PBFT_LOG(DEBUG) << LOG_DESC("^^^^^^^^Report") << LOG_KV("sealer", _ledgerConfig->sealerId())
+                        << printCurrentState();
+    }
+    m_sealer->asyncNoteLatestBlockNumber(_ledgerConfig->blockNumber());
     if (m_syncingHighestNumber > _ledgerConfig->blockNumber())
     {
         m_syncingState = true;
@@ -177,7 +190,7 @@ bool PBFTConfig::leaderAfterViewChange()
 
 IndexType PBFTConfig::leaderIndexInNewViewPeriod(ViewType _view)
 {
-    return (m_committedProposal->index() / m_leaderSwitchPeriod + _view) % m_consensusNodeNum;
+    return (m_progressedIndex / m_leaderSwitchPeriod + _view) % m_consensusNodeNum;
 }
 
 PBFTProposalInterface::Ptr PBFTConfig::populateCommittedProposal()
@@ -199,11 +212,11 @@ std::string PBFTConfig::printCurrentState()
         stringstream << LOG_DESC("The storage has not been init.");
         return stringstream.str();
     }
-
-    stringstream << LOG_KV("consNum", progressedIndex())
+    stringstream << LOG_KV("committedIndex", committedProposal()->index())
+                 << LOG_KV("consNum", progressedIndex())
                  << LOG_KV("committedHash", committedProposal()->hash().abridged())
-                 << LOG_KV("committedIndex", committedProposal()->index()) << LOG_KV("view", view())
-                 << LOG_KV("toView", toView()) << LOG_KV("changeCycle", m_timer->changeCycle())
+                 << LOG_KV("view", view()) << LOG_KV("toView", toView())
+                 << LOG_KV("changeCycle", m_timer->changeCycle())
                  << LOG_KV("expectedCheckPoint", m_expectedCheckPoint) << LOG_KV("Idx", nodeIndex())
                  << LOG_KV("nodeId", nodeID()->shortHex());
     return stringstream.str();

@@ -88,6 +88,16 @@ public:
         m_pbftEngine->pbftConfig()->setSyncingHighestNumber(_blockNumber);
     }
 
+    void asyncNoteUnSealedTxsSize(
+        size_t _unsealedTxsSize, std::function<void(Error::Ptr)> _onRecvResponse) override
+    {
+        m_pbftEngine->pbftConfig()->setUnSealedTxsSize(_unsealedTxsSize);
+        if (_onRecvResponse)
+        {
+            _onRecvResponse(nullptr);
+        }
+    }
+
 private:
     PBFTEngine::Ptr m_pbftEngine;
     BlockValidator::Ptr m_blockValidator;
