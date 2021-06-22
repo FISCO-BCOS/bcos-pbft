@@ -58,8 +58,10 @@ public:
         m_sealer = _sealer;
         m_stateMachine = _stateMachine;
         m_storage = _storage;
+        // for resetConfig after submit the block to ledger
         m_storage->registerConfigResetHandler(
             [this](bcos::ledger::LedgerConfig::Ptr _ledgerConfig) { resetConfig(_ledgerConfig); });
+        // for notify the transaction result
         m_storage->registerNotifyHandler(
             [this](bcos::protocol::Block::Ptr _block, bcos::protocol::BlockHeader::Ptr _header) {
                 m_validator->notifyTransactionsResult(_block, _header);
@@ -74,11 +76,7 @@ public:
     uint64_t minRequiredQuorum() const override;
 
     virtual ViewType view() const { return m_view; }
-    virtual void setView(ViewType _view)
-    {
-        m_view.store(_view);
-        setToView(_view + 1);
-    }
+    virtual void setView(ViewType _view) { m_view.store(_view); }
 
     virtual ViewType toView() const { return m_toView; }
     virtual void setToView(ViewType _toView) { m_toView.store(_toView); }
@@ -96,6 +94,8 @@ public:
         }
         m_leaderSwitchPeriod.store(_leaderSwitchPeriod);
         m_leaderSwitchPeriodUpdated = true;
+        PBFT_LOG(INFO) << LOG_DESC("setLeaderSwitchPeriod")
+                       << LOG_KV("leader_period", m_leaderSwitchPeriod);
     }
     bcos::crypto::CryptoSuite::Ptr cryptoSuite() { return m_cryptoSuite; }
     std::shared_ptr<PBFTMessageFactory> pbftMessageFactory() { return m_pbftMessageFactory; }
@@ -156,7 +156,7 @@ public:
 
     void resetToView()
     {
-        m_toView = m_view + 1;
+        m_toView.store(m_view);
         m_timer->resetChangeCycle();
     }
 
@@ -193,8 +193,8 @@ public:
         {
             return;
         }
-        // stop the timer when reach a new-view
-        timer()->stop();
+        // reset the timer when reach a new-view
+        resetTimer();
         // update the changeCycle
         timer()->resetChangeCycle();
         setView(_view);
@@ -205,6 +205,27 @@ public:
     void setSyncingHighestNumber(bcos::protocol::BlockNumber _number)
     {
         m_syncingHighestNumber = _number;
+    }
+
+    virtual void setUnSealedTxsSize(size_t _unsealedTxsSize)
+    {
+        m_unsealedTxsSize = _unsealedTxsSize;
+        if (m_unsealedTxsSize > 0 && !m_timer->running())
+        {
+            m_timer->start();
+        }
+    }
+
+    virtual void resetTimer()
+    {
+        if (m_unsealedTxsSize > 0)
+        {
+            m_timer->restart();
+        }
+        else
+        {
+            m_timer->stop();
+        }
     }
 
 protected:
@@ -252,6 +273,8 @@ protected:
 
     bcos::protocol::BlockNumber m_syncingHighestNumber = {0};
     std::atomic_bool m_syncingState = {false};
+
+    std::atomic<size_t> m_unsealedTxsSize = {0};
 };
 }  // namespace consensus
 }  // namespace bcos

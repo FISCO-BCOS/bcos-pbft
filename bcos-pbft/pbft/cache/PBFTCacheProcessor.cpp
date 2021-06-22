@@ -149,8 +149,8 @@ void PBFTCacheProcessor::resetTimer()
             return;
         }
     }
-    // stop the timer when has no proposals in consensus
-    m_config->timer()->stop();
+    // reset the timer when has no proposals in consensus
+    m_config->resetTimer();
 }
 
 void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal)
@@ -440,7 +440,7 @@ ViewType PBFTCacheProcessor::tryToTriggerFastViewChange()
     ViewType viewToReach = 0;
     for (auto const& it : m_viewChangeCache)
     {
-        if (it.first <= m_config->view())
+        if (it.first <= m_config->toView())
         {
             continue;
         }
@@ -470,7 +470,7 @@ ViewType PBFTCacheProcessor::tryToTriggerFastViewChange()
     {
         return 0;
     }
-    if (m_config->toView() == viewToReach)
+    if (m_config->toView() >= viewToReach)
     {
         return 0;
     }
@@ -612,10 +612,7 @@ void PBFTCacheProcessor::reCalculateViewChangeWeight()
     for (auto const& it : m_viewChangeCache)
     {
         auto view = it.first;
-        if (!m_viewChangeWeight.count(view))
-        {
-            m_viewChangeWeight[view] = 0;
-        }
+        m_viewChangeWeight[view] = 0;
         auto const& viewChangeCache = it.second;
         for (auto const& cache : viewChangeCache)
         {

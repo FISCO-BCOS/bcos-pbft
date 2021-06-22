@@ -176,6 +176,7 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
     for (auto node : fakerMap)
     {
         node.second->pbftConfig()->setView(view);
+        node.second->pbftConfig()->setToView(view);
     }
     expectedLeader = (fakerMap[0])->pbftConfig()->leaderIndex(index);
     leaderFaker = fakerMap[expectedLeader];

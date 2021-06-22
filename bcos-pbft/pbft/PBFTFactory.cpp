@@ -98,5 +98,6 @@ void PBFTFactory::init(bcos::sync::BlockSyncInterface::Ptr _blockSync)
         m_pbftConfig->setProgressedIndex(consensusedProposalIndex + 1);
         m_pbftEngine->initState(stateProposals);
     }
+    m_pbftConfig->timer()->start();
     PBFT_LOG(INFO) << LOG_DESC("init PBFT success");
 }

@@ -648,6 +648,8 @@ bool PBFTEngine::isValidViewChangeMsg(
     auto ret = checkSignature(_viewChangeMsg);
     if (ret == CheckResult::INVALID)
     {
+        PBFT_LOG(DEBUG) << LOG_DESC("InvalidViewChangeReq: invalid signature")
+                        << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
         return false;
     }
     return true;
@@ -736,6 +738,9 @@ bool PBFTEngine::isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newView
     // TODO: need to ensure the accuracy of local weight parameters
     if (weight < m_config->minRequiredQuorum())
     {
+        PBFT_LOG(DEBUG) << LOG_DESC("InvalidNewViewMsg for unenough weight")
+                        << LOG_KV("weight", weight)
+                        << LOG_KV("minRequiredQuorum", m_config->minRequiredQuorum());
         return false;
     }
     // TODO: check the prePrepared message
