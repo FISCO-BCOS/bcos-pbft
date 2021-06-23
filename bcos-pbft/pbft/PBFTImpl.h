@@ -22,6 +22,7 @@
 #include "engine/BlockValidator.h"
 #include "engine/PBFTEngine.h"
 #include <bcos-framework/interfaces/consensus/ConsensusInterface.h>
+#include <bcos-framework/libtool/LedgerConfigFetcher.h>
 namespace bcos
 {
 namespace consensus
@@ -98,9 +99,50 @@ public:
         }
     }
 
+    virtual void init(bcos::sync::BlockSyncInterface::Ptr _blockSync)
+    {
+        auto config = m_pbftEngine->pbftConfig();
+        config->setBlockSync(_blockSync);
+        PBFT_LOG(INFO) << LOG_DESC("fetch LedgerConfig information");
+
+        m_ledgerFetcher->fetchBlockNumberAndHash();
+        m_ledgerFetcher->fetchConsensusNodeList();
+        m_ledgerFetcher->fetchConsensusTimeout();
+        m_ledgerFetcher->fetchBlockTxCountLimit();
+        m_ledgerFetcher->waitFetchFinished();
+        auto ledgerConfig = m_ledgerFetcher->ledgerConfig();
+        PBFT_LOG(INFO) << LOG_DESC("fetch LedgerConfig information success")
+                       << LOG_KV("blockNumber", ledgerConfig->blockNumber())
+                       << LOG_KV("hash", ledgerConfig->hash().abridged())
+                       << LOG_KV("consensusTimeout", ledgerConfig->consensusTimeout())
+                       << LOG_KV("maxTxsPerBlock", ledgerConfig->blockTxCountLimit())
+                       << LOG_KV("consensusNodeList", ledgerConfig->consensusNodeList().size());
+        config->resetConfig(ledgerConfig);
+
+        PBFT_LOG(INFO) << LOG_DESC("fetch PBFT state");
+        auto stateProposals = config->storage()->loadState(ledgerConfig->blockNumber());
+        if (stateProposals && stateProposals->size() > 0)
+        {
+            PBFT_LOG(INFO) << LOG_DESC("init PBFT state")
+                           << LOG_KV("stateProposals", stateProposals->size());
+            auto consensusedProposalIndex = config->storage()->maxCommittedProposalIndex();
+            config->setProgressedIndex(consensusedProposalIndex + 1);
+            m_pbftEngine->initState(stateProposals);
+        }
+        config->timer()->start();
+        PBFT_LOG(INFO) << LOG_DESC("init PBFT success");
+    }
+
+    void setLedgerFetcher(bcos::tool::LedgerConfigFetcher::Ptr _ledgerFetcher)
+    {
+        m_ledgerFetcher = _ledgerFetcher;
+    }
+    PBFTEngine::Ptr pbftEngine() { return m_pbftEngine; }
+
 private:
     PBFTEngine::Ptr m_pbftEngine;
     BlockValidator::Ptr m_blockValidator;
+    bcos::tool::LedgerConfigFetcher::Ptr m_ledgerFetcher;
 };
 }  // namespace consensus
 }  // namespace bcos

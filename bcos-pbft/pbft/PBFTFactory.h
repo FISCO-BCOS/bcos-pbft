@@ -46,17 +46,19 @@ public:
         bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory);
 
     virtual ~PBFTFactory() {}
-    virtual void init(bcos::sync::BlockSyncInterface::Ptr _blockSync);
-
-    ConsensusInterface::Ptr consensus() { return m_pbft; }
-    PBFTConfig::Ptr pbftConfig() { return m_pbftConfig; }
-    PBFTEngine::Ptr pbftEngine() { return m_pbftEngine; }
+    virtual PBFTImpl::Ptr createPBFT();
 
 protected:
-    ConsensusInterface::Ptr m_pbft;
-    PBFTEngine::Ptr m_pbftEngine;
-    PBFTConfig::Ptr m_pbftConfig;
-    bcos::tool::LedgerConfigFetcher::Ptr m_ledgerFetcher;
+    bcos::crypto::CryptoSuite::Ptr m_cryptoSuite;
+    bcos::crypto::KeyPairInterface::Ptr m_keyPair;
+    std::shared_ptr<bcos::front::FrontServiceInterface> m_frontService;
+    bcos::storage::StorageInterface::Ptr m_storage;
+    std::shared_ptr<bcos::ledger::LedgerInterface> m_ledger;
+    bcos::txpool::TxPoolInterface::Ptr m_txpool;
+    bcos::sealer::SealerInterface::Ptr m_sealer;
+    bcos::dispatcher::DispatcherInterface::Ptr m_dispatcher;
+    bcos::protocol::BlockFactory::Ptr m_blockFactory;
+    bcos::protocol::TransactionSubmitResultFactory::Ptr m_txResultFactory;
 };
 }  // namespace consensus
 }  // namespace bcos
