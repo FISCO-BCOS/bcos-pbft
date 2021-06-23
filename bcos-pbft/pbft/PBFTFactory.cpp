@@ -31,7 +31,6 @@ using namespace bcos;
 using namespace bcos::consensus;
 using namespace bcos::ledger;
 using namespace bcos::protocol;
-using namespace bcos::tool;
 
 PBFTFactory::PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
     bcos::crypto::KeyPairInterface::Ptr _keyPair,
@@ -42,62 +41,44 @@ PBFTFactory::PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
     bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
     bcos::protocol::BlockFactory::Ptr _blockFactory,
     bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory)
+  : m_cryptoSuite(_cryptoSuite),
+    m_keyPair(_keyPair),
+    m_frontService(_frontService),
+    m_storage(_storage),
+    m_ledger(_ledger),
+    m_txpool(_txpool),
+    m_sealer(_sealer),
+    m_dispatcher(_dispatcher),
+    m_blockFactory(_blockFactory),
+    m_txResultFactory(_txResultFactory)
+{}
+
+PBFTImpl::Ptr PBFTFactory::createPBFT()
 {
-    m_ledgerFetcher = std::make_shared<LedgerConfigFetcher>(_ledger);
     auto pbftMessageFactory = std::make_shared<PBFTMessageFactoryImpl>();
     PBFT_LOG(DEBUG) << LOG_DESC("create PBFTCodec");
-    auto pbftCodec = std::make_shared<PBFTCodec>(_keyPair, _cryptoSuite, pbftMessageFactory);
+    auto pbftCodec = std::make_shared<PBFTCodec>(m_keyPair, m_cryptoSuite, pbftMessageFactory);
 
     PBFT_LOG(DEBUG) << LOG_DESC("create PBFT validator");
-    auto validator = std::make_shared<TxsValidator>(_txpool, _blockFactory, _txResultFactory);
+    auto validator = std::make_shared<TxsValidator>(m_txpool, m_blockFactory, m_txResultFactory);
 
     PBFT_LOG(DEBUG) << LOG_DESC("create StateMachine");
-    auto stateMachine = std::make_shared<StateMachine>(_dispatcher, _blockFactory);
+    auto stateMachine = std::make_shared<StateMachine>(m_dispatcher, m_blockFactory);
 
     PBFT_LOG(DEBUG) << LOG_DESC("create pbftStorage");
     auto pbftStorage =
-        std::make_shared<LedgerStorage>(_ledger, _storage, _blockFactory, pbftMessageFactory);
+        std::make_shared<LedgerStorage>(m_ledger, m_storage, m_blockFactory, pbftMessageFactory);
 
     PBFT_LOG(DEBUG) << LOG_DESC("create pbftConfig");
-    m_pbftConfig = std::make_shared<PBFTConfig>(_cryptoSuite, _keyPair, pbftMessageFactory,
-        pbftCodec, validator, _frontService, _sealer, stateMachine, pbftStorage);
+    auto pbftConfig = std::make_shared<PBFTConfig>(m_cryptoSuite, m_keyPair, pbftMessageFactory,
+        pbftCodec, validator, m_frontService, m_sealer, stateMachine, pbftStorage);
 
     PBFT_LOG(DEBUG) << LOG_DESC("create PBFTEngine");
-    m_pbftEngine = std::make_shared<PBFTEngine>(m_pbftConfig);
+    auto pbftEngine = std::make_shared<PBFTEngine>(pbftConfig);
 
     PBFT_LOG(INFO) << LOG_DESC("create PBFT");
-    m_pbft = std::make_shared<PBFTImpl>(m_pbftEngine);
-    PBFT_LOG(INFO) << LOG_DESC("create PBFT success");
-}
-
-void PBFTFactory::init(bcos::sync::BlockSyncInterface::Ptr _blockSync)
-{
-    m_pbftConfig->setBlockSync(_blockSync);
-    PBFT_LOG(INFO) << LOG_DESC("fetch LedgerConfig information");
-    m_ledgerFetcher->fetchBlockNumberAndHash();
-    m_ledgerFetcher->fetchConsensusNodeList();
-    m_ledgerFetcher->fetchConsensusTimeout();
-    m_ledgerFetcher->fetchBlockTxCountLimit();
-    m_ledgerFetcher->waitFetchFinished();
-    auto ledgerConfig = m_ledgerFetcher->ledgerConfig();
-    PBFT_LOG(INFO) << LOG_DESC("fetch LedgerConfig information success")
-                   << LOG_KV("blockNumber", ledgerConfig->blockNumber())
-                   << LOG_KV("hash", ledgerConfig->hash().abridged())
-                   << LOG_KV("consensusTimeout", ledgerConfig->consensusTimeout())
-                   << LOG_KV("maxTxsPerBlock", ledgerConfig->blockTxCountLimit())
-                   << LOG_KV("consensusNodeList", ledgerConfig->consensusNodeList().size());
-    m_pbftConfig->resetConfig(ledgerConfig);
-
-    PBFT_LOG(INFO) << LOG_DESC("fetch PBFT state");
-    auto stateProposals = m_pbftConfig->storage()->loadState(ledgerConfig->blockNumber());
-    if (stateProposals && stateProposals->size() > 0)
-    {
-        PBFT_LOG(INFO) << LOG_DESC("init PBFT state")
-                       << LOG_KV("stateProposals", stateProposals->size());
-        auto consensusedProposalIndex = m_pbftConfig->storage()->maxCommittedProposalIndex();
-        m_pbftConfig->setProgressedIndex(consensusedProposalIndex + 1);
-        m_pbftEngine->initState(stateProposals);
-    }
-    m_pbftConfig->timer()->start();
-    PBFT_LOG(INFO) << LOG_DESC("init PBFT success");
+    auto ledgerFetcher = std::make_shared<bcos::tool::LedgerConfigFetcher>(m_ledger);
+    auto pbft = std::make_shared<PBFTImpl>(pbftEngine);
+    pbft->setLedgerFetcher(ledgerFetcher);
+    return pbft;
 }

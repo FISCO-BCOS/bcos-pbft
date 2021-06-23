@@ -101,7 +101,9 @@ void StateMachine::asyncApply(ConsensusNodeList const& _consensusNodeInfo,
                                 << LOG_KV("number", _blockHeader->number())
                                 << LOG_KV("result", _blockHeader->hash().abridged())
                                 << LOG_KV("txsSize", block->transactionsHashSize())
-                                << LOG_KV("txsRoot", _blockHeader->txsRoot().abridged());
+                                << LOG_KV("txsRoot", _blockHeader->txsRoot().abridged())
+                                << LOG_KV("receiptsRoot", _blockHeader->receiptsRoot().abridged())
+                                << LOG_KV("stateRoot", _blockHeader->stateRoot().abridged());
             if (_blockHeader->number() != block->blockHeader()->number())
             {
                 CONSENSUS_LOG(WARNING) << LOG_DESC("asyncExecuteBlock exception")

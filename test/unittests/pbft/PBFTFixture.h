@@ -178,23 +178,29 @@ public:
         bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory)
       : PBFTFactory(_cryptoSuite, _keyPair, _frontService, _storage, _ledger, _txpool, _sealer,
             _dispatcher, _blockFactory, _txResultFactory)
+    {}
+
+    PBFTImpl::Ptr createPBFT() override
     {
-        auto stateMachine = std::make_shared<StateMachine>(_dispatcher, _blockFactory);
+        auto pbft = PBFTFactory::createPBFT();
+        auto orgPBFTConfig = pbft->pbftEngine()->pbftConfig();
+        auto stateMachine = std::make_shared<StateMachine>(m_dispatcher, m_blockFactory);
 
         PBFT_LOG(DEBUG) << LOG_DESC("create pbftStorage");
         auto pbftStorage = std::make_shared<LedgerStorage>(
-            _ledger, _storage, _blockFactory, m_pbftConfig->pbftMessageFactory());
+            m_ledger, m_storage, m_blockFactory, orgPBFTConfig->pbftMessageFactory());
 
-        auto pbftConfig = std::make_shared<FakePBFTConfig>(_cryptoSuite, _keyPair,
-            m_pbftConfig->pbftMessageFactory(), m_pbftConfig->codec(), m_pbftConfig->validator(),
-            m_pbftConfig->frontService(), m_pbftConfig->sealer(), stateMachine, pbftStorage);
-        m_pbftConfig = pbftConfig;
+        auto pbftConfig = std::make_shared<FakePBFTConfig>(m_cryptoSuite, m_keyPair,
+            orgPBFTConfig->pbftMessageFactory(), orgPBFTConfig->codec(), orgPBFTConfig->validator(),
+            orgPBFTConfig->frontService(), orgPBFTConfig->sealer(), stateMachine, pbftStorage);
         PBFT_LOG(DEBUG) << LOG_DESC("create PBFTEngine");
-        m_pbftEngine = std::make_shared<FakePBFTEngine>(m_pbftConfig);
+        auto pbftEngine = std::make_shared<FakePBFTEngine>(pbftConfig);
 
         PBFT_LOG(INFO) << LOG_DESC("create PBFT");
-        m_pbft = std::make_shared<PBFTImpl>(m_pbftEngine);
-        PBFT_LOG(INFO) << LOG_DESC("create PBFT success");
+        auto fakedPBFT = std::make_shared<PBFTImpl>(pbftEngine);
+        auto ledgerFetcher = std::make_shared<bcos::tool::LedgerConfigFetcher>(m_ledger);
+        fakedPBFT->setLedgerFetcher(ledgerFetcher);
+        return fakedPBFT;
     }
 };
 
@@ -241,15 +247,15 @@ public:
 
         auto txResultFactory = std::make_shared<TransactionSubmitResultFactoryImpl>();
 
-        m_pbftFactory = std::make_shared<FakePBFTFactory>(_cryptoSuite, _keyPair, m_frontService,
+        auto pbftFactory = std::make_shared<FakePBFTFactory>(_cryptoSuite, _keyPair, m_frontService,
             m_storage, m_ledger, m_txpool, m_sealer, m_dispatcher, m_blockFactory, txResultFactory);
-        m_pbft = std::dynamic_pointer_cast<PBFTImpl>(m_pbftFactory->consensus());
-        m_pbftEngine = std::dynamic_pointer_cast<FakePBFTEngine>(m_pbftFactory->pbftEngine());
+        m_pbft = pbftFactory->createPBFT();
+        m_pbftEngine = std::dynamic_pointer_cast<FakePBFTEngine>(m_pbft->pbftEngine());
     }
 
     virtual ~PBFTFixture() {}
 
-    void init() { m_pbftFactory->init(nullptr); }
+    void init() { m_pbft->init(nullptr); }
 
     void appendConsensusNode(ConsensusNode::Ptr _node)
     {
@@ -273,10 +279,8 @@ public:
     FakeTxPool::Ptr txpool() { return m_txpool; }
     FakeSealer::Ptr sealer() { return m_sealer; }
     FakeDispatcher::Ptr dispatcher() { return m_dispatcher; }
-
-    FakePBFTFactory::Ptr pbftFactory() { return m_pbftFactory; }
     PBFTImpl::Ptr pbft() { return m_pbft; }
-    PBFTConfig::Ptr pbftConfig() { return m_pbftFactory->pbftConfig(); }
+    PBFTConfig::Ptr pbftConfig() { return m_pbft->pbftEngine()->pbftConfig(); }
     PublicPtr nodeID() { return m_nodeId; }
 
     FakePBFTEngine::Ptr pbftEngine() { return m_pbftEngine; }
@@ -299,8 +303,6 @@ private:
     FakeTxPool::Ptr m_txpool;
     FakeSealer::Ptr m_sealer;
     FakeDispatcher::Ptr m_dispatcher;
-
-    FakePBFTFactory::Ptr m_pbftFactory;
     FakePBFTEngine::Ptr m_pbftEngine;
     PBFTImpl::Ptr m_pbft;
 };
