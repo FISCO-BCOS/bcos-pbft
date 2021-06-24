@@ -152,7 +152,6 @@ void PBFTCache::intoPrecommit()
 void PBFTCache::setSignatureList(PBFTProposalInterface::Ptr _proposal, CollectionCacheType& _cache)
 {
     assert(_cache.count(_proposal->hash()));
-    _proposal->clearSignatureProof();
     for (auto const& it : _cache[_proposal->hash()])
     {
         _proposal->appendSignatureProof(it.first, it.second->consensusProposal()->signature());

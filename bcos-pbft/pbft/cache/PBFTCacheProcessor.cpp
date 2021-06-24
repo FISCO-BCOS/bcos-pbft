@@ -24,12 +24,58 @@
 using namespace bcos;
 using namespace bcos::consensus;
 using namespace bcos::protocol;
-void PBFTCacheProcessor::initState(PBFTProposalListPtr _proposals)
+using namespace bcos::crypto;
+
+void PBFTCacheProcessor::initState(PBFTProposalList const& _proposals, NodeIDPtr _fromNode)
 {
-    for (auto proposal : *_proposals)
+    for (auto proposal : _proposals)
     {
-        updateCommitQueue(proposal);
+        // try to verify and load the proposal
+        loadAndVerifyProposal(_fromNode, proposal);
     }
+}
+
+void PBFTCacheProcessor::loadAndVerifyProposal(
+    NodeIDPtr _fromNode, PBFTProposalInterface::Ptr _proposal)
+{
+    // the local proposal
+    if (_fromNode == nullptr)
+    {
+        updateCommitQueue(_proposal);
+        return;
+    }
+    // Note: to fetch the remote proposal(the from node hits all transactions)
+    auto self = std::weak_ptr<PBFTCacheProcessor>(shared_from_this());
+    m_config->validator()->verifyProposal(
+        _fromNode, _proposal, [self, _fromNode, _proposal](Error::Ptr _error, bool _verifyResult) {
+            if (_error || !_verifyResult)
+            {
+                PBFT_LOG(WARNING) << LOG_DESC("loadAndVerifyProposal failed")
+                                  << LOG_KV("from", _fromNode->shortHex())
+                                  << LOG_KV("code", _error ? _error->errorCode() : 0)
+                                  << LOG_KV("msg", _error ? _error->errorMessage() : "requestSent")
+                                  << LOG_KV("verifyRet", _verifyResult);
+                return;
+            }
+            try
+            {
+                auto cache = self.lock();
+                if (!cache)
+                {
+                    return;
+                }
+                PBFT_LOG(INFO) << LOG_DESC("loadAndVerifyProposal success")
+                               << LOG_KV("from", _fromNode->shortHex())
+                               << printPBFTProposal(_proposal);
+                cache->updateCommitQueue(_proposal);
+            }
+            catch (std::exception const& e)
+            {
+                PBFT_LOG(WARNING) << LOG_DESC("loadAndVerifyProposal exception")
+                                  << printPBFTProposal(_proposal)
+                                  << LOG_KV("error", boost::diagnostic_information(e));
+            }
+        });
 }
 // Note: please ensure the passed in _prePrepareMsg not be modified after addPrePrepareCache
 void PBFTCacheProcessor::addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepareMsg)
@@ -157,6 +203,7 @@ void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committed
 {
     assert(_committedProposal);
     m_committedQueue.push(_committedProposal);
+    m_committedProposalList.insert(_committedProposal->index());
     PBFT_LOG(INFO) << LOG_DESC("######## CommitProposal") << printPBFTProposal(_committedProposal)
                    << m_config->printCurrentState();
     tryToApplyCommitQueue();
@@ -224,11 +271,17 @@ void PBFTCacheProcessor::applyStateMachine(
                 {
                     return;
                 }
+                auto config = cache->m_config;
                 if (!_ret)
                 {
+                    PBFT_LOG(WARNING)
+                        << LOG_DESC("_proposal execute failed") << printPBFTProposal(_proposal)
+                        << config->printCurrentState();
+                    auto expectedCheckPoint =
+                        std::max(_proposal->index(), config->progressedIndex());
+                    config->setExpectedCheckPoint(expectedCheckPoint);
                     return;
                 }
-                auto config = cache->m_config;
                 // commit the proposal when execute success
                 config->storage()->asyncCommitProposal(_proposal);
                 // broadcast checkpoint message
@@ -382,6 +435,7 @@ PBFTMessageList PBFTCacheProcessor::generatePrePrepareMsg(
             m_config->toView(), utcTime(), generatedFrom);
         prePrepareMsgList.push_back(prePrepareMsg);
         PBFT_LOG(DEBUG) << LOG_DESC("generatePrePrepareMsg") << printPBFTMsgInfo(prePrepareMsg)
+                        << LOG_KV("dataSize", prePrepareMsg->consensusProposal()->data().size())
                         << LOG_KV("emptyProposal", empty);
     }
     return prePrepareMsgList;
@@ -667,6 +721,7 @@ void PBFTCacheProcessor::tryToCommitStableCheckPoint()
         PBFT_LOG(DEBUG) << LOG_DESC("updateStableCheckPointQueue: remove invalid checkpoint")
                         << LOG_KV("index", m_stableCheckPointQueue.top()->index())
                         << LOG_KV("committedIndex", m_config->committedProposal()->index());
+        m_committedProposalList.erase(m_stableCheckPointQueue.top()->index());
         m_stableCheckPointQueue.pop();
     }
     // submit stable-checkpoint to ledger in ordeer
@@ -677,7 +732,30 @@ void PBFTCacheProcessor::tryToCommitStableCheckPoint()
                         << LOG_KV("index", m_stableCheckPointQueue.top()->index())
                         << LOG_KV("committedIndex", m_config->committedProposal()->index());
         auto stableCheckPoint = m_stableCheckPointQueue.top();
+        m_committedProposalList.erase(stableCheckPoint->index());
         m_stableCheckPointQueue.pop();
         m_config->storage()->asyncCommmitStableCheckPoint(stableCheckPoint);
     }
+}
+
+bool PBFTCacheProcessor::shouldRequestCheckPoint(bcos::protocol::BlockNumber _checkPointIndex)
+{
+    // expired checkpoint
+    if (_checkPointIndex <= m_config->committedProposal()->index())
+    {
+        return false;
+    }
+    // hit in the local committedProposalList or already been requested
+    if (m_committedProposalList.count(_checkPointIndex))
+    {
+        return false;
+    }
+    // precompiled in the local cache
+    if (m_caches.count(_checkPointIndex) && m_caches[_checkPointIndex]->precommitted())
+    {
+        return false;
+    }
+    // in case of request again
+    m_committedProposalList.insert(_checkPointIndex);
+    return true;
 }

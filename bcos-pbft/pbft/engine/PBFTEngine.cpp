@@ -331,13 +331,14 @@ CheckResult PBFTEngine::checkPrePrepareMsg(std::shared_ptr<PBFTMessageInterface>
 CheckResult PBFTEngine::checkSignature(PBFTBaseMessageInterface::Ptr _req)
 {
     // check the signature
-    auto publicKey = m_config->getConsensusNodeByIndex(_req->generatedFrom())->nodeID();
-    if (!publicKey)
+    auto nodeInfo = m_config->getConsensusNodeByIndex(_req->generatedFrom());
+    if (!nodeInfo)
     {
         PBFT_LOG(WARNING) << LOG_DESC("checkSignature failed for the node is not a consensus node")
                           << printPBFTMsgInfo(_req);
         return CheckResult::INVALID;
     }
+    auto publicKey = nodeInfo->nodeID();
     if (!_req->verifySignature(m_config->cryptoSuite(), publicKey))
     {
         PBFT_LOG(WARNING) << LOG_DESC("checkSignature failed for invalid signature")
@@ -345,6 +346,26 @@ CheckResult PBFTEngine::checkSignature(PBFTBaseMessageInterface::Ptr _req)
         return CheckResult::INVALID;
     }
     return CheckResult::VALID;
+}
+
+bool PBFTEngine::checkProposalSignature(
+    IndexType _generatedFrom, PBFTProposalInterface::Ptr _proposal)
+{
+    if (!_proposal || _proposal->signature().size() == 0)
+    {
+        return false;
+    }
+    auto nodeInfo = m_config->getConsensusNodeByIndex(_generatedFrom);
+    if (!nodeInfo)
+    {
+        PBFT_LOG(WARNING)
+            << LOG_DESC("checkProposalSignature failed for the node is not a consensus node")
+            << printPBFTProposal(_proposal);
+        return false;
+    }
+
+    return m_config->cryptoSuite()->signatureImpl()->verify(
+        nodeInfo->nodeID(), _proposal->hash(), _proposal->signature());
 }
 
 bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
@@ -507,6 +528,10 @@ bool PBFTEngine::handlePrepareMsg(PBFTMessageInterface::Ptr _prepareMsg)
                     << m_config->printCurrentState();
     auto result = checkPBFTMsg(_prepareMsg);
     if (result == CheckResult::INVALID)
+    {
+        return false;
+    }
+    if (!checkProposalSignature(_prepareMsg->generatedFrom(), _prepareMsg->consensusProposal()))
     {
         return false;
     }
@@ -845,10 +870,26 @@ bool PBFTEngine::handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _chec
                           << printPBFTMsgInfo(_checkPointMsg);
         return false;
     }
+    // check the proposal signature
+    if (!checkProposalSignature(
+            _checkPointMsg->generatedFrom(), _checkPointMsg->consensusProposal()))
+    {
+        PBFT_LOG(WARNING) << LOG_DESC("handleCheckPointMsg: invalid  proposal signature")
+                          << printPBFTMsgInfo(_checkPointMsg);
+        return false;
+    }
     PBFT_LOG(INFO) << LOG_DESC(
                           "handleCheckPointMsg: try to add the checkpoint message into the cache")
                    << printPBFTMsgInfo(_checkPointMsg) << m_config->printCurrentState();
     m_cacheProcessor->addCheckPointMsg(_checkPointMsg);
     m_cacheProcessor->checkAndCommitStableCheckPoint();
+    if (m_cacheProcessor->shouldRequestCheckPoint(_checkPointMsg->index()))
+    {
+        PBFT_LOG(INFO) << LOG_DESC("request checkPoint proposal")
+                       << LOG_KV("checkPointIndex", _checkPointMsg->index())
+                       << LOG_KV("checkPointHash", _checkPointMsg->hash().abridged())
+                       << m_config->printCurrentState();
+        m_logSync->requestCommittedProposals(_checkPointMsg->from(), _checkPointMsg->index(), 1);
+    }
     return true;
 }

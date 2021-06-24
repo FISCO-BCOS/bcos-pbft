@@ -100,12 +100,16 @@ void PBFTLogSync::requestPBFTData(
 void PBFTLogSync::onRecvCommittedProposalsResponse(
     Error::Ptr _error, NodeIDPtr _nodeID, bytesConstRef _data, SendResponseCallback)
 {
-    if (_error != nullptr)
+    if (_error)
     {
         PBFT_LOG(WARNING) << LOG_DESC("onRecvCommittedProposalResponse error")
                           << LOG_KV("from", _nodeID->shortHex())
                           << LOG_KV("errorCode", _error->errorCode())
                           << LOG_KV("errorMsg", _error->errorMessage());
+    }
+    if (_data.size() == 0)
+    {
+        return;
     }
     auto response = m_config->codec()->decode(_data);
     if (response->packetType() != PacketType::CommittedProposalResponse)
@@ -114,12 +118,12 @@ void PBFTLogSync::onRecvCommittedProposalsResponse(
     }
     auto proposalResponse = std::dynamic_pointer_cast<PBFTMessageInterface>(response);
     // TODO: check the proposal to ensure security
-    // commit the proposals
+    // load the fetched checkpoint proposal into the cache
     auto proposals = proposalResponse->proposals();
-    for (auto proposal : proposals)
-    {
-        m_config->storage()->asyncCommitProposal(proposal);
-    }
+    m_pbftCache->initState(proposals, _nodeID);
+    PBFT_LOG(INFO) << LOG_DESC("onRecvCommittedProposalsResponse")
+                   << LOG_KV("from", _nodeID->shortHex())
+                   << LOG_KV("proposalSize", proposals.size());
 }
 
 void PBFTLogSync::onReceivePrecommitRequest(
@@ -171,7 +175,18 @@ void PBFTLogSync::onReceiveCommittedProposalRequest(
                     << LOG_KV("fromIndex", pbftRequest->index())
                     << LOG_KV("size", pbftRequest->size());
     m_config->storage()->asyncGetCommittedProposals(pbftRequest->index(), pbftRequest->size(),
-        [this, _sendResponse](PBFTProposalListPtr _proposalList) {
+        [this, pbftRequest, _sendResponse](PBFTProposalListPtr _proposalList) {
+            // empty case
+            if (!_proposalList || _proposalList->size() == 0)
+            {
+                PBFT_LOG(WARNING)
+                    << LOG_DESC("onReceiveCommittedProposalRequest: miss the expected proposal")
+                    << LOG_KV("fromIndex", pbftRequest->index())
+                    << LOG_KV("size", pbftRequest->size());
+                _sendResponse(bytesConstRef());
+                return;
+            }
+            // hit case
             auto pbftMessage = m_config->pbftMessageFactory()->createPBFTMsg();
             pbftMessage->setPacketType(PacketType::CommittedProposalResponse);
             pbftMessage->setProposals(*_proposalList);

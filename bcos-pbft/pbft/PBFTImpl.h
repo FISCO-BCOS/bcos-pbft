@@ -109,6 +109,7 @@ public:
         m_ledgerFetcher->fetchConsensusNodeList();
         m_ledgerFetcher->fetchConsensusTimeout();
         m_ledgerFetcher->fetchBlockTxCountLimit();
+        m_ledgerFetcher->fetchConsensusLeaderPeriod();
         m_ledgerFetcher->waitFetchFinished();
         auto ledgerConfig = m_ledgerFetcher->ledgerConfig();
         PBFT_LOG(INFO) << LOG_DESC("fetch LedgerConfig information success")
@@ -127,7 +128,7 @@ public:
                            << LOG_KV("stateProposals", stateProposals->size());
             auto consensusedProposalIndex = config->storage()->maxCommittedProposalIndex();
             config->setProgressedIndex(consensusedProposalIndex + 1);
-            m_pbftEngine->initState(stateProposals);
+            m_pbftEngine->initState(*stateProposals);
         }
         config->timer()->start();
         PBFT_LOG(INFO) << LOG_DESC("init PBFT success");

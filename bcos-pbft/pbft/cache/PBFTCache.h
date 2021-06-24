@@ -93,7 +93,8 @@ public:
 
     virtual bool checkAndCommitStableCheckPoint();
     virtual void onCheckPointTimeout();
-    bool stableCommitted() { return m_stableCommitted; }
+    bool stableCommitted() const { return m_stableCommitted; }
+    bool precommitted() const { return m_precommitted; }
 
 protected:
     bool checkPrePrepareProposalStatus();
