@@ -48,7 +48,8 @@ public:
     {}
 
     virtual ~PBFTCacheProcessor() {}
-    virtual void initState(PBFTProposalListPtr _committedProposals);
+    virtual void initState(
+        PBFTProposalList const& _committedProposals, bcos::crypto::NodeIDPtr _fromNode = nullptr);
 
     virtual void addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepareMsg);
     virtual bool existPrePrepare(PBFTMessageInterface::Ptr _prePrepareMsg);
@@ -127,7 +128,12 @@ public:
 
     virtual void resetTimer();
 
+    virtual bool shouldRequestCheckPoint(bcos::protocol::BlockNumber _checkPointIndex);
+
 protected:
+    virtual void loadAndVerifyProposal(
+        bcos::crypto::NodeIDPtr _fromNode, PBFTProposalInterface::Ptr _proposal);
+
     virtual bool checkPrecommitWeight(PBFTMessageInterface::Ptr _precommitMsg);
     virtual void updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal);
     void tryToApplyCommitQueue();
@@ -168,6 +174,7 @@ protected:
     std::priority_queue<PBFTProposalInterface::Ptr, std::vector<PBFTProposalInterface::Ptr>,
         PBFTProposalCmp>
         m_committedQueue;
+    std::set<bcos::protocol::BlockNumber> m_committedProposalList;
 
     std::priority_queue<PBFTProposalInterface::Ptr, std::vector<PBFTProposalInterface::Ptr>,
         PBFTProposalCmp>

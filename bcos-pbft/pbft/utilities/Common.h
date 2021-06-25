@@ -22,9 +22,9 @@
 #include <bcos-framework/libutilities/Log.h>
 #include <stdint.h>
 
-#define PBFT_LOG(LEVEL) LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("PBFT")
+#define PBFT_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("PBFT")
 #define PBFT_STORAGE_LOG(LEVEL) \
-    LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("PBFT") << LOG_BADGE("STORAGE")
+    BCOS_LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("PBFT") << LOG_BADGE("STORAGE")
 
 namespace bcos
 {

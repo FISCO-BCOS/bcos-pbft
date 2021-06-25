@@ -69,7 +69,7 @@ public:
     virtual void onReceivePBFTMessage(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
         bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse);
 
-    virtual void initState(PBFTProposalListPtr _proposals)
+    virtual void initState(PBFTProposalList const& _proposals)
     {
         m_cacheProcessor->initState(_proposals);
     }
@@ -96,6 +96,9 @@ protected:
         bool _needCheckSignature = true);
     virtual CheckResult checkPrePrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg);
     virtual CheckResult checkSignature(std::shared_ptr<PBFTBaseMessageInterface> _req);
+    virtual bool checkProposalSignature(
+        IndexType _generatedFrom, PBFTProposalInterface::Ptr _proposal);
+
     virtual CheckResult checkPBFTMsgState(std::shared_ptr<PBFTMessageInterface> _pbftReq) const;
 
     virtual void broadcastPrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg);

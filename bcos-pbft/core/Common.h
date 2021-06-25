@@ -22,7 +22,7 @@
 #include <bcos-framework/libutilities/Exceptions.h>
 #include <bcos-framework/libutilities/Log.h>
 
-#define CONSENSUS_LOG(LEVEL) LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("Core")
+#define CONSENSUS_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("CONSENSUS") << LOG_BADGE("Core")
 namespace bcos
 {
 namespace consensus
