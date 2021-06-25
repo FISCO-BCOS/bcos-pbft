@@ -130,13 +130,20 @@ public:
 
     virtual bool shouldRequestCheckPoint(bcos::protocol::BlockNumber _checkPointIndex);
 
+    virtual void registerProposalAppliedHandler(
+        std::function<void(PBFTProposalInterface::Ptr)> _callback)
+    {
+        m_proposalAppliedHandler = _callback;
+    }
+
+    void tryToApplyCommitQueue();
+
 protected:
     virtual void loadAndVerifyProposal(
         bcos::crypto::NodeIDPtr _fromNode, PBFTProposalInterface::Ptr _proposal);
 
     virtual bool checkPrecommitWeight(PBFTMessageInterface::Ptr _precommitMsg);
     virtual void updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal);
-    void tryToApplyCommitQueue();
     virtual void applyStateMachine(
         ProposalInterface::ConstPtr _lastAppliedProposal, PBFTProposalInterface::Ptr _proposal);
     virtual void updateStableCheckPointQueue(PBFTProposalInterface::Ptr _stableCheckPoint);
@@ -179,6 +186,8 @@ protected:
     std::priority_queue<PBFTProposalInterface::Ptr, std::vector<PBFTProposalInterface::Ptr>,
         PBFTProposalCmp>
         m_stableCheckPointQueue;
+
+    std::function<void(PBFTProposalInterface::Ptr)> m_proposalAppliedHandler;
 };
 }  // namespace consensus
 }  // namespace bcos

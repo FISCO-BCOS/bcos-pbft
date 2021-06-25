@@ -284,24 +284,13 @@ void PBFTCacheProcessor::applyStateMachine(
                 }
                 // commit the proposal when execute success
                 config->storage()->asyncCommitProposal(_proposal);
-                // broadcast checkpoint message
-                auto checkPointMsg = config->pbftMessageFactory()->populateFrom(
-                    PacketType::CheckPoint, config->pbftMsgDefaultVersion(), config->view(),
-                    utcTime(), config->nodeIndex(), executedProposal, config->cryptoSuite(),
-                    config->keyPair(), true);
-
-                auto encodedData = config->codec()->encode(checkPointMsg);
-                config->frontService()->asyncSendMessageByNodeIDs(
-                    ModuleID::PBFT, config->consensusNodeIDList(), ref(*encodedData));
-
-                cache->addCheckPointMsg(checkPointMsg);
-                cache->setCheckPointProposal(executedProposal);
-                config->setExpectedCheckPoint(_proposal->index() + 1);
-                cache->checkAndCommitStableCheckPoint();
-                cache->tryToApplyCommitQueue();
+                if (cache->m_proposalAppliedHandler)
+                {
+                    cache->m_proposalAppliedHandler(executedProposal);
+                }
                 PBFT_LOG(DEBUG) << LOG_DESC(
                                        "applyStateMachine success and broadcast checkpoint message")
-                                << LOG_KV("index", checkPointMsg->index())
+                                << LOG_KV("index", executedProposal->index())
                                 << LOG_KV("beforeExec", _proposal->hash().abridged())
                                 << LOG_KV("afterExec", executedProposal->hash().abridged())
                                 << config->printCurrentState();

@@ -129,6 +129,8 @@ protected:
     // function called after reaching a consensus
     virtual void finalizeConsensus(std::shared_ptr<bcos::ledger::LedgerConfig> _ledgerConfig);
 
+    virtual void onProposalApplied(PBFTProposalInterface::Ptr _executedProposal);
+
 private:
     // utility functions
     void waitSignal()
