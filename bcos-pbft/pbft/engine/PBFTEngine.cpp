@@ -45,6 +45,8 @@ PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
     m_config->timer()->registerTimeoutHandler(boost::bind(&PBFTEngine::onTimeout, this));
     m_config->storage()->registerFinalizeHandler(
         boost::bind(&PBFTEngine::finalizeConsensus, this, _1));
+    m_cacheProcessor->registerProposalAppliedHandler(
+        boost::bind(&PBFTEngine::onProposalApplied, this, _1));
 }
 
 void PBFTEngine::start()
@@ -63,6 +65,44 @@ void PBFTEngine::stop()
     {
         m_config->blockSync()->stop();
     }
+}
+
+// called after proposal executed successfully
+void PBFTEngine::onProposalApplied(PBFTProposalInterface::Ptr _executedProposal)
+{
+    // broadcast checkpoint message
+    auto checkPointMsg = m_config->pbftMessageFactory()->populateFrom(PacketType::CheckPoint,
+        m_config->pbftMsgDefaultVersion(), m_config->view(), utcTime(), m_config->nodeIndex(),
+        _executedProposal, m_config->cryptoSuite(), m_config->keyPair(), true);
+
+    auto encodedData = m_config->codec()->encode(checkPointMsg);
+    m_config->frontService()->asyncSendMessageByNodeIDs(
+        ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
+
+    auto self = std::weak_ptr<PBFTEngine>(shared_from_this());
+    m_worker->enqueue([self, checkPointMsg, _executedProposal]() {
+        try
+        {
+            auto engine = self.lock();
+            if (!engine)
+            {
+                return;
+            }
+            // Note: must lock here to ensure thread safe
+            Guard l(engine->m_mutex);
+            engine->m_cacheProcessor->addCheckPointMsg(checkPointMsg);
+            engine->m_cacheProcessor->setCheckPointProposal(_executedProposal);
+            engine->m_config->setExpectedCheckPoint(_executedProposal->index() + 1);
+            engine->m_cacheProcessor->checkAndCommitStableCheckPoint();
+            engine->m_cacheProcessor->tryToApplyCommitQueue();
+        }
+        catch (std::exception const& e)
+        {
+            PBFT_LOG(WARNING) << LOG_DESC("onProposalApplied exception")
+                              << printPBFTProposal(_executedProposal)
+                              << LOG_KV("error", boost::diagnostic_information(e));
+        }
+    });
 }
 
 void PBFTEngine::asyncSubmitProposal(bytesConstRef _proposalData, BlockNumber _proposalIndex,

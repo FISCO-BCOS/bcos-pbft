@@ -23,6 +23,7 @@
 #include "bcos-pbft/pbft/PBFTFactory.h"
 #include "bcos-pbft/pbft/PBFTImpl.h"
 #include "bcos-pbft/pbft/storage/LedgerStorage.h"
+#include "boost/bind.hpp"
 #include <bcos-framework/interfaces/consensus/ConsensusNode.h>
 #include <bcos-framework/libprotocol/TransactionSubmitResultFactoryImpl.h>
 #include <bcos-framework/libprotocol/protobuf/PBBlockFactory.h>
@@ -126,6 +127,8 @@ public:
         auto cacheFactory = std::make_shared<FakePBFTCacheFactory>();
         m_cacheProcessor = std::make_shared<FakeCacheProcessor>(cacheFactory, _config);
         m_logSync = std::make_shared<PBFTLogSync>(_config, m_cacheProcessor);
+        m_cacheProcessor->registerProposalAppliedHandler(
+            boost::bind(&FakePBFTEngine::onProposalApplied, this, _1));
     }
     ~FakePBFTEngine() override {}
 
