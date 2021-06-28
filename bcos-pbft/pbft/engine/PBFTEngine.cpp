@@ -331,7 +331,7 @@ CheckResult PBFTEngine::checkPBFTMsgState(PBFTMessageInterface::Ptr _pbftReq) co
     {
         return CheckResult::INVALID;
     }
-    if (_pbftReq->index() < m_config->progressedIndex() ||
+    if (_pbftReq->index() < m_config->expectedCheckPoint() ||
         _pbftReq->index() >= m_config->highWaterMark())
     {
         PBFT_LOG(TRACE) << LOG_DESC("checkPBFTMsgState: invalid pbftMsg for invalid index")
