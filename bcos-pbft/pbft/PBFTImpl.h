@@ -37,19 +37,59 @@ public:
     }
     virtual ~PBFTImpl() { stop(); }
 
-    void start() override { m_pbftEngine->start(); }
-    void stop() override { m_pbftEngine->stop(); }
+    void start() override
+    {
+        if (m_running)
+        {
+            PBFT_LOG(WARNING) << LOG_DESC("The PBFT module has already been started!");
+            return;
+        }
+        m_pbftEngine->start();
+        m_running = true;
+        PBFT_LOG(INFO) << LOG_DESC("Start the PBFT module.");
+    }
+
+    void stop() override
+    {
+        if (!m_running)
+        {
+            PBFT_LOG(WARNING) << LOG_DESC("The PBFT module has already been stopped!");
+            return;
+        }
+        m_pbftEngine->stop();
+        m_running = false;
+        PBFT_LOG(INFO) << LOG_DESC("Stop the PBFT module.");
+    }
 
     void asyncSubmitProposal(bytesConstRef _proposalData,
         bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash,
         std::function<void(Error::Ptr)> _onProposalSubmitted) override
     {
+        if (!m_running)
+        {
+            if (_onProposalSubmitted)
+            {
+                _onProposalSubmitted(std::make_shared<Error>(
+                    -1, "The PBFT module has not been initialized finished!"));
+            }
+            return;
+        }
         return m_pbftEngine->asyncSubmitProposal(
             _proposalData, _proposalIndex, _proposalHash, _onProposalSubmitted);
     }
 
     void asyncGetPBFTView(std::function<void(Error::Ptr, ViewType)> _onGetView) override
     {
+        if (!m_running)
+        {
+            if (_onGetView)
+            {
+                _onGetView(std::make_shared<Error>(
+                               -1, "The PBFT module has not been initialized finished!"),
+                    0);
+            }
+            return;
+        }
         auto view = m_pbftEngine->pbftConfig()->view();
         if (!_onGetView)
         {
@@ -62,6 +102,15 @@ public:
         bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse,
         std::function<void(Error::Ptr _error)> _onRecv) override
     {
+        if (!m_running)
+        {
+            if (_onRecv)
+            {
+                _onRecv(std::make_shared<Error>(
+                    -1, "The PBFT module has not been initialized finished!"));
+            }
+            return;
+        }
         m_pbftEngine->onReceivePBFTMessage(_error, _nodeID, _data, _sendResponse);
         if (!_onRecv)
         {
@@ -74,6 +123,16 @@ public:
     void asyncCheckBlock(bcos::protocol::Block::Ptr _block,
         std::function<void(Error::Ptr, bool)> _onVerifyFinish) override
     {
+        if (!m_running)
+        {
+            if (_onVerifyFinish)
+            {
+                _onVerifyFinish(std::make_shared<Error>(
+                                    -1, "The PBFT module has not been initialized finished!"),
+                    false);
+            }
+            return;
+        }
         m_blockValidator->asyncCheckBlock(_block, _onVerifyFinish);
     }
 
@@ -81,6 +140,16 @@ public:
     void asyncNotifyNewBlock(bcos::ledger::LedgerConfig::Ptr _ledgerConfig,
         std::function<void(Error::Ptr)> _onRecv) override
     {
+        if (!m_running)
+        {
+            if (_onRecv)
+            {
+                _onRecv(std::make_shared<Error>(
+                    -1, "The PBFT module has not been initialized finished!"));
+            }
+            return;
+        }
+
         m_pbftEngine->asyncNotifyNewBlock(_ledgerConfig, _onRecv);
     }
 
@@ -92,6 +161,15 @@ public:
     void asyncNoteUnSealedTxsSize(
         size_t _unsealedTxsSize, std::function<void(Error::Ptr)> _onRecvResponse) override
     {
+        if (!m_running)
+        {
+            if (_onRecvResponse)
+            {
+                _onRecvResponse(std::make_shared<Error>(
+                    -1, "The PBFT module has not been initialized finished!"));
+            }
+            return;
+        }
         m_pbftEngine->pbftConfig()->setUnSealedTxsSize(_unsealedTxsSize);
         if (_onRecvResponse)
         {
@@ -140,10 +218,12 @@ public:
     }
     PBFTEngine::Ptr pbftEngine() { return m_pbftEngine; }
 
-private:
+protected:
     PBFTEngine::Ptr m_pbftEngine;
     BlockValidator::Ptr m_blockValidator;
     bcos::tool::LedgerConfigFetcher::Ptr m_ledgerFetcher;
+
+    std::atomic_bool m_running = {false};
 };
 }  // namespace consensus
 }  // namespace bcos

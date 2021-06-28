@@ -23,7 +23,6 @@
 #include "bcos-pbft/pbft/PBFTFactory.h"
 #include "bcos-pbft/pbft/PBFTImpl.h"
 #include "bcos-pbft/pbft/storage/LedgerStorage.h"
-#include "boost/bind.hpp"
 #include <bcos-framework/interfaces/consensus/ConsensusNode.h>
 #include <bcos-framework/libprotocol/TransactionSubmitResultFactoryImpl.h>
 #include <bcos-framework/libprotocol/protobuf/PBBlockFactory.h>
@@ -36,6 +35,7 @@
 #include <bcos-framework/testutils/faker/FakeSealer.h>
 #include <bcos-framework/testutils/faker/FakeStorage.h>
 #include <bcos-framework/testutils/faker/FakeTxPool.h>
+#include <boost/bind/bind.hpp>
 #include <boost/test/unit_test.hpp>
 #include <chrono>
 #include <thread>
@@ -128,7 +128,7 @@ public:
         m_cacheProcessor = std::make_shared<FakeCacheProcessor>(cacheFactory, _config);
         m_logSync = std::make_shared<PBFTLogSync>(_config, m_cacheProcessor);
         m_cacheProcessor->registerProposalAppliedHandler(
-            boost::bind(&FakePBFTEngine::onProposalApplied, this, _1));
+            boost::bind(&FakePBFTEngine::onProposalApplied, this, boost::placeholders::_1));
     }
     ~FakePBFTEngine() override {}
 
@@ -166,6 +166,13 @@ public:
     PBFTMsgQueuePtr msgQueue() { return m_msgQueue; }
 };
 
+class FakePBFTImpl : public PBFTImpl
+{
+public:
+    explicit FakePBFTImpl(PBFTEngine::Ptr _pbftEngine) : PBFTImpl(_pbftEngine) { m_running = true; }
+    ~FakePBFTImpl() {}
+};
+
 class FakePBFTFactory : public PBFTFactory
 {
 public:
@@ -200,7 +207,7 @@ public:
         auto pbftEngine = std::make_shared<FakePBFTEngine>(pbftConfig);
 
         PBFT_LOG(INFO) << LOG_DESC("create PBFT");
-        auto fakedPBFT = std::make_shared<PBFTImpl>(pbftEngine);
+        auto fakedPBFT = std::make_shared<FakePBFTImpl>(pbftEngine);
         auto ledgerFetcher = std::make_shared<bcos::tool::LedgerConfigFetcher>(m_ledger);
         fakedPBFT->setLedgerFetcher(ledgerFetcher);
         return fakedPBFT;

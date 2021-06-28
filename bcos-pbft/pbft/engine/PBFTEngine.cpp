@@ -21,10 +21,10 @@
 #include "PBFTEngine.h"
 #include "../cache/PBFTCacheFactory.h"
 #include "../cache/PBFTCacheProcessor.h"
-#include "boost/bind.hpp"
 #include <bcos-framework/interfaces/ledger/LedgerConfig.h>
 #include <bcos-framework/interfaces/protocol/Protocol.h>
 #include <bcos-framework/libutilities/ThreadPool.h>
+#include <boost/bind/bind.hpp>
 using namespace bcos;
 using namespace bcos::consensus;
 using namespace bcos::ledger;
@@ -44,9 +44,9 @@ PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
     // register the timeout function
     m_config->timer()->registerTimeoutHandler(boost::bind(&PBFTEngine::onTimeout, this));
     m_config->storage()->registerFinalizeHandler(
-        boost::bind(&PBFTEngine::finalizeConsensus, this, _1));
+        boost::bind(&PBFTEngine::finalizeConsensus, this, boost::placeholders::_1));
     m_cacheProcessor->registerProposalAppliedHandler(
-        boost::bind(&PBFTEngine::onProposalApplied, this, _1));
+        boost::bind(&PBFTEngine::onProposalApplied, this, boost::placeholders::_1));
 }
 
 void PBFTEngine::start()
