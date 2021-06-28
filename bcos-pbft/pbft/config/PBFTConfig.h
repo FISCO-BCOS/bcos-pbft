@@ -230,8 +230,8 @@ public:
 
 protected:
     void updateQuorum() override;
-    virtual void asyncNotifySealProposal(
-        size_t _proposalIndex, size_t _proposalEndIndex, size_t _maxTxsToSeal);
+    virtual void asyncNotifySealProposal(size_t _proposalIndex, size_t _proposalEndIndex,
+        size_t _maxTxsToSeal, size_t _retryTime = 0);
 
 protected:
     bcos::crypto::CryptoSuite::Ptr m_cryptoSuite;
