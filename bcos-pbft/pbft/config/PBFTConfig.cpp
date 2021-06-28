@@ -127,11 +127,15 @@ void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
 }
 
 void PBFTConfig::asyncNotifySealProposal(
-    size_t _proposalIndex, size_t _proposalEndIndex, size_t _maxTxsToSeal)
+    size_t _proposalIndex, size_t _proposalEndIndex, size_t _maxTxsToSeal, size_t _retryTime)
 {
+    if (_retryTime > 3)
+    {
+        return;
+    }
     auto self = std::weak_ptr<PBFTConfig>(shared_from_this());
     m_sealer->asyncNotifySealProposal(_proposalIndex, _proposalEndIndex, _maxTxsToSeal,
-        [_proposalIndex, _proposalEndIndex, _maxTxsToSeal, self](Error::Ptr _error) {
+        [_proposalIndex, _proposalEndIndex, _maxTxsToSeal, self, _retryTime](Error::Ptr _error) {
             if (_error == nullptr)
             {
                 PBFT_LOG(INFO) << LOG_DESC("asyncNotifySealProposal success")
@@ -147,9 +151,11 @@ void PBFTConfig::asyncNotifySealProposal(
                 {
                     return;
                 }
+                // retry after 1 seconds
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 // retry when send failed
                 pbftConfig->asyncNotifySealProposal(
-                    _proposalIndex, _proposalEndIndex, _maxTxsToSeal);
+                    _proposalIndex, _proposalEndIndex, _maxTxsToSeal, _retryTime + 1);
             }
             catch (std::exception const& e)
             {
