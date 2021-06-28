@@ -151,8 +151,8 @@ BOOST_AUTO_TEST_CASE(testPBFTInit)
     pbftConfig->storage()->asyncCommitProposal(fakedProposal);
     faker->init();
     BOOST_CHECK(pbftConfig->minRequiredQuorum() == 1);
-    while (faker->ledger()->blockNumber() != proposalIndex ||
-           (pbftConfig->progressedIndex() != proposalIndex + 1))
+    auto startT = utcTime();
+    while (faker->ledger()->blockNumber() != proposalIndex && (utcTime() - startT <= 60 * 1000))
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }

@@ -98,7 +98,9 @@ void testPBFTEngineWithFaulty(size_t _consensusNodes, size_t _connectedNodes)
         ref(*blockData), block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
 
     // handle prepare message and broadcast commit messages
-    while (!shouldExit(fakerMap, currentBlockNumber + 2, _connectedNodes))
+    auto startT = utcTime();
+    while (!shouldExit(fakerMap, currentBlockNumber + 2, _connectedNodes) &&
+           (utcTime() - startT <= 60 * 1000))
     {
         for (auto const& node : fakerMap)
         {
@@ -115,7 +117,9 @@ void testPBFTEngineWithFaulty(size_t _consensusNodes, size_t _connectedNodes)
     faker->pbftEngine()->asyncSubmitProposal(
         ref(*blockData), block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
 
-    while (!shouldExit(fakerMap, currentBlockNumber + 4, _connectedNodes))
+    startT = utcTime();
+    while (!shouldExit(fakerMap, currentBlockNumber + 4, _connectedNodes) &&
+           (utcTime() - startT <= 60 * 1000))
     {
         for (auto const& node : fakerMap)
         {
@@ -227,7 +231,9 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
     nonLeaderFaker->pbftEngine()->onReceivePBFTMessage(
         nullptr, nonLeaderFaker->keyPair()->publicKey(), ref(*data), nullptr);
     nonLeaderFaker->pbftEngine()->executeWorker();
-    while (!nonLeaderFaker->pbftEngine()->cacheProcessor()->existPrePrepare(pbftMsg))
+    auto startT = utcTime();
+    while (!nonLeaderFaker->pbftEngine()->cacheProcessor()->existPrePrepare(pbftMsg) &&
+           (utcTime() - startT <= 60 * 1000))
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
@@ -235,12 +241,17 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
     nonLeaderFaker->pbftConfig()->setConsensusTimeout(200);
     leaderFaker->pbftConfig()->setConsensusTimeout(200);
     leaderFaker->pbftConfig()->timer()->start();
-    while (!leaderFaker->pbftEngine()->isTimeout() || !nonLeaderFaker->pbftEngine()->isTimeout())
+    startT = utcTime();
+    while (
+        (!leaderFaker->pbftEngine()->isTimeout() || !nonLeaderFaker->pbftEngine()->isTimeout()) &&
+        (utcTime() - startT <= 60 * 1000))
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     // wait to trigger viewchange since not reach consensus
-    while (leaderFaker->pbftEngine()->isTimeout() || nonLeaderFaker->pbftEngine()->isTimeout())
+    startT = utcTime();
+    while ((leaderFaker->pbftEngine()->isTimeout() || nonLeaderFaker->pbftEngine()->isTimeout()) &&
+           (utcTime() - startT <= 60 * 1000))
     {
         nonLeaderFaker->pbftEngine()->executeWorkerByRoundbin();
         leaderFaker->pbftEngine()->executeWorkerByRoundbin();

@@ -71,7 +71,7 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
         m_syncingState = false;
         m_timer->start();
     }
-    notifySealer(progressedIndex());
+    notifySealer(m_expectedCheckPoint);
     if (!m_blockSync)
     {
         return;
