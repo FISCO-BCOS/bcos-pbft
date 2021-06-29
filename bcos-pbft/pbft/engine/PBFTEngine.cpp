@@ -47,6 +47,40 @@ PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
         boost::bind(&PBFTEngine::finalizeConsensus, this, boost::placeholders::_1));
     m_cacheProcessor->registerProposalAppliedHandler(
         boost::bind(&PBFTEngine::onProposalApplied, this, boost::placeholders::_1));
+    initSendResponseHandler();
+}
+
+void PBFTEngine::initSendResponseHandler()
+{
+    // set the sendResponse callback
+    std::weak_ptr<FrontServiceInterface> weakFrontService = m_config->frontService();
+    m_sendResponseHandler = [weakFrontService](std::string const& _id, int _moduleID,
+                                NodeIDPtr _dstNode, bytesConstRef _data) {
+        try
+        {
+            auto frontService = weakFrontService.lock();
+            if (!frontService)
+            {
+                return;
+            }
+            frontService->asyncSendResponse(
+                _id, _moduleID, _dstNode, _data, [_id, _moduleID, _dstNode](Error::Ptr _error) {
+                    if (_error)
+                    {
+                        PBFT_LOG(WARNING) << LOG_DESC("sendResonse failed") << LOG_KV("uuid", _id)
+                                          << LOG_KV("module", std::to_string(_moduleID))
+                                          << LOG_KV("dst", _dstNode->shortHex())
+                                          << LOG_KV("code", _error->errorCode())
+                                          << LOG_KV("msg", _error->errorMessage());
+                    }
+                });
+        }
+        catch (std::exception const& e)
+        {
+            PBFT_LOG(WARNING) << LOG_DESC("sendResonse exception")
+                              << LOG_KV("error", boost::diagnostic_information(e));
+        }
+    };
 }
 
 void PBFTEngine::start()
@@ -192,6 +226,29 @@ void PBFTEngine::asyncNotifyNewBlock(
         m_config->resetConfig(_ledgerConfig);
         finalizeConsensus(_ledgerConfig);
     }
+}
+
+void PBFTEngine::onReceivePBFTMessage(
+    bcos::Error::Ptr _error, std::string const& _id, NodeIDPtr _nodeID, bytesConstRef _data)
+{
+    auto self = std::weak_ptr<PBFTEngine>(shared_from_this());
+    onReceivePBFTMessage(_error, _nodeID, _data, [_id, _nodeID, self](bytesConstRef _respData) {
+        try
+        {
+            auto engine = self.lock();
+            if (!engine)
+            {
+                return;
+            }
+            engine->m_sendResponseHandler(_id, ModuleID::PBFT, _nodeID, _respData);
+        }
+        catch (std::exception const& e)
+        {
+            PBFT_LOG(WARNING) << LOG_DESC("onReceivePBFTMessage exception")
+                              << LOG_KV("fromNode", _nodeID->hex()) << LOG_KV("uuid", _id)
+                              << LOG_KV("error", boost::diagnostic_information(e));
+        }
+    });
 }
 
 void PBFTEngine::onReceivePBFTMessage(Error::Ptr _error, NodeIDPtr _fromNode, bytesConstRef _data,

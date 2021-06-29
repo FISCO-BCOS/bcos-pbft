@@ -66,8 +66,8 @@ public:
     std::shared_ptr<PBFTConfig> pbftConfig() { return m_config; }
 
     // Receive PBFT message package from frontService
-    virtual void onReceivePBFTMessage(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
-        bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse);
+    virtual void onReceivePBFTMessage(bcos::Error::Ptr _error, std::string const& _id,
+        bcos::crypto::NodeIDPtr _nodeID, bytesConstRef _data);
 
     virtual void initState(PBFTProposalList const& _proposals)
     {
@@ -81,6 +81,10 @@ public:
     virtual bool isTimeout() { return m_config->timeout(); }
 
 protected:
+    virtual void initSendResponseHandler();
+    virtual void onReceivePBFTMessage(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
+        bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse);
+
     virtual void onRecvProposal(bytesConstRef _proposalData,
         bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash);
 
@@ -152,11 +156,16 @@ protected:
     // for log syncing
     PBFTLogSync::Ptr m_logSync;
 
+    std::function<void(std::string const& _id, int _moduleID, bcos::crypto::NodeIDPtr _dstNode,
+        bytesConstRef _data)>
+        m_sendResponseHandler;
+
     boost::condition_variable m_signalled;
     boost::mutex x_signalled;
     mutable Mutex m_mutex;
 
     const unsigned c_PopWaitSeconds = 5;
+
 
     // Message packets allowed to be processed in timeout mode
     const std::set<PacketType> c_timeoutAllowedPacket = {ViewChangePacket, NewViewPacket,
