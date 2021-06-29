@@ -129,6 +129,7 @@ public:
         m_logSync = std::make_shared<PBFTLogSync>(_config, m_cacheProcessor);
         m_cacheProcessor->registerProposalAppliedHandler(
             boost::bind(&FakePBFTEngine::onProposalApplied, this, boost::placeholders::_1));
+        initSendResponseHandler();
     }
     ~FakePBFTEngine() override {}
 

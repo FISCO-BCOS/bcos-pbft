@@ -98,8 +98,8 @@ public:
         _onGetView(nullptr, view);
     }
 
-    void asyncNotifyConsensusMessage(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
-        bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse,
+    void asyncNotifyConsensusMessage(bcos::Error::Ptr _error, std::string const& _id,
+        bcos::crypto::NodeIDPtr _nodeID, bytesConstRef _data,
         std::function<void(Error::Ptr _error)> _onRecv) override
     {
         if (!m_running)
@@ -111,7 +111,7 @@ public:
             }
             return;
         }
-        m_pbftEngine->onReceivePBFTMessage(_error, _nodeID, _data, _sendResponse);
+        m_pbftEngine->onReceivePBFTMessage(_error, _id, _nodeID, _data);
         if (!_onRecv)
         {
             return;
