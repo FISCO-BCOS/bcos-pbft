@@ -37,7 +37,7 @@ PBFTFactory::PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
     std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
     bcos::storage::StorageInterface::Ptr _storage,
     std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
-    bcos::txpool::TxPoolInterface::Ptr _txpool, bcos::sealer::SealerInterface::Ptr _sealer,
+    bcos::txpool::TxPoolInterface::Ptr _txpool,
     bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
     bcos::protocol::BlockFactory::Ptr _blockFactory,
     bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory)
@@ -47,7 +47,6 @@ PBFTFactory::PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
     m_storage(_storage),
     m_ledger(_ledger),
     m_txpool(_txpool),
-    m_sealer(_sealer),
     m_dispatcher(_dispatcher),
     m_blockFactory(_blockFactory),
     m_txResultFactory(_txResultFactory)
@@ -71,7 +70,7 @@ PBFTImpl::Ptr PBFTFactory::createPBFT()
 
     PBFT_LOG(DEBUG) << LOG_DESC("create pbftConfig");
     auto pbftConfig = std::make_shared<PBFTConfig>(m_cryptoSuite, m_keyPair, pbftMessageFactory,
-        pbftCodec, validator, m_frontService, m_sealer, stateMachine, pbftStorage);
+        pbftCodec, validator, m_frontService, stateMachine, pbftStorage);
 
     PBFT_LOG(DEBUG) << LOG_DESC("create PBFTEngine");
     auto pbftEngine = std::make_shared<PBFTEngine>(pbftConfig);

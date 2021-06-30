@@ -63,10 +63,9 @@ public:
         std::shared_ptr<PBFTMessageFactory> _pbftMessageFactory,
         std::shared_ptr<PBFTCodecInterface> _codec, std::shared_ptr<ValidatorInterface> _validator,
         std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
-        bcos::sealer::SealerInterface::Ptr _sealer, StateMachineInterface::Ptr _stateMachine,
-        PBFTStorage::Ptr _storage)
+        StateMachineInterface::Ptr _stateMachine, PBFTStorage::Ptr _storage)
       : PBFTConfig(_cryptoSuite, _keyPair, _pbftMessageFactory, _codec, _validator, _frontService,
-            _sealer, _stateMachine, _storage)
+            _stateMachine, _storage)
     {}
 
     ~FakePBFTConfig() override {}
@@ -183,12 +182,12 @@ public:
         std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
         bcos::storage::StorageInterface::Ptr _storage,
         std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
-        bcos::txpool::TxPoolInterface::Ptr _txpool, bcos::sealer::SealerInterface::Ptr _sealer,
+        bcos::txpool::TxPoolInterface::Ptr _txpool,
         bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
         bcos::protocol::BlockFactory::Ptr _blockFactory,
         bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory)
-      : PBFTFactory(_cryptoSuite, _keyPair, _frontService, _storage, _ledger, _txpool, _sealer,
-            _dispatcher, _blockFactory, _txResultFactory)
+      : PBFTFactory(_cryptoSuite, _keyPair, _frontService, _storage, _ledger, _txpool, _dispatcher,
+            _blockFactory, _txResultFactory)
     {}
 
     PBFTImpl::Ptr createPBFT() override
@@ -203,7 +202,7 @@ public:
 
         auto pbftConfig = std::make_shared<FakePBFTConfig>(m_cryptoSuite, m_keyPair,
             orgPBFTConfig->pbftMessageFactory(), orgPBFTConfig->codec(), orgPBFTConfig->validator(),
-            orgPBFTConfig->frontService(), orgPBFTConfig->sealer(), stateMachine, pbftStorage);
+            orgPBFTConfig->frontService(), stateMachine, pbftStorage);
         PBFT_LOG(DEBUG) << LOG_DESC("create PBFTEngine");
         auto pbftEngine = std::make_shared<FakePBFTEngine>(pbftConfig);
 
@@ -250,24 +249,20 @@ public:
         }
         // create fakeTxPool
         m_txpool = std::make_shared<FakeTxPool>();
-
-        // create FakeSealer
-        m_sealer = std::make_shared<FakeSealer>();
-
         // create FakeDispatcher
         m_dispatcher = std::make_shared<FakeDispatcher>();
 
         auto txResultFactory = std::make_shared<TransactionSubmitResultFactoryImpl>();
 
         auto pbftFactory = std::make_shared<FakePBFTFactory>(_cryptoSuite, _keyPair, m_frontService,
-            m_storage, m_ledger, m_txpool, m_sealer, m_dispatcher, m_blockFactory, txResultFactory);
+            m_storage, m_ledger, m_txpool, m_dispatcher, m_blockFactory, txResultFactory);
         m_pbft = pbftFactory->createPBFT();
         m_pbftEngine = std::dynamic_pointer_cast<FakePBFTEngine>(m_pbft->pbftEngine());
     }
 
     virtual ~PBFTFixture() {}
 
-    void init() { m_pbft->init(nullptr); }
+    void init() { m_pbft->init(); }
 
     void appendConsensusNode(ConsensusNode::Ptr _node)
     {
@@ -289,7 +284,6 @@ public:
     FakeStorage::Ptr storage() { return m_storage; }
     FakeLedger::Ptr ledger() { return m_ledger; }
     FakeTxPool::Ptr txpool() { return m_txpool; }
-    FakeSealer::Ptr sealer() { return m_sealer; }
     FakeDispatcher::Ptr dispatcher() { return m_dispatcher; }
     PBFTImpl::Ptr pbft() { return m_pbft; }
     PBFTConfig::Ptr pbftConfig() { return m_pbft->pbftEngine()->pbftConfig(); }
@@ -313,7 +307,6 @@ private:
     FakeStorage::Ptr m_storage;
     FakeLedger::Ptr m_ledger;
     FakeTxPool::Ptr m_txpool;
-    FakeSealer::Ptr m_sealer;
     FakeDispatcher::Ptr m_dispatcher;
     FakePBFTEngine::Ptr m_pbftEngine;
     PBFTImpl::Ptr m_pbft;

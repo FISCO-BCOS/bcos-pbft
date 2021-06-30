@@ -86,19 +86,11 @@ void PBFTEngine::initSendResponseHandler()
 void PBFTEngine::start()
 {
     ConsensusEngine::start();
-    if (m_config->blockSync())
-    {
-        m_config->blockSync()->start();
-    }
 }
 
 void PBFTEngine::stop()
 {
     ConsensusEngine::stop();
-    if (m_config->blockSync())
-    {
-        m_config->blockSync()->stop();
-    }
 }
 
 // called after proposal executed successfully

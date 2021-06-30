@@ -37,186 +37,58 @@ public:
     }
     virtual ~PBFTImpl() { stop(); }
 
-    void start() override
-    {
-        if (m_running)
-        {
-            PBFT_LOG(WARNING) << LOG_DESC("The PBFT module has already been started!");
-            return;
-        }
-        m_pbftEngine->start();
-        m_running = true;
-        PBFT_LOG(INFO) << LOG_DESC("Start the PBFT module.");
-    }
-
-    void stop() override
-    {
-        if (!m_running)
-        {
-            PBFT_LOG(WARNING) << LOG_DESC("The PBFT module has already been stopped!");
-            return;
-        }
-        m_pbftEngine->stop();
-        m_running = false;
-        PBFT_LOG(INFO) << LOG_DESC("Stop the PBFT module.");
-    }
+    void start() override;
+    void stop() override;
 
     void asyncSubmitProposal(bytesConstRef _proposalData,
         bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash,
-        std::function<void(Error::Ptr)> _onProposalSubmitted) override
-    {
-        if (!m_running)
-        {
-            if (_onProposalSubmitted)
-            {
-                _onProposalSubmitted(std::make_shared<Error>(
-                    -1, "The PBFT module has not been initialized finished!"));
-            }
-            return;
-        }
-        return m_pbftEngine->asyncSubmitProposal(
-            _proposalData, _proposalIndex, _proposalHash, _onProposalSubmitted);
-    }
+        std::function<void(Error::Ptr)> _onProposalSubmitted) override;
 
-    void asyncGetPBFTView(std::function<void(Error::Ptr, ViewType)> _onGetView) override
-    {
-        if (!m_running)
-        {
-            if (_onGetView)
-            {
-                _onGetView(std::make_shared<Error>(
-                               -1, "The PBFT module has not been initialized finished!"),
-                    0);
-            }
-            return;
-        }
-        auto view = m_pbftEngine->pbftConfig()->view();
-        if (!_onGetView)
-        {
-            return;
-        }
-        _onGetView(nullptr, view);
-    }
+    void asyncGetPBFTView(std::function<void(Error::Ptr, ViewType)> _onGetView) override;
 
     void asyncNotifyConsensusMessage(bcos::Error::Ptr _error, std::string const& _id,
         bcos::crypto::NodeIDPtr _nodeID, bytesConstRef _data,
-        std::function<void(Error::Ptr _error)> _onRecv) override
-    {
-        if (!m_running)
-        {
-            if (_onRecv)
-            {
-                _onRecv(std::make_shared<Error>(
-                    -1, "The PBFT module has not been initialized finished!"));
-            }
-            return;
-        }
-        m_pbftEngine->onReceivePBFTMessage(_error, _id, _nodeID, _data);
-        if (!_onRecv)
-        {
-            return;
-        }
-        _onRecv(nullptr);
-    }
+        std::function<void(Error::Ptr _error)> _onRecv) override;
 
     // the sync module calls this interface to check block
     void asyncCheckBlock(bcos::protocol::Block::Ptr _block,
-        std::function<void(Error::Ptr, bool)> _onVerifyFinish) override
-    {
-        if (!m_running)
-        {
-            if (_onVerifyFinish)
-            {
-                _onVerifyFinish(std::make_shared<Error>(
-                                    -1, "The PBFT module has not been initialized finished!"),
-                    false);
-            }
-            return;
-        }
-        m_blockValidator->asyncCheckBlock(_block, _onVerifyFinish);
-    }
+        std::function<void(Error::Ptr, bool)> _onVerifyFinish) override;
 
     // the sync module calls this interface to notify new block
     void asyncNotifyNewBlock(bcos::ledger::LedgerConfig::Ptr _ledgerConfig,
-        std::function<void(Error::Ptr)> _onRecv) override
-    {
-        if (!m_running)
-        {
-            if (_onRecv)
-            {
-                _onRecv(std::make_shared<Error>(
-                    -1, "The PBFT module has not been initialized finished!"));
-            }
-            return;
-        }
+        std::function<void(Error::Ptr)> _onRecv) override;
 
-        m_pbftEngine->asyncNotifyNewBlock(_ledgerConfig, _onRecv);
-    }
-
-    void notifyHighestSyncingNumber(bcos::protocol::BlockNumber _blockNumber) override
-    {
-        m_pbftEngine->pbftConfig()->setSyncingHighestNumber(_blockNumber);
-    }
-
+    void notifyHighestSyncingNumber(bcos::protocol::BlockNumber _blockNumber) override;
     void asyncNoteUnSealedTxsSize(
-        size_t _unsealedTxsSize, std::function<void(Error::Ptr)> _onRecvResponse) override
-    {
-        if (!m_running)
-        {
-            if (_onRecvResponse)
-            {
-                _onRecvResponse(std::make_shared<Error>(
-                    -1, "The PBFT module has not been initialized finished!"));
-            }
-            return;
-        }
-        m_pbftEngine->pbftConfig()->setUnSealedTxsSize(_unsealedTxsSize);
-        if (_onRecvResponse)
-        {
-            _onRecvResponse(nullptr);
-        }
-    }
-
-    virtual void init(bcos::sync::BlockSyncInterface::Ptr _blockSync)
-    {
-        auto config = m_pbftEngine->pbftConfig();
-        config->setBlockSync(_blockSync);
-        PBFT_LOG(INFO) << LOG_DESC("fetch LedgerConfig information");
-
-        m_ledgerFetcher->fetchBlockNumberAndHash();
-        m_ledgerFetcher->fetchConsensusNodeList();
-        m_ledgerFetcher->fetchConsensusTimeout();
-        m_ledgerFetcher->fetchBlockTxCountLimit();
-        m_ledgerFetcher->fetchConsensusLeaderPeriod();
-        m_ledgerFetcher->waitFetchFinished();
-        auto ledgerConfig = m_ledgerFetcher->ledgerConfig();
-        PBFT_LOG(INFO) << LOG_DESC("fetch LedgerConfig information success")
-                       << LOG_KV("blockNumber", ledgerConfig->blockNumber())
-                       << LOG_KV("hash", ledgerConfig->hash().abridged())
-                       << LOG_KV("consensusTimeout", ledgerConfig->consensusTimeout())
-                       << LOG_KV("maxTxsPerBlock", ledgerConfig->blockTxCountLimit())
-                       << LOG_KV("consensusNodeList", ledgerConfig->consensusNodeList().size());
-        config->resetConfig(ledgerConfig);
-
-        PBFT_LOG(INFO) << LOG_DESC("fetch PBFT state");
-        auto stateProposals = config->storage()->loadState(ledgerConfig->blockNumber());
-        if (stateProposals && stateProposals->size() > 0)
-        {
-            PBFT_LOG(INFO) << LOG_DESC("init PBFT state")
-                           << LOG_KV("stateProposals", stateProposals->size());
-            auto consensusedProposalIndex = config->storage()->maxCommittedProposalIndex();
-            config->setProgressedIndex(consensusedProposalIndex + 1);
-            m_pbftEngine->initState(*stateProposals);
-        }
-        config->timer()->start();
-        PBFT_LOG(INFO) << LOG_DESC("init PBFT success");
-    }
-
+        size_t _unsealedTxsSize, std::function<void(Error::Ptr)> _onRecvResponse) override;
     void setLedgerFetcher(bcos::tool::LedgerConfigFetcher::Ptr _ledgerFetcher)
     {
         m_ledgerFetcher = _ledgerFetcher;
     }
     PBFTEngine::Ptr pbftEngine() { return m_pbftEngine; }
+
+    virtual void init();
+
+    // notify the sealer seal Proposal
+    void registerSealProposalNotifier(
+        std::function<void(size_t, size_t, size_t, std::function<void(Error::Ptr)>)>
+            _sealProposalNotifier)
+    {
+        m_pbftEngine->pbftConfig()->registerSealProposalNotifier(_sealProposalNotifier);
+    }
+
+    // notify the sealer the latest blockNumber
+    void registerStateNotifier(std::function<void(bcos::protocol::BlockNumber)> _stateNotifier)
+    {
+        m_pbftEngine->pbftConfig()->registerStateNotifier(_stateNotifier);
+    }
+    // the sync module notify the consensus module the new block
+    void registerNewBlockNotifier(
+        std::function<void(bcos::ledger::LedgerConfig::Ptr, std::function<void(Error::Ptr)>)>
+            _newBlockNotifier)
+    {
+        m_pbftEngine->pbftConfig()->registerNewBlockNotifier(_newBlockNotifier);
+    }
 
 protected:
     PBFTEngine::Ptr m_pbftEngine;
