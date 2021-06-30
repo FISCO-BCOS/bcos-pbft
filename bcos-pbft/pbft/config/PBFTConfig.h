@@ -29,7 +29,6 @@
 #include "bcos-pbft/pbft/utilities/Common.h"
 #include <bcos-framework/interfaces/crypto/CryptoSuite.h>
 #include <bcos-framework/interfaces/front/FrontServiceInterface.h>
-#include <bcos-framework/interfaces/sealer/SealerInterface.h>
 #include <bcos-framework/interfaces/sync/BlockSyncInterface.h>
 
 namespace bcos
@@ -46,8 +45,7 @@ public:
         std::shared_ptr<PBFTMessageFactory> _pbftMessageFactory,
         std::shared_ptr<PBFTCodecInterface> _codec, std::shared_ptr<ValidatorInterface> _validator,
         std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
-        bcos::sealer::SealerInterface::Ptr _sealer, StateMachineInterface::Ptr _stateMachine,
-        PBFTStorage::Ptr _storage)
+        StateMachineInterface::Ptr _stateMachine, PBFTStorage::Ptr _storage)
       : ConsensusConfig(_keyPair)
     {
         m_cryptoSuite = _cryptoSuite;
@@ -55,7 +53,6 @@ public:
         m_codec = _codec;
         m_validator = _validator;
         m_frontService = _frontService;
-        m_sealer = _sealer;
         m_stateMachine = _stateMachine;
         m_storage = _storage;
         // for resetConfig after submit the block to ledger
@@ -141,10 +138,6 @@ public:
 
     StateMachineInterface::Ptr stateMachine() { return m_stateMachine; }
 
-    bcos::sealer::SealerInterface::Ptr sealer() { return m_sealer; }
-    bcos::sync::BlockSyncInterface::Ptr blockSync() { return m_blockSync; }
-    void setBlockSync(bcos::sync::BlockSyncInterface::Ptr _blockSync) { m_blockSync = _blockSync; }
-
     int64_t warterMarkLimit() const { return m_warterMarkLimit; }
     void setWarterMarkLimit(int64_t _warterMarkLimit) { m_warterMarkLimit = _warterMarkLimit; }
 
@@ -228,6 +221,25 @@ public:
         }
     }
 
+    void registerSealProposalNotifier(
+        std::function<void(size_t, size_t, size_t, std::function<void(Error::Ptr)>)>
+            _sealProposalNotifier)
+    {
+        m_sealProposalNotifier = _sealProposalNotifier;
+    }
+
+    void registerStateNotifier(std::function<void(bcos::protocol::BlockNumber)> _stateNotifier)
+    {
+        m_stateNotifier = _stateNotifier;
+    }
+
+    void registerNewBlockNotifier(
+        std::function<void(bcos::ledger::LedgerConfig::Ptr, std::function<void(Error::Ptr)>)>
+            _newBlockNotifier)
+    {
+        m_newBlockNotifier = _newBlockNotifier;
+    }
+
 protected:
     void updateQuorum() override;
     virtual void asyncNotifySealProposal(size_t _proposalIndex, size_t _proposalEndIndex,
@@ -243,12 +255,19 @@ protected:
     std::shared_ptr<ValidatorInterface> m_validator;
     // FrontService, used to send/receive P2P message packages
     std::shared_ptr<bcos::front::FrontServiceInterface> m_frontService;
-    bcos::sealer::SealerInterface::Ptr m_sealer;
-    bcos::sync::BlockSyncInterface::Ptr m_blockSync;
     StateMachineInterface::Ptr m_stateMachine;
     PBFTStorage::Ptr m_storage;
     // Timer
     PBFTTimer::Ptr m_timer;
+    // notify the sealer seal Proposal
+    std::function<void(size_t, size_t, size_t, std::function<void(Error::Ptr)>)>
+        m_sealProposalNotifier;
+    // notify the sealer the latest blockNumber
+    std::function<void(bcos::protocol::BlockNumber)> m_stateNotifier;
+    // the sync module notify the consensus module the new block
+    std::function<void(bcos::ledger::LedgerConfig::Ptr, std::function<void(Error::Ptr)>)>
+        m_newBlockNotifier;
+
     std::atomic_bool m_leaderSwitchPeriodUpdated = {false};
 
     std::atomic<uint64_t> m_maxFaultyQuorum = {0};

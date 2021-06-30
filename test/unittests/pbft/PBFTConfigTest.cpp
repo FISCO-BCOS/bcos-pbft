@@ -120,7 +120,6 @@ BOOST_AUTO_TEST_CASE(testPBFTInit)
     BOOST_CHECK(pbftConfig->highWaterMark() ==
                 pbftConfig->progressedIndex() + pbftConfig->warterMarkLimit());
     BOOST_CHECK(pbftConfig->stateMachine());
-    BOOST_CHECK(pbftConfig->sealer());
     BOOST_CHECK(pbftConfig->expectedCheckPoint() == faker->ledger()->blockNumber() + 1);
 
 

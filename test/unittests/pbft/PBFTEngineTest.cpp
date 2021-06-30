@@ -61,9 +61,6 @@ void testPBFTEngineWithFaulty(size_t _consensusNodes, size_t _connectedNodes)
     IndexType leaderIndex = 0;
     auto leaderFaker = fakerMap[leaderIndex];
     size_t expectedProposal = (size_t)(leaderFaker->ledger()->blockNumber() + 1);
-    BOOST_CHECK(leaderFaker->sealer()->proposalStartIndex() == expectedProposal);
-    BOOST_CHECK(leaderFaker->sealer()->proposalEndIndex() == expectedProposal);
-    BOOST_CHECK(leaderFaker->sealer()->maxTxsToSeal() == 1000);
 
     // the leader submit proposals
     auto pbftMsgFixture = std::make_shared<PBFTMessageFixture>(cryptoSuite, leaderFaker->keyPair());

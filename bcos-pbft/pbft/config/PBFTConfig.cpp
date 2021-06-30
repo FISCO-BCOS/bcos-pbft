@@ -59,7 +59,12 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
         PBFT_LOG(DEBUG) << LOG_DESC("^^^^^^^^Report") << LOG_KV("sealer", _ledgerConfig->sealerId())
                         << printCurrentState();
     }
-    m_sealer->asyncNoteLatestBlockNumber(_ledgerConfig->blockNumber());
+    // notify the latest block number to the sealer
+    if (m_stateNotifier)
+    {
+        m_stateNotifier(_ledgerConfig->blockNumber());
+    }
+
     if (m_syncingHighestNumber > _ledgerConfig->blockNumber())
     {
         m_syncingState = true;
@@ -72,11 +77,11 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
         m_timer->start();
     }
     notifySealer(m_expectedCheckPoint);
-    if (!m_blockSync)
+    if (!m_newBlockNotifier)
     {
         return;
     }
-    m_blockSync->asyncNotifyNewBlock(_ledgerConfig, [_ledgerConfig](Error::Ptr _error) {
+    m_newBlockNotifier(_ledgerConfig, [_ledgerConfig](Error::Ptr _error) {
         if (_error)
         {
             PBFT_LOG(WARNING) << LOG_DESC("asyncNotifyNewBlock to sync module failed")
@@ -129,12 +134,16 @@ void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
 void PBFTConfig::asyncNotifySealProposal(
     size_t _proposalIndex, size_t _proposalEndIndex, size_t _maxTxsToSeal, size_t _retryTime)
 {
+    if (!m_sealProposalNotifier)
+    {
+        return;
+    }
     if (_retryTime > 3)
     {
         return;
     }
     auto self = std::weak_ptr<PBFTConfig>(shared_from_this());
-    m_sealer->asyncNotifySealProposal(_proposalIndex, _proposalEndIndex, _maxTxsToSeal,
+    m_sealProposalNotifier(_proposalIndex, _proposalEndIndex, _maxTxsToSeal,
         [_proposalIndex, _proposalEndIndex, _maxTxsToSeal, self, _retryTime](Error::Ptr _error) {
             if (_error == nullptr)
             {
