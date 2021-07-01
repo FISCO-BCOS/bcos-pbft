@@ -136,6 +136,12 @@ public:
         m_proposalAppliedHandler = _callback;
     }
 
+    void registerCommittedProposalNotifier(
+        std::function<void(bcos::protocol::BlockNumber, std::function<void(Error::Ptr)>)>
+            _committedProposalNotifier)
+    {
+        m_committedProposalNotifier = _committedProposalNotifier;
+    }
     void tryToApplyCommitQueue();
 
 protected:
@@ -188,6 +194,8 @@ protected:
         m_stableCheckPointQueue;
 
     std::function<void(PBFTProposalInterface::Ptr)> m_proposalAppliedHandler;
+    std::function<void(bcos::protocol::BlockNumber, std::function<void(Error::Ptr)>)>
+        m_committedProposalNotifier;
 };
 }  // namespace consensus
 }  // namespace bcos

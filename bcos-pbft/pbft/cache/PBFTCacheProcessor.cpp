@@ -206,6 +206,20 @@ void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committed
     m_committedProposalList.insert(_committedProposal->index());
     PBFT_LOG(INFO) << LOG_DESC("######## CommitProposal") << printPBFTProposal(_committedProposal)
                    << m_config->printCurrentState();
+    if (m_committedProposalNotifier)
+    {
+        m_committedProposalNotifier(
+            _committedProposal->index(), [_committedProposal](Error::Ptr _error) {
+                if (!_error)
+                {
+                    return;
+                }
+                PBFT_LOG(WARNING)
+                    << LOG_DESC("notify the committed proposal index to the sync module failed")
+                    << LOG_KV("index", _committedProposal->index())
+                    << LOG_KV("hash", _committedProposal->hash().abridged());
+            });
+    }
     tryToApplyCommitQueue();
 }
 

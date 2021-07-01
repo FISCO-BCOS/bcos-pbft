@@ -79,6 +79,12 @@ public:
 
     virtual std::shared_ptr<PBFTCacheProcessor> cacheProcessor() { return m_cacheProcessor; }
     virtual bool isTimeout() { return m_config->timeout(); }
+    void registerCommittedProposalNotifier(
+        std::function<void(bcos::protocol::BlockNumber, std::function<void(Error::Ptr)>)>
+            _committedProposalNotifier)
+    {
+        m_cacheProcessor->registerCommittedProposalNotifier(_committedProposalNotifier);
+    }
 
 protected:
     virtual void initSendResponseHandler();

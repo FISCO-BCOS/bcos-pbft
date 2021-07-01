@@ -51,31 +51,12 @@ void PBFTImpl::asyncSubmitProposal(bytesConstRef _proposalData,
     bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash,
     std::function<void(Error::Ptr)> _onProposalSubmitted)
 {
-    if (!m_running)
-    {
-        if (_onProposalSubmitted)
-        {
-            _onProposalSubmitted(
-                std::make_shared<Error>(-1, "The PBFT module has not been initialized finished!"));
-        }
-        return;
-    }
     return m_pbftEngine->asyncSubmitProposal(
         _proposalData, _proposalIndex, _proposalHash, _onProposalSubmitted);
 }
 
 void PBFTImpl::asyncGetPBFTView(std::function<void(Error::Ptr, ViewType)> _onGetView)
 {
-    if (!m_running)
-    {
-        if (_onGetView)
-        {
-            _onGetView(
-                std::make_shared<Error>(-1, "The PBFT module has not been initialized finished!"),
-                0);
-        }
-        return;
-    }
     auto view = m_pbftEngine->pbftConfig()->view();
     if (!_onGetView)
     {
@@ -88,15 +69,6 @@ void PBFTImpl::asyncNotifyConsensusMessage(bcos::Error::Ptr _error, std::string 
     bcos::crypto::NodeIDPtr _nodeID, bytesConstRef _data,
     std::function<void(Error::Ptr _error)> _onRecv)
 {
-    if (!m_running)
-    {
-        if (_onRecv)
-        {
-            _onRecv(
-                std::make_shared<Error>(-1, "The PBFT module has not been initialized finished!"));
-        }
-        return;
-    }
     m_pbftEngine->onReceivePBFTMessage(_error, _id, _nodeID, _data);
     if (!_onRecv)
     {
@@ -109,16 +81,6 @@ void PBFTImpl::asyncNotifyConsensusMessage(bcos::Error::Ptr _error, std::string 
 void PBFTImpl::asyncCheckBlock(
     bcos::protocol::Block::Ptr _block, std::function<void(Error::Ptr, bool)> _onVerifyFinish)
 {
-    if (!m_running)
-    {
-        if (_onVerifyFinish)
-        {
-            _onVerifyFinish(
-                std::make_shared<Error>(-1, "The PBFT module has not been initialized finished!"),
-                false);
-        }
-        return;
-    }
     m_blockValidator->asyncCheckBlock(_block, _onVerifyFinish);
 }
 
@@ -126,16 +88,6 @@ void PBFTImpl::asyncCheckBlock(
 void PBFTImpl::asyncNotifyNewBlock(
     bcos::ledger::LedgerConfig::Ptr _ledgerConfig, std::function<void(Error::Ptr)> _onRecv)
 {
-    if (!m_running)
-    {
-        if (_onRecv)
-        {
-            _onRecv(
-                std::make_shared<Error>(-1, "The PBFT module has not been initialized finished!"));
-        }
-        return;
-    }
-
     m_pbftEngine->asyncNotifyNewBlock(_ledgerConfig, _onRecv);
 }
 
@@ -147,15 +99,6 @@ void PBFTImpl::notifyHighestSyncingNumber(bcos::protocol::BlockNumber _blockNumb
 void PBFTImpl::asyncNoteUnSealedTxsSize(
     size_t _unsealedTxsSize, std::function<void(Error::Ptr)> _onRecvResponse)
 {
-    if (!m_running)
-    {
-        if (_onRecvResponse)
-        {
-            _onRecvResponse(
-                std::make_shared<Error>(-1, "The PBFT module has not been initialized finished!"));
-        }
-        return;
-    }
     m_pbftEngine->pbftConfig()->setUnSealedTxsSize(_unsealedTxsSize);
     if (_onRecvResponse)
     {

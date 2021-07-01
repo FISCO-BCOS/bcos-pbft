@@ -90,6 +90,13 @@ public:
         m_pbftEngine->pbftConfig()->registerNewBlockNotifier(_newBlockNotifier);
     }
 
+    void registerCommittedProposalNotifier(
+        std::function<void(bcos::protocol::BlockNumber, std::function<void(Error::Ptr)>)>
+            _committedProposalNotifier)
+    {
+        m_pbftEngine->registerCommittedProposalNotifier(_committedProposalNotifier);
+    }
+
 protected:
     PBFTEngine::Ptr m_pbftEngine;
     BlockValidator::Ptr m_blockValidator;

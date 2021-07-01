@@ -74,9 +74,13 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
     if (m_syncingState)
     {
         m_syncingState = false;
+        m_timeoutState = true;
         m_timer->start();
     }
-    notifySealer(m_expectedCheckPoint);
+    if (!m_timeoutState)
+    {
+        notifySealer(m_expectedCheckPoint);
+    }
     if (!m_newBlockNotifier)
     {
         return;
