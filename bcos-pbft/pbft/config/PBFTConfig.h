@@ -57,18 +57,23 @@ public:
         m_storage = _storage;
         // for resetConfig after submit the block to ledger
         m_storage->registerConfigResetHandler(
-            [this](bcos::ledger::LedgerConfig::Ptr _ledgerConfig) { resetConfig(_ledgerConfig); });
+            [this](bcos::ledger::LedgerConfig::Ptr _ledgerConfig) {
+                resetConfig(_ledgerConfig, false);
+            });
         // for notify the transaction result
         m_storage->registerNotifyHandler(
             [this](bcos::protocol::Block::Ptr _block, bcos::protocol::BlockHeader::Ptr _header) {
                 m_validator->notifyTransactionsResult(_block, _header);
             });
         m_timer = std::make_shared<PBFTTimer>(consensusTimeout());
+        // when the node setup, start the timer for view recovery
+        m_timer->start();
     }
 
     ~PBFTConfig() override {}
 
-    virtual void resetConfig(bcos::ledger::LedgerConfig::Ptr _ledgerConfig);
+    virtual void resetConfig(
+        bcos::ledger::LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock = false);
 
     uint64_t minRequiredQuorum() const override;
 
@@ -156,6 +161,7 @@ public:
     uint64_t maxFaultyQuorum() const { return m_maxFaultyQuorum; }
 
     virtual void notifySealer(bcos::protocol::BlockNumber _progressedIndex, bool _enforce = false);
+
     virtual bool shouldResetConfig(bcos::protocol::BlockNumber _index)
     {
         ReadGuard l(x_committedProposal);
@@ -288,7 +294,8 @@ protected:
     const unsigned c_pbftMsgDefaultVersion = 0;
     const unsigned c_networkTimeoutInterval = 1000;
     // state variable that identifies whether has timed out
-    std::atomic_bool m_timeoutState = {false};
+    // when the node first setup, set timeout to be true for view recovery
+    std::atomic_bool m_timeoutState = {true};
 
     bcos::protocol::BlockNumber m_syncingHighestNumber = {0};
     std::atomic_bool m_syncingState = {false};

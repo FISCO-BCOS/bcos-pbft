@@ -137,7 +137,8 @@ protected:
     virtual bool handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _checkPointMsg);
 
     // function called after reaching a consensus
-    virtual void finalizeConsensus(std::shared_ptr<bcos::ledger::LedgerConfig> _ledgerConfig);
+    virtual void finalizeConsensus(
+        std::shared_ptr<bcos::ledger::LedgerConfig> _ledgerConfig, bool _syncedBlock = false);
 
     virtual void onProposalApplied(PBFTProposalInterface::Ptr _executedProposal);
 

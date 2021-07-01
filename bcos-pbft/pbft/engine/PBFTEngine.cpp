@@ -43,8 +43,8 @@ PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
     m_logSync = std::make_shared<PBFTLogSync>(m_config, m_cacheProcessor);
     // register the timeout function
     m_config->timer()->registerTimeoutHandler(boost::bind(&PBFTEngine::onTimeout, this));
-    m_config->storage()->registerFinalizeHandler(
-        boost::bind(&PBFTEngine::finalizeConsensus, this, boost::placeholders::_1));
+    m_config->storage()->registerFinalizeHandler(boost::bind(
+        &PBFTEngine::finalizeConsensus, this, boost::placeholders::_1, boost::placeholders::_2));
     m_cacheProcessor->registerProposalAppliedHandler(
         boost::bind(&PBFTEngine::onProposalApplied, this, boost::placeholders::_1));
     initSendResponseHandler();
@@ -205,7 +205,7 @@ void PBFTEngine::onRecvProposal(
     handlePrePrepareMsg(pbftMessage, false, false, false);
 }
 
-// receive the new block notification
+// receive the new block notification from the sync module
 void PBFTEngine::asyncNotifyNewBlock(
     LedgerConfig::Ptr _ledgerConfig, std::function<void(Error::Ptr)> _onRecv)
 {
@@ -215,10 +215,14 @@ void PBFTEngine::asyncNotifyNewBlock(
     }
     if (m_config->shouldResetConfig(_ledgerConfig->blockNumber()))
     {
-        m_config->resetConfig(_ledgerConfig);
-        finalizeConsensus(_ledgerConfig);
+        PBFT_LOG(INFO) << LOG_DESC("The sync module notify the latestBlock")
+                       << LOG_KV("index", _ledgerConfig->blockNumber())
+                       << LOG_KV("hash", _ledgerConfig->hash().abridged());
+        m_config->resetConfig(_ledgerConfig, true);
+        finalizeConsensus(_ledgerConfig, true);
     }
 }
+
 
 void PBFTEngine::onReceivePBFTMessage(
     bcos::Error::Ptr _error, std::string const& _id, NodeIDPtr _nodeID, bytesConstRef _data)
@@ -652,6 +656,8 @@ void PBFTEngine::onTimeout()
     // clear the viewchange cache
     m_cacheProcessor->removeInvalidViewChange(
         m_config->view(), m_config->committedProposal()->index());
+    // notify the latest proposal index to the sync module when timeout to enable syncing
+    m_cacheProcessor->notifyCommittedProposalIndex(m_config->committedProposal()->index());
     // broadcast viewchange and try to the new-view phase
     broadcastViewChangeReq();
     PBFT_LOG(WARNING) << LOG_DESC("onTimeout") << m_config->printCurrentState();
@@ -706,6 +712,7 @@ void PBFTEngine::broadcastViewChangeReq()
     // only broadcast to the consensus nodes
     m_config->frontService()->asyncSendMessageByNodeIDs(
         ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
+    PBFT_LOG(INFO) << LOG_DESC("broadcastViewChangeReq") << printPBFTMsgInfo(viewChangeReq);
     // collect the viewchangeReq
     m_cacheProcessor->addViewChangeReq(viewChangeReq);
     auto newViewMsg = m_cacheProcessor->checkAndTryIntoNewView();
@@ -930,13 +937,19 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
     }
 }
 
-void PBFTEngine::finalizeConsensus(LedgerConfig::Ptr _ledgerConfig)
+void PBFTEngine::finalizeConsensus(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
 {
     Guard l(m_mutex);
     // tried to commit the stable checkpoint
     m_cacheProcessor->removeConsensusedCache(m_config->view(), _ledgerConfig->blockNumber());
+    m_cacheProcessor->tryToApplyCommitQueue();
     m_cacheProcessor->tryToCommitStableCheckPoint();
     m_cacheProcessor->resetTimer();
+    if (_syncedBlock)
+    {
+        // Note: should reNotifySealer or not?
+        m_cacheProcessor->removeFutureProposals();
+    }
 }
 
 bool PBFTEngine::handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _checkPointMsg)

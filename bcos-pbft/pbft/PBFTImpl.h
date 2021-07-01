@@ -90,6 +90,7 @@ public:
         m_pbftEngine->pbftConfig()->registerNewBlockNotifier(_newBlockNotifier);
     }
 
+    // handler to notify the consensusing prosal index to the sync module
     void registerCommittedProposalNotifier(
         std::function<void(bcos::protocol::BlockNumber, std::function<void(Error::Ptr)>)>
             _committedProposalNotifier)

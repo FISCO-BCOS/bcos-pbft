@@ -84,6 +84,8 @@ void PBFTCacheProcessor::addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepar
         [](PBFTCache::Ptr _pbftCache, PBFTMessageInterface::Ptr proposal) {
             _pbftCache->addPrePrepareCache(proposal);
         });
+    // notify the consensusing proposal index to the sync module
+    notifyCommittedProposalIndex(_prePrepareMsg->index());
 }
 
 bool PBFTCacheProcessor::existPrePrepare(PBFTMessageInterface::Ptr _prePrepareMsg)
@@ -206,21 +208,24 @@ void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committed
     m_committedProposalList.insert(_committedProposal->index());
     PBFT_LOG(INFO) << LOG_DESC("######## CommitProposal") << printPBFTProposal(_committedProposal)
                    << m_config->printCurrentState();
-    if (m_committedProposalNotifier)
-    {
-        m_committedProposalNotifier(
-            _committedProposal->index(), [_committedProposal](Error::Ptr _error) {
-                if (!_error)
-                {
-                    return;
-                }
-                PBFT_LOG(WARNING)
-                    << LOG_DESC("notify the committed proposal index to the sync module failed")
-                    << LOG_KV("index", _committedProposal->index())
-                    << LOG_KV("hash", _committedProposal->hash().abridged());
-            });
-    }
     tryToApplyCommitQueue();
+}
+
+void PBFTCacheProcessor::notifyCommittedProposalIndex(bcos::protocol::BlockNumber _index)
+{
+    if (!m_committedProposalNotifier)
+    {
+        return;
+    }
+    m_committedProposalNotifier(_index, [_index](Error::Ptr _error) {
+        if (!_error)
+        {
+            return;
+        }
+        PBFT_LOG(WARNING) << LOG_DESC(
+                                 "notify the committed proposal index to the sync module failed")
+                          << LOG_KV("index", _index);
+    });
 }
 
 ProposalInterface::ConstPtr PBFTCacheProcessor::getAppliedCheckPointProposal(
@@ -289,11 +294,19 @@ void PBFTCacheProcessor::applyStateMachine(
                 if (!_ret)
                 {
                     PBFT_LOG(WARNING)
-                        << LOG_DESC("_proposal execute failed") << printPBFTProposal(_proposal)
+                        << LOG_DESC("proposal execute failed") << printPBFTProposal(_proposal)
                         << config->printCurrentState();
-                    auto expectedCheckPoint =
-                        std::max(_proposal->index(), config->progressedIndex());
-                    config->setExpectedCheckPoint(expectedCheckPoint);
+                    // re-push the proposal into the queue
+                    if (_proposal->index() >= config->committedProposal()->index() ||
+                        _proposal->index() >= config->syncingHighestNumber())
+                    {
+                        PBFT_LOG(INFO) << LOG_DESC(
+                                              "proposal execute failed and re-push the proposal "
+                                              "into the cache")
+                                       << printPBFTProposal(_proposal);
+                        cache->updateCommitQueue(_proposal);
+                    }
+                    config->setExpectedCheckPoint(config->committedProposal()->index() + 1);
                     return;
                 }
                 // commit the proposal when execute success
@@ -744,7 +757,8 @@ void PBFTCacheProcessor::tryToCommitStableCheckPoint()
 bool PBFTCacheProcessor::shouldRequestCheckPoint(bcos::protocol::BlockNumber _checkPointIndex)
 {
     // expired checkpoint
-    if (_checkPointIndex <= m_config->committedProposal()->index())
+    if (_checkPointIndex <= m_config->committedProposal()->index() ||
+        _checkPointIndex <= m_config->syncingHighestNumber())
     {
         return false;
     }
@@ -761,4 +775,54 @@ bool PBFTCacheProcessor::shouldRequestCheckPoint(bcos::protocol::BlockNumber _ch
     // in case of request again
     m_committedProposalList.insert(_checkPointIndex);
     return true;
+}
+
+// Note: Since blockSync and consensus execute the same block at the same time, the hash obtained is
+// different, which will cause the parentHash of the subsequent consensus block to be incorrect, so
+// future proposals need to be cleared here
+void PBFTCacheProcessor::removeFutureProposals()
+{
+    PBFT_LOG(INFO) << LOG_DESC("removeFutureProposals for receive the sync block")
+                   << LOG_KV("committQueueSize", m_committedQueue.size())
+                   << LOG_KV("stableCheckPointSize", m_stableCheckPointQueue.size())
+                   << LOG_KV("executedBlock", m_config->expectedCheckPoint() - 1)
+                   << m_config->printCurrentState();
+    auto committedIndex = m_config->committedProposal()->index();
+    m_config->setExpectedCheckPoint(committedIndex + 1);
+
+    // clear the commitQueue
+    while (!m_committedQueue.empty())
+    {
+        auto proposal = m_committedQueue.top();
+        m_committedQueue.pop();
+        m_config->validator()->asyncResetTxsFlag(proposal->data(), false);
+    }
+    m_committedProposalList.clear();
+
+    // clear stable checkpoint queue
+    std::priority_queue<PBFTProposalInterface::Ptr, std::vector<PBFTProposalInterface::Ptr>,
+        PBFTProposalCmp>
+        stableCheckPointQueue;
+    m_stableCheckPointQueue = stableCheckPointQueue;
+
+    // remove the executed proposal
+    for (auto pcache = m_caches.begin(); pcache != m_caches.end();)
+    {
+        auto cache = pcache->second;
+        // remove the cache of the future proposal
+        if (cache->index() >= committedIndex && cache->checkPointProposal())
+        {
+            auto precommitMsg = cache->preCommitCache();
+            if (precommitMsg && precommitMsg->consensusProposal())
+            {
+                m_config->validator()->asyncResetTxsFlag(
+                    precommitMsg->consensusProposal()->data(), false);
+            }
+            auto executedProposalIndex = cache->checkPointProposal()->index();
+            m_config->storage()->asyncRemoveStabledCheckPoint(executedProposalIndex);
+            pcache = m_caches.erase(pcache);
+            continue;
+        }
+        pcache++;
+    }
 }

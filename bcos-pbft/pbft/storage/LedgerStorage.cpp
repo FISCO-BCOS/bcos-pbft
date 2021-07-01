@@ -346,7 +346,7 @@ void LedgerStorage::asyncCommitStableCheckPoint(
                 // finalize consensus
                 if (ledgerStorage->m_finalizeHandler)
                 {
-                    ledgerStorage->m_finalizeHandler(_ledgerConfig);
+                    ledgerStorage->m_finalizeHandler(_ledgerConfig, false);
                 }
                 // notify txpool the result
                 if (ledgerStorage->m_notifyHandler)

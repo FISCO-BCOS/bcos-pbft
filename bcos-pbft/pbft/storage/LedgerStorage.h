@@ -55,7 +55,8 @@ public:
     }
 
     void registerFinalizeHandler(
-        std::function<void(bcos::ledger::LedgerConfig::Ptr)> _finalizeHandler) override
+        std::function<void(bcos::ledger::LedgerConfig::Ptr, bool _syncBlock)> _finalizeHandler)
+        override
     {
         m_finalizeHandler = _finalizeHandler;
     }
@@ -72,13 +73,14 @@ public:
 
     int64_t maxCommittedProposalIndex() override { return m_maxCommittedProposalIndex; }
 
+    void asyncRemoveStabledCheckPoint(size_t _stabledCheckPointIndex) override;
+
 protected:
     virtual void asyncPutProposal(std::string const& _dbName, std::string const& _key,
         bytesPointer _committedData, bcos::protocol::BlockNumber _proposalIndex,
         size_t _retryTime = 0);
 
     virtual void asyncRemove(std::string const& _dbName, std::string const& _key);
-    virtual void asyncRemoveStabledCheckPoint(size_t _stabledCheckPointIndex);
 
     virtual void asyncCommitStableCheckPoint(
         bcos::protocol::BlockHeader::Ptr _blockHeader, bcos::protocol::Block::Ptr _blockInfo);
@@ -104,7 +106,7 @@ protected:
     boost::mutex x_signalled;
 
     std::function<void(bcos::ledger::LedgerConfig::Ptr)> m_resetConfigHandler;
-    std::function<void(bcos::ledger::LedgerConfig::Ptr)> m_finalizeHandler;
+    std::function<void(bcos::ledger::LedgerConfig::Ptr, bool _syncBlock)> m_finalizeHandler;
 
     std::function<void(bcos::protocol::Block::Ptr, bcos::protocol::BlockHeader::Ptr)>
         m_notifyHandler;

@@ -132,8 +132,6 @@ void PBFTImpl::init()
     {
         PBFT_LOG(INFO) << LOG_DESC("init PBFT state")
                        << LOG_KV("stateProposals", stateProposals->size());
-        auto consensusedProposalIndex = config->storage()->maxCommittedProposalIndex();
-        config->setProgressedIndex(consensusedProposalIndex + 1);
         m_pbftEngine->initState(*stateProposals);
     }
     config->timer()->start();

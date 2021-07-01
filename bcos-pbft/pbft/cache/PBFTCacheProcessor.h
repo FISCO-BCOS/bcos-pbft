@@ -144,6 +144,10 @@ public:
     }
     void tryToApplyCommitQueue();
 
+    void removeFutureProposals();
+    // notify the consensusing proposal index to the sync module
+    void notifyCommittedProposalIndex(bcos::protocol::BlockNumber _index);
+
 protected:
     virtual void loadAndVerifyProposal(
         bcos::crypto::NodeIDPtr _fromNode, PBFTProposalInterface::Ptr _proposal);
