@@ -136,7 +136,17 @@ public:
         m_proposalAppliedHandler = _callback;
     }
 
+    void registerCommittedProposalNotifier(
+        std::function<void(bcos::protocol::BlockNumber, std::function<void(Error::Ptr)>)>
+            _committedProposalNotifier)
+    {
+        m_committedProposalNotifier = _committedProposalNotifier;
+    }
     void tryToApplyCommitQueue();
+
+    void removeFutureProposals();
+    // notify the consensusing proposal index to the sync module
+    void notifyCommittedProposalIndex(bcos::protocol::BlockNumber _index);
 
 protected:
     virtual void loadAndVerifyProposal(
@@ -188,6 +198,8 @@ protected:
         m_stableCheckPointQueue;
 
     std::function<void(PBFTProposalInterface::Ptr)> m_proposalAppliedHandler;
+    std::function<void(bcos::protocol::BlockNumber, std::function<void(Error::Ptr)>)>
+        m_committedProposalNotifier;
 };
 }  // namespace consensus
 }  // namespace bcos

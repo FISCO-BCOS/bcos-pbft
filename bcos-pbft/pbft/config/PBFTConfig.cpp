@@ -25,7 +25,7 @@ using namespace bcos::consensus;
 using namespace bcos::protocol;
 using namespace bcos::ledger;
 
-void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
+void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
 {
     PBFT_LOG(INFO) << LOG_DESC("resetConfig")
                    << LOG_KV("committedIndex", _ledgerConfig->blockNumber())
@@ -64,33 +64,39 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
     {
         m_stateNotifier(_ledgerConfig->blockNumber());
     }
+    // notify the latest block to the sync module
+    if (m_newBlockNotifier && !_syncedBlock)
+    {
+        m_newBlockNotifier(_ledgerConfig, [_ledgerConfig](Error::Ptr _error) {
+            if (_error)
+            {
+                PBFT_LOG(WARNING) << LOG_DESC("asyncNotifyNewBlock to sync module failed")
+                                  << LOG_KV("number", _ledgerConfig->blockNumber())
+                                  << LOG_KV("hash", _ledgerConfig->hash().abridged())
+                                  << LOG_KV("code", _error->errorCode())
+                                  << LOG_KV("msg", _error->errorMessage());
+            }
+        });
+    }
 
+    // the node is syncing, reset the timeout state to false for view recovery
     if (m_syncingHighestNumber > _ledgerConfig->blockNumber())
     {
+        m_timeoutState = true;
         m_syncingState = true;
         return;
     }
-    // try to reach a new view after syncing completed
+    // after syncing finished, try to reach a new view after syncing completed
     if (m_syncingState)
     {
         m_syncingState = false;
         m_timer->start();
     }
-    notifySealer(m_expectedCheckPoint);
-    if (!m_newBlockNotifier)
+    // try to notify the sealer module to seal proposals
+    if (!m_timeoutState)
     {
-        return;
+        notifySealer(m_expectedCheckPoint);
     }
-    m_newBlockNotifier(_ledgerConfig, [_ledgerConfig](Error::Ptr _error) {
-        if (_error)
-        {
-            PBFT_LOG(WARNING) << LOG_DESC("asyncNotifyNewBlock to sync module failed")
-                              << LOG_KV("number", _ledgerConfig->blockNumber())
-                              << LOG_KV("hash", _ledgerConfig->hash().abridged())
-                              << LOG_KV("code", _error->errorCode())
-                              << LOG_KV("msg", _error->errorMessage());
-        }
-    });
 }
 
 void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)

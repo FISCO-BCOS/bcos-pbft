@@ -210,6 +210,8 @@ public:
         auto fakedPBFT = std::make_shared<FakePBFTImpl>(pbftEngine);
         auto ledgerFetcher = std::make_shared<bcos::tool::LedgerConfigFetcher>(m_ledger);
         fakedPBFT->setLedgerFetcher(ledgerFetcher);
+        pbftConfig->setTimeoutState(false);
+        pbftConfig->timer()->stop();
         return fakedPBFT;
     }
 };

@@ -79,6 +79,12 @@ public:
 
     virtual std::shared_ptr<PBFTCacheProcessor> cacheProcessor() { return m_cacheProcessor; }
     virtual bool isTimeout() { return m_config->timeout(); }
+    void registerCommittedProposalNotifier(
+        std::function<void(bcos::protocol::BlockNumber, std::function<void(Error::Ptr)>)>
+            _committedProposalNotifier)
+    {
+        m_cacheProcessor->registerCommittedProposalNotifier(_committedProposalNotifier);
+    }
 
 protected:
     virtual void initSendResponseHandler();
@@ -131,7 +137,8 @@ protected:
     virtual bool handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _checkPointMsg);
 
     // function called after reaching a consensus
-    virtual void finalizeConsensus(std::shared_ptr<bcos::ledger::LedgerConfig> _ledgerConfig);
+    virtual void finalizeConsensus(
+        std::shared_ptr<bcos::ledger::LedgerConfig> _ledgerConfig, bool _syncedBlock = false);
 
     virtual void onProposalApplied(PBFTProposalInterface::Ptr _executedProposal);
 
