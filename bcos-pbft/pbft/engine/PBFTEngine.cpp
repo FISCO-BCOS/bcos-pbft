@@ -466,6 +466,18 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
 {
     PBFT_LOG(DEBUG) << LOG_DESC("handlePrePrepareMsg") << printPBFTMsgInfo(_prePrepareMsg)
                     << m_config->printCurrentState();
+
+    if (m_config->committedProposal()->index() < m_config->syncingHighestNumber())
+    {
+        PBFT_LOG(WARNING)
+            << LOG_DESC("handlePrePrepareMsg: reject the prePrepareMsg for the node is syncing")
+            << LOG_KV("committedIndex", m_config->committedProposal()->index())
+            << LOG_KV("recvIndex", _prePrepareMsg->index())
+            << LOG_KV("hash", _prePrepareMsg->hash().abridged())
+            << LOG_KV("syncingNum", m_config->syncingHighestNumber())
+            << m_config->printCurrentState();
+        return false;
+    }
     auto result = checkPrePrepareMsg(_prePrepareMsg);
     if (result == CheckResult::INVALID)
     {
@@ -961,6 +973,18 @@ bool PBFTEngine::handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _chec
                           << LOG_KV("committedIndex", m_config->committedProposal()->index())
                           << LOG_KV("recvIndex", _checkPointMsg->index())
                           << LOG_KV("hash", _checkPointMsg->hash().abridged())
+                          << m_config->printCurrentState();
+        return false;
+    }
+    if (m_config->committedProposal()->index() < m_config->syncingHighestNumber())
+    {
+        PBFT_LOG(WARNING) << LOG_DESC(
+                                 "handleCheckPointMsg: reject the checkPoint for the node is "
+                                 "syncing higher block")
+                          << LOG_KV("committedIndex", m_config->committedProposal()->index())
+                          << LOG_KV("recvIndex", _checkPointMsg->index())
+                          << LOG_KV("hash", _checkPointMsg->hash().abridged())
+                          << LOG_KV("syncingNum", m_config->syncingHighestNumber())
                           << m_config->printCurrentState();
         return false;
     }
