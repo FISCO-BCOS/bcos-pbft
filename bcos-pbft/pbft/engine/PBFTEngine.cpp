@@ -45,8 +45,8 @@ PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
     m_config->timer()->registerTimeoutHandler(boost::bind(&PBFTEngine::onTimeout, this));
     m_config->storage()->registerFinalizeHandler(boost::bind(
         &PBFTEngine::finalizeConsensus, this, boost::placeholders::_1, boost::placeholders::_2));
-    m_cacheProcessor->registerProposalAppliedHandler(
-        boost::bind(&PBFTEngine::onProposalApplied, this, boost::placeholders::_1));
+    m_cacheProcessor->registerProposalAppliedHandler(boost::bind(&PBFTEngine::onProposalApplied,
+        this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
     initSendResponseHandler();
 }
 
@@ -93,9 +93,32 @@ void PBFTEngine::stop()
     ConsensusEngine::stop();
 }
 
-// called after proposal executed successfully
-void PBFTEngine::onProposalApplied(PBFTProposalInterface::Ptr _executedProposal)
+void PBFTEngine::onProposalApplyFailed(PBFTProposalInterface::Ptr _proposal)
 {
+    PBFT_LOG(WARNING) << LOG_DESC("proposal execute failed") << printPBFTProposal(_proposal)
+                      << m_config->printCurrentState();
+    // Note: must add lock here to ensure thread-safe
+    Guard l(m_mutex);
+    // re-push the proposal into the queue
+    if (_proposal->index() >= m_config->committedProposal()->index() ||
+        _proposal->index() >= m_config->syncingHighestNumber())
+    {
+        PBFT_LOG(INFO) << LOG_DESC(
+                              "proposal execute failed and re-push the proposal "
+                              "into the cache")
+                       << printPBFTProposal(_proposal);
+        m_cacheProcessor->updateCommitQueue(_proposal);
+    }
+    m_config->setExpectedCheckPoint(m_config->committedProposal()->index() + 1);
+    return;
+}
+
+void PBFTEngine::onProposalApplySuccess(
+    PBFTProposalInterface::Ptr _proposal, PBFTProposalInterface::Ptr _executedProposal)
+{
+    // commit the proposal when execute success
+    m_config->storage()->asyncCommitProposal(_proposal);
+
     // broadcast checkpoint message
     auto checkPointMsg = m_config->pbftMessageFactory()->populateFrom(PacketType::CheckPoint,
         m_config->pbftMsgDefaultVersion(), m_config->view(), utcTime(), m_config->nodeIndex(),
@@ -104,9 +127,21 @@ void PBFTEngine::onProposalApplied(PBFTProposalInterface::Ptr _executedProposal)
     auto encodedData = m_config->codec()->encode(checkPointMsg);
     m_config->frontService()->asyncSendMessageByNodeIDs(
         ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
+    // Note: must lock here to ensure thread safe
+    Guard l(m_mutex);
+    m_cacheProcessor->addCheckPointMsg(checkPointMsg);
+    m_cacheProcessor->setCheckPointProposal(_executedProposal);
+    m_config->setExpectedCheckPoint(_executedProposal->index() + 1);
+    m_cacheProcessor->checkAndCommitStableCheckPoint();
+    m_cacheProcessor->tryToApplyCommitQueue();
+}
 
+// called after proposal executed successfully
+void PBFTEngine::onProposalApplied(bool _execSuccess, PBFTProposalInterface::Ptr _proposal,
+    PBFTProposalInterface::Ptr _executedProposal)
+{
     auto self = std::weak_ptr<PBFTEngine>(shared_from_this());
-    m_worker->enqueue([self, checkPointMsg, _executedProposal]() {
+    m_worker->enqueue([self, _execSuccess, _proposal, _executedProposal]() {
         try
         {
             auto engine = self.lock();
@@ -114,13 +149,12 @@ void PBFTEngine::onProposalApplied(PBFTProposalInterface::Ptr _executedProposal)
             {
                 return;
             }
-            // Note: must lock here to ensure thread safe
-            Guard l(engine->m_mutex);
-            engine->m_cacheProcessor->addCheckPointMsg(checkPointMsg);
-            engine->m_cacheProcessor->setCheckPointProposal(_executedProposal);
-            engine->m_config->setExpectedCheckPoint(_executedProposal->index() + 1);
-            engine->m_cacheProcessor->checkAndCommitStableCheckPoint();
-            engine->m_cacheProcessor->tryToApplyCommitQueue();
+            if (!_execSuccess)
+            {
+                engine->onProposalApplyFailed(_proposal);
+                return;
+            }
+            engine->onProposalApplySuccess(_proposal, _executedProposal);
         }
         catch (std::exception const& e)
         {
