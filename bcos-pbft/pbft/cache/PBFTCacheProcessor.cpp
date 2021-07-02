@@ -291,29 +291,9 @@ void PBFTCacheProcessor::applyStateMachine(
                     return;
                 }
                 auto config = cache->m_config;
-                if (!_ret)
-                {
-                    PBFT_LOG(WARNING)
-                        << LOG_DESC("proposal execute failed") << printPBFTProposal(_proposal)
-                        << config->printCurrentState();
-                    // re-push the proposal into the queue
-                    if (_proposal->index() >= config->committedProposal()->index() ||
-                        _proposal->index() >= config->syncingHighestNumber())
-                    {
-                        PBFT_LOG(INFO) << LOG_DESC(
-                                              "proposal execute failed and re-push the proposal "
-                                              "into the cache")
-                                       << printPBFTProposal(_proposal);
-                        cache->updateCommitQueue(_proposal);
-                    }
-                    config->setExpectedCheckPoint(config->committedProposal()->index() + 1);
-                    return;
-                }
-                // commit the proposal when execute success
-                config->storage()->asyncCommitProposal(_proposal);
                 if (cache->m_proposalAppliedHandler)
                 {
-                    cache->m_proposalAppliedHandler(executedProposal);
+                    cache->m_proposalAppliedHandler(_ret, _proposal, executedProposal);
                 }
                 PBFT_LOG(DEBUG) << LOG_DESC(
                                        "applyStateMachine success and broadcast checkpoint message")

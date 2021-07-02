@@ -131,7 +131,7 @@ public:
     virtual bool shouldRequestCheckPoint(bcos::protocol::BlockNumber _checkPointIndex);
 
     virtual void registerProposalAppliedHandler(
-        std::function<void(PBFTProposalInterface::Ptr)> _callback)
+        std::function<void(bool, PBFTProposalInterface::Ptr, PBFTProposalInterface::Ptr)> _callback)
     {
         m_proposalAppliedHandler = _callback;
     }
@@ -148,12 +148,13 @@ public:
     // notify the consensusing proposal index to the sync module
     void notifyCommittedProposalIndex(bcos::protocol::BlockNumber _index);
 
+    virtual void updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal);
+
 protected:
     virtual void loadAndVerifyProposal(
         bcos::crypto::NodeIDPtr _fromNode, PBFTProposalInterface::Ptr _proposal);
 
     virtual bool checkPrecommitWeight(PBFTMessageInterface::Ptr _precommitMsg);
-    virtual void updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal);
     virtual void applyStateMachine(
         ProposalInterface::ConstPtr _lastAppliedProposal, PBFTProposalInterface::Ptr _proposal);
     virtual void updateStableCheckPointQueue(PBFTProposalInterface::Ptr _stableCheckPoint);
@@ -197,7 +198,8 @@ protected:
         PBFTProposalCmp>
         m_stableCheckPointQueue;
 
-    std::function<void(PBFTProposalInterface::Ptr)> m_proposalAppliedHandler;
+    std::function<void(bool, PBFTProposalInterface::Ptr, PBFTProposalInterface::Ptr)>
+        m_proposalAppliedHandler;
     std::function<void(bcos::protocol::BlockNumber, std::function<void(Error::Ptr)>)>
         m_committedProposalNotifier;
 };

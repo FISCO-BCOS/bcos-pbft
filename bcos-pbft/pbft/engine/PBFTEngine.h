@@ -140,7 +140,11 @@ protected:
     virtual void finalizeConsensus(
         std::shared_ptr<bcos::ledger::LedgerConfig> _ledgerConfig, bool _syncedBlock = false);
 
-    virtual void onProposalApplied(PBFTProposalInterface::Ptr _executedProposal);
+    virtual void onProposalApplied(bool _execSuccess, PBFTProposalInterface::Ptr _proposal,
+        PBFTProposalInterface::Ptr _executedProposal);
+    virtual void onProposalApplySuccess(
+        PBFTProposalInterface::Ptr _proposal, PBFTProposalInterface::Ptr _executedProposal);
+    virtual void onProposalApplyFailed(PBFTProposalInterface::Ptr _proposal);
 
 private:
     // utility functions
