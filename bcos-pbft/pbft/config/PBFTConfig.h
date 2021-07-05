@@ -294,8 +294,7 @@ protected:
     const unsigned c_pbftMsgDefaultVersion = 0;
     const unsigned c_networkTimeoutInterval = 1000;
     // state variable that identifies whether has timed out
-    // when the node first setup, set timeout to be true for view recovery
-    std::atomic_bool m_timeoutState = {true};
+    std::atomic_bool m_timeoutState = {false};
 
     bcos::protocol::BlockNumber m_syncingHighestNumber = {0};
     std::atomic_bool m_syncingState = {false};
