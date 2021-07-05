@@ -81,8 +81,9 @@ void StateMachine::asyncApply(ConsensusNodeList const& _consensusNodeInfo,
     block->blockHeader()->setSealerList(std::move(sealerList));
     block->blockHeader()->setConsensusWeights(std::move(weightList));
     // calls dispatcher to execute the block
+    auto startT = utcTime();
     m_dispatcher->asyncExecuteBlock(block, false,
-        [block, _onExecuteFinished, _proposal, _executedProposal](
+        [startT, block, _onExecuteFinished, _proposal, _executedProposal](
             Error::Ptr _error, BlockHeader::Ptr _blockHeader) {
             if (!_onExecuteFinished)
             {
@@ -97,18 +98,21 @@ void StateMachine::asyncApply(ConsensusNodeList const& _consensusNodeInfo,
                 _onExecuteFinished(false);
                 return;
             }
+            auto execT = (double)(utcTime() - startT) / (double)(block->transactionsHashSize());
             CONSENSUS_LOG(INFO) << LOG_DESC("asyncExecuteBlock success")
                                 << LOG_KV("number", _blockHeader->number())
                                 << LOG_KV("result", _blockHeader->hash().abridged())
                                 << LOG_KV("txsSize", block->transactionsHashSize())
                                 << LOG_KV("txsRoot", _blockHeader->txsRoot().abridged())
                                 << LOG_KV("receiptsRoot", _blockHeader->receiptsRoot().abridged())
-                                << LOG_KV("stateRoot", _blockHeader->stateRoot().abridged());
+                                << LOG_KV("stateRoot", _blockHeader->stateRoot().abridged())
+                                << LOG_KV("execPerTx", execT);
             if (_blockHeader->number() != block->blockHeader()->number())
             {
                 CONSENSUS_LOG(WARNING) << LOG_DESC("asyncExecuteBlock exception")
                                        << LOG_KV("expectedNumber", block->blockHeader()->number())
-                                       << LOG_KV("number", _blockHeader->number());
+                                       << LOG_KV("number", _blockHeader->number())
+                                       << LOG_KV("timeCost", (utcTime() - startT));
                 return;
             }
             _executedProposal->setIndex(_blockHeader->number());
