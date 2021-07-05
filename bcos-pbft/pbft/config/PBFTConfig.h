@@ -66,8 +66,6 @@ public:
                 m_validator->notifyTransactionsResult(_block, _header);
             });
         m_timer = std::make_shared<PBFTTimer>(consensusTimeout());
-        // when the node setup, start the timer for view recovery
-        m_timer->start();
     }
 
     ~PBFTConfig() override {}

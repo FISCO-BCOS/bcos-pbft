@@ -86,6 +86,8 @@ void PBFTEngine::initSendResponseHandler()
 void PBFTEngine::start()
 {
     ConsensusEngine::start();
+    // when the node setup, start the timer for view recovery
+    m_config->timer()->start();
     // when the node first setup, set timeout to be true for view recovery
     m_config->setTimeoutState(true);
 }
