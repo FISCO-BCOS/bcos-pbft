@@ -291,6 +291,15 @@ void PBFTCacheProcessor::applyStateMachine(
                     return;
                 }
                 auto config = cache->m_config;
+                if (config->committedProposal()->index() >= _proposal->index())
+                {
+                    PBFT_LOG(WARNING)
+                        << LOG_DESC("applyStateMachine: give up the proposal for expired")
+                        << config->printCurrentState()
+                        << LOG_KV("beforeExec", _proposal->hash().abridged())
+                        << LOG_KV("afterExec", executedProposal->hash().abridged());
+                    return;
+                }
                 if (cache->m_proposalAppliedHandler)
                 {
                     cache->m_proposalAppliedHandler(_ret, _proposal, executedProposal);

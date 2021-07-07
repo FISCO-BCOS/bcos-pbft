@@ -36,6 +36,13 @@ PBFTCache::PBFTCache(PBFTConfig::Ptr _config, BlockNumber _index)
 
 void PBFTCache::onCheckPointTimeout()
 {
+    // Note: this logic is unreachable
+    if (!m_checkpointProposal)
+    {
+        PBFT_LOG(WARNING) << LOG_DESC("onCheckPointTimeout but the checkpoint proposal is null")
+                          << m_config->printCurrentState();
+        return;
+    }
     PBFT_LOG(WARNING) << LOG_DESC("onCheckPointTimeout: resend the checkpoint message package")
                       << LOG_KV("index", m_checkpointProposal->index())
                       << LOG_KV("hash", m_checkpointProposal->hash().abridged())
@@ -258,10 +265,11 @@ void PBFTCache::resetCache(ViewType _curView)
 
 void PBFTCache::setCheckPointProposal(PBFTProposalInterface::Ptr _proposal)
 {
-    m_timer->start();
     // expired checkpoint proposal
     if (_proposal->index() <= m_config->committedProposal()->index())
     {
+        PBFT_LOG(WARNING) << LOG_DESC("setCheckPointProposal failed for expired checkpoint index")
+                          << m_config->printCurrentState() << printPBFTProposal(_proposal);
         return;
     }
     if (m_checkpointProposal || _proposal->index() != index())
@@ -269,6 +277,8 @@ void PBFTCache::setCheckPointProposal(PBFTProposalInterface::Ptr _proposal)
         return;
     }
     m_checkpointProposal = _proposal;
+    // Note: the timer can only been started after setCheckPointProposal success
+    m_timer->start();
     PBFT_LOG(DEBUG) << LOG_DESC("setCheckPointProposal") << printPBFTProposal(m_checkpointProposal)
                     << m_config->printCurrentState();
 }
