@@ -181,7 +181,7 @@ protected:
     // Message packets allowed to be processed in timeout mode
     const std::set<PacketType> c_timeoutAllowedPacket = {ViewChangePacket, NewViewPacket,
         CommittedProposalRequest, CommittedProposalResponse, PreparedProposalRequest,
-        PreparedProposalResponse};
+        PreparedProposalResponse, CheckPoint};
 };
 }  // namespace consensus
 }  // namespace bcos
