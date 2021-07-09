@@ -960,7 +960,7 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
         {
             PBFT_LOG(DEBUG) << LOG_DESC("reHandlePrePrepareProposals: hit the proposal")
                             << printPBFTMsgInfo(prePrepare) << m_config->printCurrentState();
-            handlePrePrepareMsg(prePrepare, false, true, false);
+            handlePrePrepareMsg(prePrepare, true, true, false);
             continue;
         }
         // hit the cache

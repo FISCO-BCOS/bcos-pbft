@@ -371,11 +371,20 @@ void PBFTCacheProcessor::addViewChangeReq(ViewChangeMsgInterface::Ptr _viewChang
             m_maxPrecommitIndex[reqView] = precommitIndex;
         }
     }
+    // print the prepared proposal info
+    std::stringstream preparedProposalInfo;
+    preparedProposalInfo << "preparedProposalInfo: ";
+    for (auto proposal : _viewChange->preparedProposals())
+    {
+        preparedProposalInfo << LOG_KV("propIndex", proposal->index())
+                             << LOG_KV("propHash", proposal->hash().abridged())
+                             << LOG_KV("dataSize", proposal->consensusProposal()->data().size());
+    }
     PBFT_LOG(DEBUG) << LOG_DESC("addViewChangeReq") << printPBFTMsgInfo(_viewChange)
                     << LOG_KV("weight", m_viewChangeWeight[reqView])
                     << LOG_KV("maxCommittedIndex", m_maxCommittedIndex[reqView])
                     << LOG_KV("maxPrecommitIndex", m_maxPrecommitIndex[reqView])
-                    << m_config->printCurrentState();
+                    << LOG_DESC(preparedProposalInfo.str()) << m_config->printCurrentState();
 }
 
 PBFTMessageList PBFTCacheProcessor::generatePrePrepareMsg(
@@ -407,8 +416,16 @@ PBFTMessageList PBFTCacheProcessor::generatePrePrepareMsg(
             if (preparedProposals.count(proposal->index()))
             {
                 auto precommitProposal = preparedProposals[proposal->index()];
-                assert(precommitProposal->index() == proposal->index() &&
-                       precommitProposal->hash() == proposal->hash());
+                if (precommitProposal->index() != proposal->index() ||
+                    precommitProposal->hash() != proposal->hash())
+                {
+                    PBFT_LOG(FATAL)
+                        << LOG_DESC(
+                               "generatePrePrepareMsg error: found conflict precommit proposals")
+                        << LOG_DESC("proposal already exist:")
+                        << printPBFTProposal(precommitProposal) << LOG_DESC("conflicted proposal:")
+                        << printPBFTProposal(proposal);
+                }
                 continue;
             }
             // new precommit proposla
