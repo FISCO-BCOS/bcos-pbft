@@ -70,6 +70,19 @@ public:
 
     ~PBFTConfig() override {}
 
+    virtual void stop()
+    {
+        // stop the validator
+        if (m_validator)
+        {
+            m_validator->stop();
+        }
+        // destory the timer
+        if (m_timer)
+        {
+            m_timer->destroy();
+        }
+    }
     virtual void resetConfig(
         bcos::ledger::LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock = false);
 

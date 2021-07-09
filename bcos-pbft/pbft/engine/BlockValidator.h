@@ -38,6 +38,14 @@ public:
     virtual void asyncCheckBlock(
         bcos::protocol::Block::Ptr _block, std::function<void(Error::Ptr, bool)> _onVerifyFinish);
 
+    virtual void stop()
+    {
+        if (m_taskPool)
+        {
+            m_taskPool->stop();
+        }
+    }
+
 protected:
     virtual bool checkSealerListAndWeightList(bcos::protocol::Block::Ptr _block);
     virtual bool checkSignatureList(bcos::protocol::Block::Ptr _block);

@@ -42,6 +42,7 @@ void PBFTImpl::stop()
         PBFT_LOG(WARNING) << LOG_DESC("The PBFT module has already been stopped!");
         return;
     }
+    m_blockValidator->stop();
     m_pbftEngine->stop();
     m_running = false;
     PBFT_LOG(INFO) << LOG_DESC("Stop the PBFT module.");
