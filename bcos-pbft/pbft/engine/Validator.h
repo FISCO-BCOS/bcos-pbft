@@ -46,6 +46,7 @@ public:
 
     virtual void notifyTransactionsResult(
         bcos::protocol::Block::Ptr _block, bcos::protocol::BlockHeader::Ptr _header) = 0;
+    virtual void stop() = 0;
 };
 
 class TxsValidator : public ValidatorInterface, public std::enable_shared_from_this<TxsValidator>
@@ -62,6 +63,8 @@ public:
     {}
 
     ~TxsValidator() override {}
+
+    void stop() override { m_worker->stop(); }
 
     void verifyProposal(bcos::crypto::PublicPtr _fromNode, PBFTProposalInterface::Ptr _proposal,
         std::function<void(Error::Ptr, bool)> _verifyFinishedHandler) override

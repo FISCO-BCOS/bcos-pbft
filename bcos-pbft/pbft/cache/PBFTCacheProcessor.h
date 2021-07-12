@@ -150,6 +150,9 @@ public:
 
     virtual void updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal);
 
+    // to release the timer
+    virtual void clearAll() { m_caches.clear(); }
+
 protected:
     virtual void loadAndVerifyProposal(
         bcos::crypto::NodeIDPtr _fromNode, PBFTProposalInterface::Ptr _proposal);

@@ -95,6 +95,19 @@ void PBFTEngine::start()
 void PBFTEngine::stop()
 {
     ConsensusEngine::stop();
+    if (m_worker)
+    {
+        m_worker->stop();
+    }
+    if (m_logSync)
+    {
+        m_logSync->stop();
+    }
+    if (m_config)
+    {
+        m_config->stop();
+    }
+    m_cacheProcessor->clearAll();
 }
 
 void PBFTEngine::onProposalApplyFailed(PBFTProposalInterface::Ptr _proposal)
@@ -960,7 +973,7 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
         {
             PBFT_LOG(DEBUG) << LOG_DESC("reHandlePrePrepareProposals: hit the proposal")
                             << printPBFTMsgInfo(prePrepare) << m_config->printCurrentState();
-            handlePrePrepareMsg(prePrepare, false, true, false);
+            handlePrePrepareMsg(prePrepare, true, true, false);
             continue;
         }
         // hit the cache

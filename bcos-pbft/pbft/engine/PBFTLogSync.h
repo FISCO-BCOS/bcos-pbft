@@ -73,6 +73,8 @@ public:
     virtual void requestPrecommitData(bcos::crypto::PublicPtr _from,
         PBFTMessageInterface::Ptr _prePrepareMsg, HandlePrePrepareCallback _prePrepareCallback);
 
+    virtual void stop() { m_requestThread->stop(); }
+
 protected:
     virtual void onRecvCommittedProposalsResponse(bcos::Error::Ptr _error,
         bcos::crypto::NodeIDPtr _nodeID, bytesConstRef _data, SendResponseCallback _sendResponse);
