@@ -305,7 +305,7 @@ void PBFTCacheProcessor::applyStateMachine(
                     cache->m_proposalAppliedHandler(_ret, _proposal, executedProposal);
                 }
                 PBFT_LOG(DEBUG) << LOG_DESC(
-                                       "applyStateMachine success and broadcast checkpoint message")
+                                       "applyStateMachine finished")
                                 << LOG_KV("index", executedProposal->index())
                                 << LOG_KV("beforeExec", _proposal->hash().abridged())
                                 << LOG_KV("afterExec", executedProposal->hash().abridged())
