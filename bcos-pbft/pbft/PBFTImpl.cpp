@@ -110,6 +110,7 @@ void PBFTImpl::asyncNoteUnSealedTxsSize(
 void PBFTImpl::init()
 {
     auto config = m_pbftEngine->pbftConfig();
+    config->validator()->init();
     PBFT_LOG(INFO) << LOG_DESC("fetch LedgerConfig information");
 
     m_ledgerFetcher->fetchBlockNumberAndHash();
