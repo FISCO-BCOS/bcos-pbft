@@ -43,8 +43,8 @@ PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
     m_logSync = std::make_shared<PBFTLogSync>(m_config, m_cacheProcessor);
     // register the timeout function
     m_config->timer()->registerTimeoutHandler(boost::bind(&PBFTEngine::onTimeout, this));
-    m_config->storage()->registerFinalizeHandler(boost::bind(
-        &PBFTEngine::finalizeConsensus, this, boost::placeholders::_1, boost::placeholders::_2));
+    m_config->storage()->registerFinalizeHandler(boost::bind(&PBFTEngine::asyncFinalizeConsensus,
+        this, boost::placeholders::_1, boost::placeholders::_2));
     m_cacheProcessor->registerProposalAppliedHandler(boost::bind(&PBFTEngine::onProposalApplied,
         this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
     initSendResponseHandler();
@@ -1013,6 +1013,30 @@ void PBFTEngine::finalizeConsensus(LedgerConfig::Ptr _ledgerConfig, bool _synced
         // Note: should reNotifySealer or not?
         m_cacheProcessor->removeFutureProposals();
     }
+}
+
+void PBFTEngine::asyncFinalizeConsensus(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
+{
+    auto self = std::weak_ptr<PBFTEngine>(shared_from_this());
+    m_worker->enqueue([self, _ledgerConfig, _syncedBlock]() {
+        try
+        {
+            auto engine = self.lock();
+            if (!engine)
+            {
+                return;
+            }
+            engine->finalizeConsensus(_ledgerConfig, _syncedBlock);
+            return;
+        }
+        catch (std::exception const& e)
+        {
+            PBFT_LOG(WARNING) << LOG_DESC("asyncFinalizeConsensus exception")
+                              << LOG_KV("finalizedNumber", _ledgerConfig->blockNumber())
+                              << LOG_KV("finalizedHash", _ledgerConfig->hash().abridged())
+                              << LOG_KV("error", boost::diagnostic_information(e));
+        }
+    });
 }
 
 bool PBFTEngine::handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _checkPointMsg)
