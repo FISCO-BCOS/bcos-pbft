@@ -46,6 +46,9 @@ void TxsValidator::asyncResetTxsFlag(bytesConstRef _data, bool _flag)
             {
                 return;
             }
+            PBFT_LOG(INFO) << LOG_DESC("asyncResetTxsFlag")
+                           << LOG_KV("index", block->blockHeader()->number())
+                           << LOG_KV("flag", _flag);
             validator->asyncResetTxsFlag(txsHash, _flag);
         }
         catch (std::exception const& e)
