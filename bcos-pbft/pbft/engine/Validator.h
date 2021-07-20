@@ -48,6 +48,7 @@ public:
         bcos::protocol::Block::Ptr _block, bcos::protocol::BlockHeader::Ptr _header) = 0;
     virtual void stop() = 0;
     virtual void init() = 0;
+    virtual void asyncResetTxPool() = 0;
 };
 
 class TxsValidator : public ValidatorInterface, public std::enable_shared_from_this<TxsValidator>
@@ -70,6 +71,11 @@ public:
     void init() override
     {
         PBFT_LOG(INFO) << LOG_DESC("asyncResetTxPool when startup");
+        asyncResetTxPool();
+    }
+
+    void asyncResetTxPool() override
+    {
         m_txPool->asyncResetTxPool([](Error::Ptr _error) {
             if (_error)
             {
@@ -79,7 +85,6 @@ public:
             }
         });
     }
-
     void verifyProposal(bcos::crypto::PublicPtr _fromNode, PBFTProposalInterface::Ptr _proposal,
         std::function<void(Error::Ptr, bool)> _verifyFinishedHandler) override
     {

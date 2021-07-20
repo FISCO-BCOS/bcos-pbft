@@ -82,8 +82,10 @@ bool BlockValidator::checkSealerListAndWeightList(Block::Ptr _block)
                         << LOG_KV("number", _block->blockHeader()->number());
         return false;
     }
+    // Note: for tars service, blockHeader must be here to ensure the sealer list not been released
+    auto blockHeader = _block->blockHeader();
     // check the sealer list
-    auto blockSealerList = _block->blockHeader()->sealerList();
+    auto blockSealerList = blockHeader->sealerList();
     auto blockWeightList = _block->blockHeader()->consensusWeights();
     auto consensusNodeList = m_config->consensusNodeList();
     if ((size_t)blockSealerList.size() != (size_t)consensusNodeList.size() ||

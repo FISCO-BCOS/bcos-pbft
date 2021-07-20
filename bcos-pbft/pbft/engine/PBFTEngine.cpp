@@ -572,7 +572,7 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
         m_config->validator()->asyncResetTxsFlag(_prePrepareMsg->consensusProposal()->data(), true);
         m_config->timer()->start();
         auto nextProposalIndex = _prePrepareMsg->index();
-        if (nextProposalIndex <= m_config->highWaterMark())
+        if (nextProposalIndex <= m_config->highWaterMark() && !_generatedFromNewView)
         {
             m_config->notifySealer(nextProposalIndex);
         }
@@ -609,6 +609,8 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
                                       << printPBFTMsgInfo(_prePrepareMsg)
                                       << LOG_KV("errorCode", _error->errorCode())
                                       << LOG_KV("errorMsg", _error->errorMessage());
+                    pbftEngine->m_config->validator()->asyncResetTxsFlag(
+                        _prePrepareMsg->consensusProposal()->data(), false);
                     pbftEngine->m_config->notifySealer(_prePrepareMsg->index(), true);
                     return;
                 }
@@ -617,6 +619,8 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
                 {
                     PBFT_LOG(WARNING)
                         << LOG_DESC("verify proposal failed") << printPBFTMsgInfo(_prePrepareMsg);
+                    pbftEngine->m_config->validator()->asyncResetTxsFlag(
+                        _prePrepareMsg->consensusProposal()->data(), false);
                     pbftEngine->m_config->notifySealer(_prePrepareMsg->index(), true);
                     return;
                 }
