@@ -570,7 +570,7 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
         // add the pre-prepare packet into the cache
         m_cacheProcessor->addPrePrepareCache(_prePrepareMsg);
         m_config->validator()->asyncResetTxsFlag(_prePrepareMsg->consensusProposal()->data(), true);
-        m_config->timer()->start();
+        m_config->timer()->restart();
         auto nextProposalIndex = _prePrepareMsg->index();
         if (nextProposalIndex <= m_config->highWaterMark() && !_generatedFromNewView)
         {
@@ -695,7 +695,6 @@ bool PBFTEngine::handlePrepareMsg(PBFTMessageInterface::Ptr _prepareMsg)
     {
         return false;
     }
-    m_config->timer()->start();
     m_cacheProcessor->addPrepareCache(_prepareMsg);
     m_cacheProcessor->checkAndPreCommit();
     return true;
@@ -710,7 +709,6 @@ bool PBFTEngine::handleCommitMsg(PBFTMessageInterface::Ptr _commitMsg)
     {
         return false;
     }
-    m_config->timer()->start();
     m_cacheProcessor->addCommitReq(_commitMsg);
     m_cacheProcessor->checkAndCommit();
     return true;

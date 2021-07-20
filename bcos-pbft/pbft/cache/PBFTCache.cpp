@@ -252,7 +252,8 @@ void PBFTCache::resetCache(ViewType _curView)
 {
     m_submitted = false;
     m_precommitted = false;
-    if (m_prePrepare && m_prePrepare->consensusProposal() && m_prePrepare->view() < _curView)
+    if (!m_precommit && m_prePrepare && m_prePrepare->consensusProposal() &&
+        m_prePrepare->view() < _curView)
     {
         m_config->validator()->asyncResetTxsFlag(m_prePrepare->consensusProposal()->data(), false);
     }
