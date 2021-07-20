@@ -78,7 +78,9 @@ void PBFTEngine::initSendResponseHandler()
         catch (std::exception const& e)
         {
             PBFT_LOG(WARNING) << LOG_DESC("sendResonse exception")
-                              << LOG_KV("error", boost::diagnostic_information(e));
+                              << LOG_KV("error", boost::diagnostic_information(e))
+                              << LOG_KV("uuid", _id) << LOG_KV("moduleID", _moduleID)
+                              << LOG_KV("peer", _dstNode->shortHex());
         }
     };
 }
@@ -532,8 +534,11 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
     auto result = checkPrePrepareMsg(_prePrepareMsg);
     if (result == CheckResult::INVALID)
     {
-        m_config->validator()->asyncResetTxsFlag(
-            _prePrepareMsg->consensusProposal()->data(), false);
+        if (!_generatedFromNewView)
+        {
+            m_config->validator()->asyncResetTxsFlag(
+                _prePrepareMsg->consensusProposal()->data(), false);
+        }
         return false;
     }
     if (!_generatedFromNewView)
@@ -588,8 +593,11 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
     auto leaderNodeInfo = m_config->getConsensusNodeByIndex(_prePrepareMsg->generatedFrom());
     if (!leaderNodeInfo)
     {
-        m_config->validator()->asyncResetTxsFlag(
-            _prePrepareMsg->consensusProposal()->data(), false);
+        if (!_generatedFromNewView)
+        {
+            m_config->validator()->asyncResetTxsFlag(
+                _prePrepareMsg->consensusProposal()->data(), false);
+        }
         return false;
     }
     m_config->validator()->verifyProposal(leaderNodeInfo->nodeID(),
@@ -964,12 +972,13 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
 {
     reachNewView(_newViewReq->view());
     auto const& prePrepareList = _newViewReq->prePrepareList();
-    if (prePrepareList.size() == 0)
-    {
-        m_config->notifySealer(m_config->progressedIndex(), true);
-    }
+    auto maxProposalIndex = m_config->committedProposal()->index();
     for (auto prePrepare : prePrepareList)
     {
+        if (prePrepare->index() > maxProposalIndex)
+        {
+            maxProposalIndex = prePrepare->index();
+        }
         // empty block proposal
         if (prePrepare->consensusProposal()->data().size() > 0)
         {
@@ -1000,6 +1009,7 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
                 handlePrePrepareMsg(_prePrepare, true, true, false);
             });
     }
+    m_config->reNotifySealer(maxProposalIndex + 1);
 }
 
 void PBFTEngine::finalizeConsensus(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)

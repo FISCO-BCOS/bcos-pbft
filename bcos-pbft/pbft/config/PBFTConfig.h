@@ -172,7 +172,7 @@ public:
     uint64_t maxFaultyQuorum() const { return m_maxFaultyQuorum; }
 
     virtual void notifySealer(bcos::protocol::BlockNumber _progressedIndex, bool _enforce = false);
-
+    virtual void reNotifySealer(bcos::protocol::BlockNumber _index);
     virtual bool shouldResetConfig(bcos::protocol::BlockNumber _index)
     {
         ReadGuard l(x_committedProposal);

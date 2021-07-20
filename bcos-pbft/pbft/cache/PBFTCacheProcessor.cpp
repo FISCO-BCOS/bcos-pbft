@@ -198,7 +198,7 @@ void PBFTCacheProcessor::resetTimer()
         }
     }
     // reset the timer when has no proposals in consensus
-    m_config->resetTimer();
+    m_config->timer()->stop();
 }
 
 void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal)
@@ -304,8 +304,7 @@ void PBFTCacheProcessor::applyStateMachine(
                 {
                     cache->m_proposalAppliedHandler(_ret, _proposal, executedProposal);
                 }
-                PBFT_LOG(DEBUG) << LOG_DESC(
-                                       "applyStateMachine finished")
+                PBFT_LOG(DEBUG) << LOG_DESC("applyStateMachine finished")
                                 << LOG_KV("index", executedProposal->index())
                                 << LOG_KV("beforeExec", _proposal->hash().abridged())
                                 << LOG_KV("afterExec", executedProposal->hash().abridged())

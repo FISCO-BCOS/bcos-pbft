@@ -99,6 +99,14 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
     }
 }
 
+void PBFTConfig::reNotifySealer(bcos::protocol::BlockNumber _index)
+{
+    auto committedIndex = m_committedProposal->index();
+    m_sealStartIndex = committedIndex;
+    m_sealEndIndex = committedIndex;
+    notifySealer(_index);
+}
+
 void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
 {
     auto currentLeader = leaderIndex(_progressedIndex);
