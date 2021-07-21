@@ -39,9 +39,10 @@ void PBFTLogSync::requestCommittedProposals(
     auto pbftRequest = m_config->pbftMessageFactory()->populateFrom(
         PacketType::CommittedProposalRequest, _startIndex, _offset);
     requestPBFTData(_from, pbftRequest,
-        [this](Error::Ptr _error, NodeIDPtr _nodeID, bytesConstRef _data, std::string const&,
-            SendResponseCallback _sendResponse) {
-            return this->onRecvCommittedProposalsResponse(_error, _nodeID, _data, _sendResponse);
+        [this, _startIndex, _offset](Error::Ptr _error, NodeIDPtr _nodeID, bytesConstRef _data,
+            std::string const&, SendResponseCallback _sendResponse) {
+            return this->onRecvCommittedProposalsResponse(
+                _error, _nodeID, _data, _startIndex, _offset, _sendResponse);
         });
 }
 
@@ -97,8 +98,9 @@ void PBFTLogSync::requestPBFTData(
     });
 }
 
-void PBFTLogSync::onRecvCommittedProposalsResponse(
-    Error::Ptr _error, NodeIDPtr _nodeID, bytesConstRef _data, SendResponseCallback)
+void PBFTLogSync::onRecvCommittedProposalsResponse(Error::Ptr _error, NodeIDPtr _nodeID,
+    bytesConstRef _data, bcos::protocol::BlockNumber _startIndex, size_t _offset,
+    SendResponseCallback)
 {
     if (_error)
     {
@@ -106,6 +108,11 @@ void PBFTLogSync::onRecvCommittedProposalsResponse(
                           << LOG_KV("from", _nodeID->shortHex())
                           << LOG_KV("errorCode", _error->errorCode())
                           << LOG_KV("errorMsg", _error->errorMessage());
+        for (size_t i = 0; i < _offset; i++)
+        {
+            m_pbftCache->eraseCommittedProposalList(_startIndex + i);
+        }
+        return;
     }
     if (_data.size() == 0)
     {

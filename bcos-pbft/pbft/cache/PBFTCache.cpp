@@ -159,10 +159,14 @@ void PBFTCache::intoPrecommit()
 void PBFTCache::setSignatureList(PBFTProposalInterface::Ptr _proposal, CollectionCacheType& _cache)
 {
     assert(_cache.count(_proposal->hash()));
+    _proposal->clearSignatureProof();
     for (auto const& it : _cache[_proposal->hash()])
     {
         _proposal->appendSignatureProof(it.first, it.second->consensusProposal()->signature());
     }
+    PBFT_LOG(INFO) << LOG_DESC("setSignatureList")
+                   << LOG_KV("signatureSize", _proposal->signatureProofSize())
+                   << printPBFTProposal(_proposal);
 }
 
 bool PBFTCache::conflictWithPrecommitReq(PBFTMessageInterface::Ptr _prePrepareMsg)
@@ -277,7 +281,7 @@ void PBFTCache::setCheckPointProposal(PBFTProposalInterface::Ptr _proposal)
                           << m_config->printCurrentState() << printPBFTProposal(_proposal);
         return;
     }
-    if (m_checkpointProposal || _proposal->index() != index())
+    if (_proposal->index() != index())
     {
         return;
     }

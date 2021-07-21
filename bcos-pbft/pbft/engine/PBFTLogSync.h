@@ -77,7 +77,9 @@ public:
 
 protected:
     virtual void onRecvCommittedProposalsResponse(bcos::Error::Ptr _error,
-        bcos::crypto::NodeIDPtr _nodeID, bytesConstRef _data, SendResponseCallback _sendResponse);
+        bcos::crypto::NodeIDPtr _nodeID, bytesConstRef _data,
+        bcos::protocol::BlockNumber _startIndex, size_t _offset,
+        SendResponseCallback _sendResponse);
 
     virtual void onRecvPrecommitResponse(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
         bytesConstRef _data, PBFTMessageInterface::Ptr _prePrepareMsg,

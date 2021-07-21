@@ -302,7 +302,10 @@ void LedgerStorage::asyncCommmitStableCheckPoint(PBFTProposalInterface::Ptr _sta
     auto blockHeader =
         m_blockFactory->blockHeaderFactory()->createBlockHeader(_stableProposal->data());
     blockHeader->setSignatureList(*signatureList);
-
+    PBFT_LOG(INFO) << LOG_DESC("asyncCommmitStableCheckPoint: set signatureList")
+                   << LOG_KV("index", blockHeader->number())
+                   << LOG_KV("hash", blockHeader->hash().abridged())
+                   << LOG_KV("proofSize", signatureList->size());
     // get the transactions list
     auto txsInfo = m_blockFactory->createBlock(_stableProposal->extraData());
     asyncCommitStableCheckPoint(blockHeader, txsInfo);

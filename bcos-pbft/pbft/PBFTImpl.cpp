@@ -132,9 +132,14 @@ void PBFTImpl::init()
     auto stateProposals = config->storage()->loadState(ledgerConfig->blockNumber());
     if (stateProposals && stateProposals->size() > 0)
     {
+        m_pbftEngine->initState(*stateProposals, config->keyPair()->publicKey());
+        auto lowWaterMarkIndex = stateProposals->size() - 1;
+        auto lowWaterMark = ((*stateProposals)[lowWaterMarkIndex])->index();
+        config->setLowWaterMark(lowWaterMark);
         PBFT_LOG(INFO) << LOG_DESC("init PBFT state")
-                       << LOG_KV("stateProposals", stateProposals->size());
-        m_pbftEngine->initState(*stateProposals);
+                       << LOG_KV("stateProposals", stateProposals->size())
+                       << LOG_KV("lowWaterMark", lowWaterMark)
+                       << LOG_KV("highWaterMark", config->highWaterMark());
     }
     config->timer()->start();
     PBFT_LOG(INFO) << LOG_DESC("init PBFT success");

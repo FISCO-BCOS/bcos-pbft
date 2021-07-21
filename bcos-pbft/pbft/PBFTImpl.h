@@ -90,12 +90,19 @@ public:
         m_pbftEngine->pbftConfig()->registerNewBlockNotifier(_newBlockNotifier);
     }
 
-    // handler to notify the consensusing prosal index to the sync module
+    // handler to notify the consensusing proposal index to the sync module
     void registerCommittedProposalNotifier(
         std::function<void(bcos::protocol::BlockNumber, std::function<void(Error::Ptr)>)>
             _committedProposalNotifier)
     {
         m_pbftEngine->registerCommittedProposalNotifier(_committedProposalNotifier);
+    }
+
+    // handler to notify the sealer reset the sealing proposals
+    void registerSealerResetNotifier(
+        std::function<void(std::function<void(Error::Ptr)>)> _sealerResetNotifier)
+    {
+        m_pbftEngine->pbftConfig()->registerSealerResetNotifier(_sealerResetNotifier);
     }
 
 protected:

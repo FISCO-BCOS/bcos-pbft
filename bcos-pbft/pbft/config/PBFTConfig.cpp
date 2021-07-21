@@ -99,11 +99,44 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
     }
 }
 
+void PBFTConfig::notifyResetSealing()
+{
+    if (!m_sealerResetNotifier)
+    {
+        return;
+    }
+    // only notify the non-leader to reset sealing
+    auto currentLeader = leaderIndex(progressedIndex());
+    if (currentLeader == nodeIndex())
+    {
+        return;
+    }
+    PBFT_LOG(INFO) << LOG_DESC("notifyResetSealing") << printCurrentState();
+    m_sealerResetNotifier([this](Error::Ptr _error) {
+        if (_error)
+        {
+            PBFT_LOG(INFO) << LOG_DESC("notifyResetSealing failed")
+                           << LOG_KV("code", _error->errorCode())
+                           << LOG_KV("msg", _error->errorMessage()) << printCurrentState();
+            return;
+        }
+        PBFT_LOG(INFO) << LOG_DESC("notifyResetSealing success") << printCurrentState();
+    });
+}
+
 void PBFTConfig::reNotifySealer(bcos::protocol::BlockNumber _index)
 {
-    auto committedIndex = m_committedProposal->index();
-    m_sealStartIndex = committedIndex;
-    m_sealEndIndex = committedIndex;
+    if (_index >= highWaterMark() || _index < m_committedProposal->index())
+    {
+        PBFT_LOG(INFO) << LOG_DESC("reNotifySealer return for invalid expectedStart")
+                       << LOG_KV("expectedStart", _index)
+                       << LOG_KV("highWaterMark", highWaterMark()) << printCurrentState();
+        return;
+    }
+    PBFT_LOG(INFO) << LOG_DESC("reNotifySealer") << LOG_KV("expectedStart", _index)
+                   << LOG_KV("highWaterMark", highWaterMark()) << printCurrentState();
+    m_sealStartIndex = (_index - 1);
+    m_sealEndIndex = (_index - 1);
     notifySealer(_index);
 }
 
@@ -119,6 +152,10 @@ void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
         asyncNotifySealProposal(_progressedIndex, _progressedIndex, blockTxCountLimit());
         m_sealEndIndex = std::max(_progressedIndex, m_sealEndIndex.load());
         m_sealStartIndex = std::min(_progressedIndex, m_sealStartIndex.load());
+        PBFT_LOG(INFO) << LOG_DESC("notifySealer: enforce notify the leader to seal block")
+                       << LOG_KV("idx", nodeIndex()) << LOG_KV("startIndex", _progressedIndex)
+                       << LOG_KV("endIndex", _progressedIndex)
+                       << LOG_KV("maxTxsToSeal", blockTxCountLimit()) << printCurrentState();
         return;
     }
     int64_t endProposalIndex =
@@ -126,23 +163,27 @@ void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
     endProposalIndex = std::min(endProposalIndex, highWaterMark());
     if (m_sealEndIndex >= endProposalIndex)
     {
+        PBFT_LOG(INFO) << LOG_DESC("notifySealer return for invalid seal range")
+                       << LOG_KV("currentEndIndex", m_sealEndIndex)
+                       << LOG_KV("expectedEndIndex", endProposalIndex) << printCurrentState();
         return;
     }
     auto startSealIndex = std::max(m_sealStartIndex.load(), _progressedIndex);
     if (startSealIndex > endProposalIndex)
     {
+        PBFT_LOG(INFO) << LOG_DESC("notifySealer return for invalid seal range")
+                       << LOG_KV("expectedStartIndex", startSealIndex)
+                       << LOG_KV("expectedEndIndex", endProposalIndex) << printCurrentState();
         return;
     }
     asyncNotifySealProposal(startSealIndex, endProposalIndex, blockTxCountLimit());
 
     m_sealStartIndex = startSealIndex;
     m_sealEndIndex = endProposalIndex;
-
-
     PBFT_LOG(INFO) << LOG_DESC("notifySealer: notify the new leader to seal block")
                    << LOG_KV("idx", nodeIndex()) << LOG_KV("startIndex", startSealIndex)
                    << LOG_KV("endIndex", endProposalIndex)
-                   << LOG_KV("maxTxsToSeal", blockTxCountLimit());
+                   << LOG_KV("maxTxsToSeal", blockTxCountLimit()) << printCurrentState();
 }
 
 void PBFTConfig::asyncNotifySealProposal(

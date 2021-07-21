@@ -49,7 +49,7 @@ public:
 
     virtual ~PBFTCacheProcessor() {}
     virtual void initState(
-        PBFTProposalList const& _committedProposals, bcos::crypto::NodeIDPtr _fromNode = nullptr);
+        PBFTProposalList const& _committedProposals, bcos::crypto::NodeIDPtr _fromNode);
 
     virtual void addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepareMsg);
     virtual bool existPrePrepare(PBFTMessageInterface::Ptr _prePrepareMsg);
@@ -153,9 +153,12 @@ public:
     // to release the timer
     virtual void clearAll() { m_caches.clear(); }
 
+    // TODO: ensure thread-safe here
+    virtual void eraseCommittedProposalList(bcos::protocol::BlockNumber _index);
+
 protected:
-    virtual void loadAndVerifyProposal(
-        bcos::crypto::NodeIDPtr _fromNode, PBFTProposalInterface::Ptr _proposal);
+    virtual void loadAndVerifyProposal(bcos::crypto::NodeIDPtr _fromNode,
+        PBFTProposalInterface::Ptr _proposal, size_t _retryTime = 0);
 
     virtual bool checkPrecommitWeight(PBFTMessageInterface::Ptr _precommitMsg);
     virtual void applyStateMachine(
