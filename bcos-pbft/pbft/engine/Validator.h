@@ -135,7 +135,7 @@ public:
     }
 
 protected:
-    virtual void asyncResetTxsFlag(
+    virtual void asyncResetTxsFlag(bcos::protocol::Block::Ptr _block,
         bcos::crypto::HashListPtr _txsHashList, bool _flag, size_t _retryTime = 0);
 
     bcos::txpool::TxPoolInterface::Ptr m_txPool;

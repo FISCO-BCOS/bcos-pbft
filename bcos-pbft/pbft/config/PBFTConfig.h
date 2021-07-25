@@ -123,6 +123,8 @@ public:
 
     std::string printCurrentState();
     int64_t highWaterMark() { return m_progressedIndex + m_warterMarkLimit; }
+    int64_t lowWaterMark() { return m_lowWaterMark; }
+    void setLowWaterMark(bcos::protocol::BlockNumber _index) { m_lowWaterMark = _index; }
 
     PBFTTimer::Ptr timer() { return m_timer; }
 
@@ -135,12 +137,17 @@ public:
     void setCommittedProposal(ProposalInterface::Ptr _committedProposal) override
     {
         ConsensusConfig::setCommittedProposal(_committedProposal);
-        if (_committedProposal->index() + 1 > m_expectedCheckPoint)
+        auto progressedIndex = _committedProposal->index() + 1;
+        if (progressedIndex > m_expectedCheckPoint)
         {
             PBFT_LOG(DEBUG) << LOG_DESC("PBFTConfig: resetExpectedCheckPoint")
                             << printCurrentState()
                             << LOG_KV("expectedCheckPoint", m_expectedCheckPoint);
             m_expectedCheckPoint = _committedProposal->index() + 1;
+        }
+        if (progressedIndex > m_lowWaterMark)
+        {
+            setLowWaterMark(progressedIndex);
         }
     }
 
@@ -172,7 +179,7 @@ public:
     uint64_t maxFaultyQuorum() const { return m_maxFaultyQuorum; }
 
     virtual void notifySealer(bcos::protocol::BlockNumber _progressedIndex, bool _enforce = false);
-
+    virtual void reNotifySealer(bcos::protocol::BlockNumber _index);
     virtual bool shouldResetConfig(bcos::protocol::BlockNumber _index)
     {
         ReadGuard l(x_committedProposal);
@@ -257,6 +264,14 @@ public:
         m_newBlockNotifier = _newBlockNotifier;
     }
 
+    void registerSealerResetNotifier(
+        std::function<void(std::function<void(Error::Ptr)>)> _sealerResetNotifier)
+    {
+        m_sealerResetNotifier = _sealerResetNotifier;
+    }
+
+    virtual void notifyResetSealing();
+
 protected:
     void updateQuorum() override;
     virtual void asyncNotifySealProposal(size_t _proposalIndex, size_t _proposalEndIndex,
@@ -279,6 +294,9 @@ protected:
     // notify the sealer seal Proposal
     std::function<void(size_t, size_t, size_t, std::function<void(Error::Ptr)>)>
         m_sealProposalNotifier;
+    // notify the sealer to reset sealing
+    std::function<void(std::function<void(Error::Ptr)>)> m_sealerResetNotifier;
+
     // notify the sealer the latest blockNumber
     std::function<void(bcos::protocol::BlockNumber)> m_stateNotifier;
     // the sync module notify the consensus module the new block
@@ -294,6 +312,7 @@ protected:
     std::atomic<ViewType> m_toView = {0};
 
     std::atomic<bcos::protocol::BlockNumber> m_expectedCheckPoint = {0};
+    std::atomic<bcos::protocol::BlockNumber> m_lowWaterMark = {0};
 
     std::atomic<bcos::protocol::BlockNumber> m_sealStartIndex = {0};
     std::atomic<bcos::protocol::BlockNumber> m_sealEndIndex = {0};

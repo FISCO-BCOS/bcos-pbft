@@ -19,6 +19,7 @@
  * @date 2021-04-21
  */
 #include "PBFTCacheProcessor.h"
+#include <bcos-framework/interfaces/protocol/CommonError.h>
 #include <bcos-framework/interfaces/protocol/Protocol.h>
 
 using namespace bcos;
@@ -36,27 +37,16 @@ void PBFTCacheProcessor::initState(PBFTProposalList const& _proposals, NodeIDPtr
 }
 
 void PBFTCacheProcessor::loadAndVerifyProposal(
-    NodeIDPtr _fromNode, PBFTProposalInterface::Ptr _proposal)
+    NodeIDPtr _fromNode, PBFTProposalInterface::Ptr _proposal, size_t _retryTime)
 {
-    // the local proposal
-    if (_fromNode == nullptr)
+    if (_retryTime > 3)
     {
-        updateCommitQueue(_proposal);
         return;
     }
     // Note: to fetch the remote proposal(the from node hits all transactions)
     auto self = std::weak_ptr<PBFTCacheProcessor>(shared_from_this());
-    m_config->validator()->verifyProposal(
-        _fromNode, _proposal, [self, _fromNode, _proposal](Error::Ptr _error, bool _verifyResult) {
-            if (_error || !_verifyResult)
-            {
-                PBFT_LOG(WARNING) << LOG_DESC("loadAndVerifyProposal failed")
-                                  << LOG_KV("from", _fromNode->shortHex())
-                                  << LOG_KV("code", _error ? _error->errorCode() : 0)
-                                  << LOG_KV("msg", _error ? _error->errorMessage() : "requestSent")
-                                  << LOG_KV("verifyRet", _verifyResult);
-                return;
-            }
+    m_config->validator()->verifyProposal(_fromNode, _proposal,
+        [self, _fromNode, _proposal, _retryTime](Error::Ptr _error, bool _verifyResult) {
             try
             {
                 auto cache = self.lock();
@@ -64,6 +54,32 @@ void PBFTCacheProcessor::loadAndVerifyProposal(
                 {
                     return;
                 }
+                if (_error && _error->errorCode() == bcos::protocol::CommonError::TIMEOUT)
+                {
+                    PBFT_LOG(INFO)
+                        << LOG_DESC("loadAndVerifyProposal failed for timeout, retry again")
+                        << LOG_KV("msg", _error->errorMessage());
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    cache->loadAndVerifyProposal(_fromNode, _proposal, (_retryTime + 1));
+                    return;
+                }
+                auto config = cache->m_config;
+                if (_error || !_verifyResult)
+                {
+                    auto waterMark = std::min(config->lowWaterMark(), _proposal->index() - 1);
+                    waterMark = std::max(waterMark, config->progressedIndex());
+                    config->setLowWaterMark(waterMark);
+                    PBFT_LOG(WARNING)
+                        << LOG_DESC("loadAndVerifyProposal failed") << printPBFTProposal(_proposal)
+                        << LOG_KV("from", _fromNode->shortHex())
+                        << LOG_KV("code", _error ? _error->errorCode() : 0)
+                        << LOG_KV("msg", _error ? _error->errorMessage() : "requestSent")
+                        << LOG_KV("verifyRet", _verifyResult)
+                        << LOG_KV("lowWaterMark", config->lowWaterMark());
+                    return;
+                }
+
+
                 PBFT_LOG(INFO) << LOG_DESC("loadAndVerifyProposal success")
                                << LOG_KV("from", _fromNode->shortHex())
                                << printPBFTProposal(_proposal);
@@ -198,7 +214,7 @@ void PBFTCacheProcessor::resetTimer()
         }
     }
     // reset the timer when has no proposals in consensus
-    m_config->resetTimer();
+    m_config->timer()->stop();
 }
 
 void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal)
@@ -281,8 +297,9 @@ void PBFTCacheProcessor::applyStateMachine(
                     << m_config->printCurrentState();
     auto executedProposal = m_config->pbftMessageFactory()->createPBFTProposal();
     auto self = std::weak_ptr<PBFTCacheProcessor>(shared_from_this());
+    auto startT = utcTime();
     m_config->stateMachine()->asyncApply(m_config->consensusNodeList(), _lastAppliedProposal,
-        _proposal, executedProposal, [self, _proposal, executedProposal](bool _ret) {
+        _proposal, executedProposal, [self, startT, _proposal, executedProposal](bool _ret) {
             try
             {
                 auto cache = self.lock();
@@ -297,19 +314,20 @@ void PBFTCacheProcessor::applyStateMachine(
                         << LOG_DESC("applyStateMachine: give up the proposal for expired")
                         << config->printCurrentState()
                         << LOG_KV("beforeExec", _proposal->hash().abridged())
-                        << LOG_KV("afterExec", executedProposal->hash().abridged());
+                        << LOG_KV("afterExec", executedProposal->hash().abridged())
+                        << LOG_KV("timecost", utcTime() - startT);
                     return;
                 }
                 if (cache->m_proposalAppliedHandler)
                 {
                     cache->m_proposalAppliedHandler(_ret, _proposal, executedProposal);
                 }
-                PBFT_LOG(DEBUG) << LOG_DESC(
-                                       "applyStateMachine finished")
+                PBFT_LOG(DEBUG) << LOG_DESC("applyStateMachine finished")
                                 << LOG_KV("index", executedProposal->index())
                                 << LOG_KV("beforeExec", _proposal->hash().abridged())
                                 << LOG_KV("afterExec", executedProposal->hash().abridged())
-                                << config->printCurrentState();
+                                << config->printCurrentState()
+                                << LOG_KV("timecost", utcTime() - startT);
             }
             catch (std::exception const& e)
             {
@@ -465,6 +483,11 @@ PBFTMessageList PBFTCacheProcessor::generatePrePrepareMsg(
 
 NewViewMsgInterface::Ptr PBFTCacheProcessor::checkAndTryIntoNewView()
 {
+    // in syncing mode, no need to try into the newView period
+    if (m_config->committedProposal()->index() < m_config->syncingHighestNumber())
+    {
+        return nullptr;
+    }
     if (m_newViewGenerated || !m_config->leaderAfterViewChange())
     {
         return nullptr;
@@ -781,6 +804,15 @@ bool PBFTCacheProcessor::shouldRequestCheckPoint(bcos::protocol::BlockNumber _ch
     // in case of request again
     m_committedProposalList.insert(_checkPointIndex);
     return true;
+}
+
+void PBFTCacheProcessor::eraseCommittedProposalList(bcos::protocol::BlockNumber _index)
+{
+    if (!m_committedProposalList.count(_index))
+    {
+        return;
+    }
+    m_committedProposalList.erase(_index);
 }
 
 // Note: Since blockSync and consensus execute the same block at the same time, the hash obtained is

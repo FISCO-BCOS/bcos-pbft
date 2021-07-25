@@ -48,8 +48,9 @@ void TxsValidator::asyncResetTxsFlag(bytesConstRef _data, bool _flag)
             }
             PBFT_LOG(INFO) << LOG_DESC("asyncResetTxsFlag")
                            << LOG_KV("index", block->blockHeader()->number())
+                           << LOG_KV("hash", block->blockHeader()->hash().abridged())
                            << LOG_KV("flag", _flag);
-            validator->asyncResetTxsFlag(txsHash, _flag);
+            validator->asyncResetTxsFlag(block, txsHash, _flag);
         }
         catch (std::exception const& e)
         {
@@ -59,13 +60,18 @@ void TxsValidator::asyncResetTxsFlag(bytesConstRef _data, bool _flag)
     });
 }
 
-void TxsValidator::asyncResetTxsFlag(HashListPtr _txsHashList, bool _flag, size_t _retryTime)
+void TxsValidator::asyncResetTxsFlag(
+    bcos::protocol::Block::Ptr _block, HashListPtr _txsHashList, bool _flag, size_t _retryTime)
 {
-    m_txPool->asyncMarkTxs(
-        _txsHashList, _flag, [this, _txsHashList, _flag, _retryTime](Error::Ptr _error) {
+    m_txPool->asyncMarkTxs(_txsHashList, _flag, _block->blockHeader()->number(),
+        _block->blockHeader()->hash(),
+        [this, _block, _txsHashList, _flag, _retryTime](Error::Ptr _error) {
             if (_error == nullptr)
             {
-                PBFT_LOG(DEBUG) << LOG_DESC("asyncMarkTxs success");
+                PBFT_LOG(DEBUG) << LOG_DESC("asyncMarkTxs success")
+                                << LOG_KV("index", _block->blockHeader()->number())
+                                << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                                << LOG_KV("flag", _flag);
                 return;
             }
             PBFT_LOG(DEBUG) << LOG_DESC("asyncMarkTxs failed")
@@ -75,6 +81,6 @@ void TxsValidator::asyncResetTxsFlag(HashListPtr _txsHashList, bool _flag, size_
             {
                 return;
             }
-            this->asyncResetTxsFlag(_txsHashList, _flag, _retryTime + 1);
+            this->asyncResetTxsFlag(_block, _txsHashList, _flag, _retryTime + 1);
         });
 }
