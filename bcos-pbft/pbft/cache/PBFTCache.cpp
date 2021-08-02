@@ -310,6 +310,7 @@ bool PBFTCache::checkAndCommitStableCheckPoint()
     setSignatureList(m_checkpointProposal, m_checkpointCacheList);
     m_stableCommitted = true;
     m_timer->stop();
+    m_config->setTimeoutState(false);
     PBFT_LOG(INFO) << LOG_DESC("checkAndCommitStableCheckPoint")
                    << LOG_KV("index", m_checkpointProposal->index())
                    << LOG_KV("hash", m_checkpointProposal->hash().abridged())
