@@ -833,6 +833,10 @@ void PBFTCacheProcessor::removeFutureProposals()
     {
         auto proposal = m_committedQueue.top();
         m_committedQueue.pop();
+        if (proposal->index() >= m_config->committedProposal()->index())
+        {
+            continue;
+        }
         m_config->validator()->asyncResetTxsFlag(proposal->data(), false);
     }
     m_committedProposalList.clear();
@@ -851,7 +855,8 @@ void PBFTCacheProcessor::removeFutureProposals()
         if (cache->index() >= committedIndex && cache->checkPointProposal())
         {
             auto precommitMsg = cache->preCommitCache();
-            if (precommitMsg && precommitMsg->consensusProposal())
+            if (precommitMsg && precommitMsg->index() < m_config->committedProposal()->index() &&
+                precommitMsg->consensusProposal())
             {
                 m_config->validator()->asyncResetTxsFlag(
                     precommitMsg->consensusProposal()->data(), false);
