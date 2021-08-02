@@ -377,6 +377,12 @@ void PBFTEngine::executeWorker()
         waitSignal();
         return;
     }
+    // when the node is syncing, not handle the PBFT message
+    if (m_config->committedProposal()->index() < m_config->syncingHighestNumber())
+    {
+        waitSignal();
+        return;
+    }
     // handle the PBFT message(here will wait when the msgQueue is empty)
     auto messageResult = m_msgQueue->tryPop(c_PopWaitSeconds);
     if (messageResult.first)
