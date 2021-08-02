@@ -392,7 +392,7 @@ void PBFTEngine::executeWorker()
                 handleMsg(pbftMsg);
             }
             // Re-insert unqualified messages into the queue
-            else
+            else if (pbftMsg->index() > m_config->committedProposal()->index())
             {
                 m_msgQueue->push(pbftMsg);
             }
@@ -401,6 +401,11 @@ void PBFTEngine::executeWorker()
         {
             handleMsg(messageResult.second);
         }
+    }
+    // wait for PBFTMsg
+    else
+    {
+        waitSignal();
     }
 }
 

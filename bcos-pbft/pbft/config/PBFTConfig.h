@@ -235,6 +235,8 @@ public:
 
     virtual void resetTimer()
     {
+        // reset the timeout state to false
+        m_timeoutState.store(false);
         if (m_unsealedTxsSize > 0)
         {
             m_timer->restart();
