@@ -134,6 +134,7 @@ void PBFTEngine::onProposalApplyFailed(PBFTProposalInterface::Ptr _proposal)
         m_cacheProcessor->updateCommitQueue(_proposal);
     }
     m_config->setExpectedCheckPoint(m_config->committedProposal()->index() + 1);
+    m_cacheProcessor->eraseExecutedProposal(_proposal->hash());
     return;
 }
 
@@ -163,6 +164,7 @@ void PBFTEngine::onProposalApplySuccess(
     m_config->setExpectedCheckPoint(_executedProposal->index() + 1);
     m_cacheProcessor->checkAndCommitStableCheckPoint();
     m_cacheProcessor->tryToApplyCommitQueue();
+    m_cacheProcessor->eraseExecutedProposal(_proposal->hash());
 }
 
 // called after proposal executed successfully
@@ -751,6 +753,15 @@ bool PBFTEngine::handleCommitMsg(PBFTMessageInterface::Ptr _commitMsg)
 void PBFTEngine::onTimeout()
 {
     Guard l(m_mutex);
+    // when some proposals are executing, not trigger timeout
+    auto executingProposal = m_cacheProcessor->executingProposalSize();
+    if (executingProposal > 0)
+    {
+        PBFT_LOG(INFO) << LOG_DESC("onTimeout: Proposal is executing, resetart the timer")
+                       << LOG_KV("executingProposal", executingProposal);
+        m_config->timer()->restart();
+        return;
+    }
     m_config->resetTimeoutState();
     // clear the viewchange cache
     m_cacheProcessor->removeInvalidViewChange(
