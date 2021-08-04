@@ -220,6 +220,10 @@ void PBFTCacheProcessor::resetTimer()
 void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal)
 {
     assert(_committedProposal);
+    if (m_executingProposals.count(_committedProposal->hash()))
+    {
+        return;
+    }
     m_committedQueue.push(_committedProposal);
     m_committedProposalList.insert(_committedProposal->index());
     PBFT_LOG(INFO) << LOG_DESC("######## CommitProposal") << printPBFTProposal(_committedProposal)
@@ -282,8 +286,19 @@ void PBFTCacheProcessor::tryToApplyCommitQueue()
                               << m_config->printCurrentState();
             return;
         }
+        if (m_executingProposals.count(proposal->hash()))
+        {
+            m_config->timer()->restart();
+            PBFT_LOG(INFO) << LOG_DESC("the proposal is executing, not executed again")
+                           << LOG_KV("index", proposal->index())
+                           << LOG_KV("hash", proposal->hash().abridged())
+                           << m_config->printCurrentState();
+            return;
+        }
         // commit the proposal
         m_committedQueue.pop();
+        // in case of the same block execute more than once
+        m_executingProposals.insert(proposal->hash());
         applyStateMachine(lastAppliedProposal, proposal);
     }
 }
@@ -323,7 +338,7 @@ void PBFTCacheProcessor::applyStateMachine(
                     cache->m_proposalAppliedHandler(_ret, _proposal, executedProposal);
                 }
                 PBFT_LOG(DEBUG) << LOG_DESC("applyStateMachine finished")
-                                << LOG_KV("index", executedProposal->index())
+                                << LOG_KV("index", _proposal->index())
                                 << LOG_KV("beforeExec", _proposal->hash().abridged())
                                 << LOG_KV("afterExec", executedProposal->hash().abridged())
                                 << config->printCurrentState()
