@@ -76,10 +76,11 @@ bool BlockValidator::checkSealerListAndWeightList(Block::Ptr _block)
     // check sealer(sealer must be a consensus node)
     if (!m_config->getConsensusNodeByIndex(_block->blockHeader()->sealer()))
     {
-        PBFT_LOG(ERROR) << LOG_DESC("checkBlock: invalid sealer for not a consensus node")
-                        << LOG_KV("sealer", _block->blockHeader()->sealer())
-                        << LOG_KV("hash", _block->blockHeader()->hash().abridged())
-                        << LOG_KV("number", _block->blockHeader()->number());
+        PBFT_LOG(ERROR)
+            << LOG_DESC("checkBlock for sync module: invalid sealer for not a consensus node")
+            << LOG_KV("sealer", _block->blockHeader()->sealer())
+            << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+            << LOG_KV("number", _block->blockHeader()->number());
         return false;
     }
     // Note: for tars service, blockHeader must be here to ensure the sealer list not been released
@@ -91,7 +92,7 @@ bool BlockValidator::checkSealerListAndWeightList(Block::Ptr _block)
     if ((size_t)blockSealerList.size() != (size_t)consensusNodeList.size() ||
         (size_t)blockWeightList.size() != (size_t)consensusNodeList.size())
     {
-        PBFT_LOG(ERROR) << LOG_DESC("checkBlock: wrong sealerList")
+        PBFT_LOG(ERROR) << LOG_DESC("checkBlock for sync module: wrong sealerList")
                         << LOG_KV("Nsealer", consensusNodeList.size())
                         << LOG_KV("NBlockSealer", blockSealerList.size())
                         << LOG_KV("NBlockWeight", blockWeightList.size())
@@ -106,7 +107,7 @@ bool BlockValidator::checkSealerListAndWeightList(Block::Ptr _block)
         auto consNodePtr = consensusNodeList[i];
         if (consNodePtr->nodeID()->data() != blockSealer)
         {
-            PBFT_LOG(ERROR) << LOG_DESC("checkBlock: inconsistent sealerList")
+            PBFT_LOG(ERROR) << LOG_DESC("checkBlock for sync module: inconsistent sealerList")
                             << LOG_KV("blkSealer", consNodePtr->nodeID()->shortHex())
                             << LOG_KV("chainSealer", *toHexString(blockSealer))
                             << LOG_KV("number", _block->blockHeader()->number())
@@ -117,7 +118,7 @@ bool BlockValidator::checkSealerListAndWeightList(Block::Ptr _block)
         auto blockWeight = blockWeightList[i];
         if (consNodePtr->weight() != blockWeight)
         {
-            PBFT_LOG(ERROR) << LOG_DESC("checkBlock: inconsistent weight")
+            PBFT_LOG(ERROR) << LOG_DESC("checkBlock for sync module: inconsistent weight")
                             << LOG_KV("blkWeight", blockWeight)
                             << LOG_KV("chainWeight", consNodePtr->weight())
                             << LOG_KV("number", _block->blockHeader()->number())
@@ -133,14 +134,8 @@ bool BlockValidator::checkSignatureList(Block::Ptr _block)
 {
     // check sign num
     auto signatureList = _block->blockHeader()->signatureList();
-    if ((size_t)signatureList.size() < (size_t)m_config->minRequiredQuorum())
-    {
-        PBFT_LOG(ERROR) << LOG_DESC("checkBlock: insufficient signatures")
-                        << LOG_KV("signNum", signatureList.size())
-                        << LOG_KV("minRequiredQuorum", m_config->minRequiredQuorum());
-        return false;
-    }
-    // check sign
+    // check sign and weight
+    size_t signatureWeight = 0;
     for (auto const& sign : signatureList)
     {
         auto nodeIndex = sign.index;
@@ -148,12 +143,21 @@ bool BlockValidator::checkSignatureList(Block::Ptr _block)
         if (!nodeInfo || !m_config->cryptoSuite()->signatureImpl()->verify(nodeInfo->nodeID(),
                              _block->blockHeader()->hash(), ref(sign.signature)))
         {
-            PBFT_LOG(ERROR) << LOG_DESC("checkBlock: checkSign failed")
+            PBFT_LOG(ERROR) << LOG_DESC("checkBlock for sync module: checkSign failed")
                             << LOG_KV("sealerIdx", nodeIndex)
                             << LOG_KV("blockHash", _block->blockHeader()->hash().abridged())
                             << LOG_KV("number", _block->blockHeader()->number());
             return false;
         }
+        signatureWeight += nodeInfo->weight();
+    }
+    if (signatureWeight < (size_t)m_config->minRequiredQuorum())
+    {
+        PBFT_LOG(ERROR) << LOG_DESC("checkBlock for sync module: insufficient signatures")
+                        << LOG_KV("signNum", signatureList.size())
+                        << LOG_KV("sigWeight", signatureWeight)
+                        << LOG_KV("minRequiredQuorum", m_config->minRequiredQuorum());
+        return false;
     }
     return true;
 }
