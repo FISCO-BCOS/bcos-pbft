@@ -232,6 +232,12 @@ bool PBFTCache::checkAndCommit()
     {
         return false;
     }
+    // collect enough commit message before intoPrecommit
+    // can only into commit status when precommitted
+    if (!m_precommit)
+    {
+        return false;
+    }
     if (!collectEnoughCommitReq())
     {
         return false;
