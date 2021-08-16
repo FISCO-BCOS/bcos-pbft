@@ -214,6 +214,16 @@ void PBFTEngine::onRecvProposal(
         return;
     }
     // expired proposal
+    if (_proposalIndex <= m_config->syncingHighestNumber())
+    {
+        PBFT_LOG(WARNING) << LOG_DESC("asyncSubmitProposal failed for expired index")
+                          << LOG_KV("index", _proposalIndex)
+                          << LOG_KV("hash", _proposalHash.abridged())
+                          << m_config->printCurrentState()
+                          << LOG_KV("syncingHighestNumber", m_config->syncingHighestNumber());
+        m_config->validator()->asyncResetTxsFlag(_proposalData, false);
+        return;
+    }
     if (_proposalIndex <= m_config->committedProposal()->index() ||
         _proposalIndex < m_config->expectedCheckPoint() ||
         _proposalIndex < m_config->lowWaterMark())
@@ -477,11 +487,13 @@ CheckResult PBFTEngine::checkPBFTMsgState(PBFTMessageInterface::Ptr _pbftReq) co
     }
     if (_pbftReq->index() < m_config->lowWaterMark() ||
         _pbftReq->index() < m_config->expectedCheckPoint() ||
-        _pbftReq->index() >= m_config->highWaterMark())
+        _pbftReq->index() >= m_config->highWaterMark() ||
+        _pbftReq->index() <= m_config->syncingHighestNumber())
     {
         PBFT_LOG(TRACE) << LOG_DESC("checkPBFTMsgState: invalid pbftMsg for invalid index")
                         << LOG_KV("highWaterMark", m_config->highWaterMark())
-                        << printPBFTMsgInfo(_pbftReq) << m_config->printCurrentState();
+                        << printPBFTMsgInfo(_pbftReq) << m_config->printCurrentState()
+                        << LOG_KV("syncingNumber", m_config->syncingHighestNumber());
         return CheckResult::INVALID;
     }
     // case index equal
