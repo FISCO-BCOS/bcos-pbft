@@ -21,6 +21,7 @@
 #include "PBFTCacheProcessor.h"
 #include <bcos-framework/interfaces/protocol/CommonError.h>
 #include <bcos-framework/interfaces/protocol/Protocol.h>
+#include <boost/bind/bind.hpp>
 
 using namespace bcos;
 using namespace bcos::consensus;
@@ -164,7 +165,9 @@ void PBFTCacheProcessor::addCache(
     auto index = _pbftReq->index();
     if (!(_pbftCache.count(index)))
     {
-        _pbftCache[index] = m_cacheFactory->createPBFTCache(m_config, index);
+        _pbftCache[index] = m_cacheFactory->createPBFTCache(m_config, index,
+            boost::bind(
+                &PBFTCacheProcessor::notifyCommittedProposalIndex, this, boost::placeholders::_1));
     }
     _handler(_pbftCache[index], _pbftReq);
 }
@@ -357,7 +360,9 @@ void PBFTCacheProcessor::setCheckPointProposal(PBFTProposalInterface::Ptr _propo
     auto index = _proposal->index();
     if (!(m_caches.count(index)))
     {
-        m_caches[index] = m_cacheFactory->createPBFTCache(m_config, index);
+        m_caches[index] = m_cacheFactory->createPBFTCache(m_config, index,
+            boost::bind(
+                &PBFTCacheProcessor::notifyCommittedProposalIndex, this, boost::placeholders::_1));
     }
     (m_caches[index])->setCheckPointProposal(_proposal);
 }

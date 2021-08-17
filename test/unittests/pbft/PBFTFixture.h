@@ -90,7 +90,8 @@ public:
     FakePBFTCacheFactory() = default;
     ~FakePBFTCacheFactory() override {}
 
-    PBFTCache::Ptr createPBFTCache(PBFTConfig::Ptr _config, BlockNumber _index) override
+    PBFTCache::Ptr createPBFTCache(PBFTConfig::Ptr _config, BlockNumber _index,
+        std::function<void(bcos::protocol::BlockNumber)>) override
     {
         return std::make_shared<FakePBFTCache>(_config, _index);
     }

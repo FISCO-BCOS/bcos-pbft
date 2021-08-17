@@ -31,10 +31,13 @@ public:
     PBFTCacheFactory() = default;
     virtual ~PBFTCacheFactory() {}
 
-    virtual PBFTCache::Ptr createPBFTCache(
-        PBFTConfig::Ptr _config, bcos::protocol::BlockNumber _index)
+    virtual PBFTCache::Ptr createPBFTCache(PBFTConfig::Ptr _config,
+        bcos::protocol::BlockNumber _index,
+        std::function<void(bcos::protocol::BlockNumber)> _committedIndexNotifier)
     {
-        return std::make_shared<PBFTCache>(_config, _index);
+        auto cache = std::make_shared<PBFTCache>(_config, _index);
+        cache->registerCommittedIndexNotify(_committedIndexNotifier);
+        return cache;
     }
 };
 }  // namespace consensus

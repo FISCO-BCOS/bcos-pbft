@@ -43,6 +43,10 @@ void PBFTCache::onCheckPointTimeout()
                           << m_config->printCurrentState();
         return;
     }
+    if (m_committedIndexNotifier)
+    {
+        m_committedIndexNotifier(m_config->committedProposal()->index());
+    }
     PBFT_LOG(WARNING) << LOG_DESC("onCheckPointTimeout: resend the checkpoint message package")
                       << LOG_KV("index", m_checkpointProposal->index())
                       << LOG_KV("hash", m_checkpointProposal->hash().abridged())

@@ -96,6 +96,12 @@ public:
     bool stableCommitted() const { return m_stableCommitted; }
     bool precommitted() const { return m_precommitted; }
 
+    void registerCommittedIndexNotify(
+        std::function<void(bcos::protocol::BlockNumber)> _committedIndexNotifier)
+    {
+        m_committedIndexNotifier = _committedIndexNotifier;
+    }
+
 protected:
     bool checkPrePrepareProposalStatus();
     using CollectionCacheType =
@@ -187,6 +193,8 @@ protected:
     QuorumRecoderType m_checkpointCacheWeight;
 
     PBFTTimer::Ptr m_timer;
+
+    std::function<void(bcos::protocol::BlockNumber)> m_committedIndexNotifier;
 };
 }  // namespace consensus
 }  // namespace bcos
