@@ -167,6 +167,11 @@ public:
 
     virtual size_t executingProposalSize() { return m_executingProposals.size(); }
 
+    virtual std::set<bcos::crypto::HashType>& mutableExecutingProposals()
+    {
+        return m_executingProposals;
+    }
+
 protected:
     virtual void loadAndVerifyProposal(bcos::crypto::NodeIDPtr _fromNode,
         PBFTProposalInterface::Ptr _proposal, size_t _retryTime = 0);
