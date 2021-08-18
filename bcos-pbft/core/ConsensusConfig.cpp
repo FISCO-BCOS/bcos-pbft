@@ -82,6 +82,7 @@ void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList
     updateQuorum();
     CONSENSUS_LOG(INFO) << LOG_DESC("updateConsensusNodeList")
                         << LOG_KV("nodeNum", m_consensusNodeNum) << LOG_KV("nodeIndex", nodeIndex)
+                        << LOG_KV("committedIndex", committedProposal()->index())
                         << decsConsensusNodeList(_consensusNodeList);
 }
 
