@@ -111,6 +111,7 @@ bool BlockValidator::checkSealerListAndWeightList(Block::Ptr _block)
                             << LOG_KV("blkSealer", consNodePtr->nodeID()->shortHex())
                             << LOG_KV("chainSealer", *toHexString(blockSealer))
                             << LOG_KV("number", _block->blockHeader()->number())
+                            << LOG_KV("weight", consNodePtr->weight())
                             << m_config->printCurrentState();
             return false;
         }
@@ -122,6 +123,8 @@ bool BlockValidator::checkSealerListAndWeightList(Block::Ptr _block)
                             << LOG_KV("blkWeight", blockWeight)
                             << LOG_KV("chainWeight", consNodePtr->weight())
                             << LOG_KV("number", _block->blockHeader()->number())
+                            << LOG_KV("blkSealer", consNodePtr->nodeID()->shortHex())
+                            << LOG_KV("chainSealer", *toHexString(blockSealer))
                             << m_config->printCurrentState();
             return false;
         }
