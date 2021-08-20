@@ -172,6 +172,12 @@ public:
         return m_executingProposals;
     }
 
+    virtual void registerOnLoadAndVerifyProposalSucc(
+        std::function<void(PBFTProposalInterface::Ptr)> _onLoadAndVerifyProposalSucc)
+    {
+        m_onLoadAndVerifyProposalSucc = _onLoadAndVerifyProposalSucc;
+    }
+
 protected:
     virtual void loadAndVerifyProposal(bcos::crypto::NodeIDPtr _fromNode,
         PBFTProposalInterface::Ptr _proposal, size_t _retryTime = 0);
@@ -226,6 +232,7 @@ protected:
         m_proposalAppliedHandler;
     std::function<void(bcos::protocol::BlockNumber, std::function<void(Error::Ptr)>)>
         m_committedProposalNotifier;
+    std::function<void(PBFTProposalInterface::Ptr)> m_onLoadAndVerifyProposalSucc;
 };
 }  // namespace consensus
 }  // namespace bcos

@@ -47,6 +47,9 @@ PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
         &PBFTEngine::finalizeConsensus, this, boost::placeholders::_1, boost::placeholders::_2));
     m_cacheProcessor->registerProposalAppliedHandler(boost::bind(&PBFTEngine::onProposalApplied,
         this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
+
+    m_cacheProcessor->registerOnLoadAndVerifyProposalSucc(
+        boost::bind(&PBFTEngine::onLoadAndVerifyProposalSucc, this, boost::placeholders::_1));
     initSendResponseHandler();
     // when the node first setup, set timeout to be true for view recovery
     // set timeout to be true to in case of notify-seal before the PBFTEngine started
@@ -111,6 +114,13 @@ void PBFTEngine::stop()
         m_config->stop();
     }
     m_cacheProcessor->clearAll();
+}
+
+void PBFTEngine::onLoadAndVerifyProposalSucc(PBFTProposalInterface::Ptr _proposal)
+{
+    // must add lock here to ensure thread-safe
+    Guard l(m_mutex);
+    m_cacheProcessor->updateCommitQueue(_proposal);
 }
 
 void PBFTEngine::onProposalApplyFailed(PBFTProposalInterface::Ptr _proposal)

@@ -79,12 +79,10 @@ void PBFTCacheProcessor::loadAndVerifyProposal(
                         << LOG_KV("lowWaterMark", config->lowWaterMark());
                     return;
                 }
-
-
                 PBFT_LOG(INFO) << LOG_DESC("loadAndVerifyProposal success")
                                << LOG_KV("from", _fromNode->shortHex())
                                << printPBFTProposal(_proposal);
-                cache->updateCommitQueue(_proposal);
+                cache->m_onLoadAndVerifyProposalSucc(_proposal);
             }
             catch (std::exception const& e)
             {
