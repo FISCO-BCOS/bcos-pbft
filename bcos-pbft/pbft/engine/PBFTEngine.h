@@ -149,6 +149,8 @@ protected:
 
     virtual void resetSealedTxs(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg);
 
+    virtual void onLoadAndVerifyProposalSucc(PBFTProposalInterface::Ptr _proposal);
+
 private:
     // utility functions
     void waitSignal()

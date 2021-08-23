@@ -130,6 +130,8 @@ public:
         m_cacheProcessor->registerProposalAppliedHandler(
             boost::bind(&FakePBFTEngine::onProposalApplied, this, boost::placeholders::_1,
                 boost::placeholders::_2, boost::placeholders::_3));
+        m_cacheProcessor->registerOnLoadAndVerifyProposalSucc(boost::bind(
+            &FakePBFTEngine::onLoadAndVerifyProposalSucc, this, boost::placeholders::_1));
         initSendResponseHandler();
     }
     ~FakePBFTEngine() override {}
