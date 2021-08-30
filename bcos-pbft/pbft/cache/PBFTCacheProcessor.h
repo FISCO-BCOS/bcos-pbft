@@ -156,6 +156,28 @@ public:
     // TODO: ensure thread-safe here
     virtual void eraseCommittedProposalList(bcos::protocol::BlockNumber _index);
 
+    virtual void eraseExecutedProposal(bcos::crypto::HashType const& _hash)
+    {
+        if (!m_executingProposals.count(_hash))
+        {
+            return;
+        }
+        m_executingProposals.erase(_hash);
+    }
+
+    virtual size_t executingProposalSize() { return m_executingProposals.size(); }
+
+    virtual std::set<bcos::crypto::HashType>& mutableExecutingProposals()
+    {
+        return m_executingProposals;
+    }
+
+    virtual void registerOnLoadAndVerifyProposalSucc(
+        std::function<void(PBFTProposalInterface::Ptr)> _onLoadAndVerifyProposalSucc)
+    {
+        m_onLoadAndVerifyProposalSucc = _onLoadAndVerifyProposalSucc;
+    }
+
 protected:
     virtual void loadAndVerifyProposal(bcos::crypto::NodeIDPtr _fromNode,
         PBFTProposalInterface::Ptr _proposal, size_t _retryTime = 0);
@@ -198,6 +220,8 @@ protected:
     std::priority_queue<PBFTProposalInterface::Ptr, std::vector<PBFTProposalInterface::Ptr>,
         PBFTProposalCmp>
         m_committedQueue;
+    std::set<bcos::crypto::HashType> m_executingProposals;
+
     std::set<bcos::protocol::BlockNumber> m_committedProposalList;
 
     std::priority_queue<PBFTProposalInterface::Ptr, std::vector<PBFTProposalInterface::Ptr>,
@@ -208,6 +232,7 @@ protected:
         m_proposalAppliedHandler;
     std::function<void(bcos::protocol::BlockNumber, std::function<void(Error::Ptr)>)>
         m_committedProposalNotifier;
+    std::function<void(PBFTProposalInterface::Ptr)> m_onLoadAndVerifyProposalSucc;
 };
 }  // namespace consensus
 }  // namespace bcos

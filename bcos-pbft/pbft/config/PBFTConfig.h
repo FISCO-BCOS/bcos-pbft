@@ -106,9 +106,16 @@ public:
             return;
         }
         m_leaderSwitchPeriod.store(_leaderSwitchPeriod);
-        m_leaderSwitchPeriodUpdated = true;
-        PBFT_LOG(INFO) << LOG_DESC("setLeaderSwitchPeriod")
-                       << LOG_KV("leader_period", m_leaderSwitchPeriod);
+        // notify the sealer module to reset sealing
+        auto proposalIndex = committedProposal()->index() + 1;
+        notifyResetSealing([this, proposalIndex]() {
+            // notify the sealer to reseal
+            reNotifySealer(proposalIndex);
+        });
+        PBFT_LOG(INFO) << LOG_DESC(
+                              "updateLeaderSwitchPeriod and re-notify the sealer to seal block")
+                       << LOG_KV("leader_period", m_leaderSwitchPeriod)
+                       << LOG_KV("committedIndex", committedProposal()->index());
     }
     bcos::crypto::CryptoSuite::Ptr cryptoSuite() { return m_cryptoSuite; }
     std::shared_ptr<PBFTMessageFactory> pbftMessageFactory() { return m_pbftMessageFactory; }
@@ -235,6 +242,8 @@ public:
 
     virtual void resetTimer()
     {
+        // reset the timeout state to false
+        m_timeoutState.store(false);
         if (m_unsealedTxsSize > 0)
         {
             m_timer->restart();
@@ -270,7 +279,7 @@ public:
         m_sealerResetNotifier = _sealerResetNotifier;
     }
 
-    virtual void notifyResetSealing();
+    virtual void notifyResetSealing(std::function<void()> _callback = nullptr);
 
 protected:
     void updateQuorum() override;
@@ -302,9 +311,6 @@ protected:
     // the sync module notify the consensus module the new block
     std::function<void(bcos::ledger::LedgerConfig::Ptr, std::function<void(Error::Ptr)>)>
         m_newBlockNotifier;
-
-    std::atomic_bool m_leaderSwitchPeriodUpdated = {false};
-
     std::atomic<uint64_t> m_maxFaultyQuorum = {0};
     std::atomic<uint64_t> m_totalQuorum = {0};
     std::atomic<uint64_t> m_minRequiredQuorum = {0};

@@ -21,6 +21,7 @@
 #include "PBFTCacheProcessor.h"
 #include <bcos-framework/interfaces/protocol/CommonError.h>
 #include <bcos-framework/interfaces/protocol/Protocol.h>
+#include <boost/bind/bind.hpp>
 
 using namespace bcos;
 using namespace bcos::consensus;
@@ -78,12 +79,10 @@ void PBFTCacheProcessor::loadAndVerifyProposal(
                         << LOG_KV("lowWaterMark", config->lowWaterMark());
                     return;
                 }
-
-
                 PBFT_LOG(INFO) << LOG_DESC("loadAndVerifyProposal success")
                                << LOG_KV("from", _fromNode->shortHex())
                                << printPBFTProposal(_proposal);
-                cache->updateCommitQueue(_proposal);
+                cache->m_onLoadAndVerifyProposalSucc(_proposal);
             }
             catch (std::exception const& e)
             {
@@ -164,7 +163,9 @@ void PBFTCacheProcessor::addCache(
     auto index = _pbftReq->index();
     if (!(_pbftCache.count(index)))
     {
-        _pbftCache[index] = m_cacheFactory->createPBFTCache(m_config, index);
+        _pbftCache[index] = m_cacheFactory->createPBFTCache(m_config, index,
+            boost::bind(
+                &PBFTCacheProcessor::notifyCommittedProposalIndex, this, boost::placeholders::_1));
     }
     _handler(_pbftCache[index], _pbftReq);
 }
@@ -220,6 +221,10 @@ void PBFTCacheProcessor::resetTimer()
 void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal)
 {
     assert(_committedProposal);
+    if (m_executingProposals.count(_committedProposal->hash()))
+    {
+        return;
+    }
     m_committedQueue.push(_committedProposal);
     m_committedProposalList.insert(_committedProposal->index());
     PBFT_LOG(INFO) << LOG_DESC("######## CommitProposal") << printPBFTProposal(_committedProposal)
@@ -282,8 +287,19 @@ void PBFTCacheProcessor::tryToApplyCommitQueue()
                               << m_config->printCurrentState();
             return;
         }
+        if (m_executingProposals.count(proposal->hash()))
+        {
+            m_config->timer()->restart();
+            PBFT_LOG(INFO) << LOG_DESC("the proposal is executing, not executed again")
+                           << LOG_KV("index", proposal->index())
+                           << LOG_KV("hash", proposal->hash().abridged())
+                           << m_config->printCurrentState();
+            return;
+        }
         // commit the proposal
         m_committedQueue.pop();
+        // in case of the same block execute more than once
+        m_executingProposals.insert(proposal->hash());
         applyStateMachine(lastAppliedProposal, proposal);
     }
 }
@@ -323,7 +339,7 @@ void PBFTCacheProcessor::applyStateMachine(
                     cache->m_proposalAppliedHandler(_ret, _proposal, executedProposal);
                 }
                 PBFT_LOG(DEBUG) << LOG_DESC("applyStateMachine finished")
-                                << LOG_KV("index", executedProposal->index())
+                                << LOG_KV("index", _proposal->index())
                                 << LOG_KV("beforeExec", _proposal->hash().abridged())
                                 << LOG_KV("afterExec", executedProposal->hash().abridged())
                                 << config->printCurrentState()
@@ -342,7 +358,9 @@ void PBFTCacheProcessor::setCheckPointProposal(PBFTProposalInterface::Ptr _propo
     auto index = _proposal->index();
     if (!(m_caches.count(index)))
     {
-        m_caches[index] = m_cacheFactory->createPBFTCache(m_config, index);
+        m_caches[index] = m_cacheFactory->createPBFTCache(m_config, index,
+            boost::bind(
+                &PBFTCacheProcessor::notifyCommittedProposalIndex, this, boost::placeholders::_1));
     }
     (m_caches[index])->setCheckPointProposal(_proposal);
 }
@@ -833,6 +851,10 @@ void PBFTCacheProcessor::removeFutureProposals()
     {
         auto proposal = m_committedQueue.top();
         m_committedQueue.pop();
+        if (proposal->index() >= m_config->committedProposal()->index())
+        {
+            continue;
+        }
         m_config->validator()->asyncResetTxsFlag(proposal->data(), false);
     }
     m_committedProposalList.clear();
@@ -851,7 +873,8 @@ void PBFTCacheProcessor::removeFutureProposals()
         if (cache->index() >= committedIndex && cache->checkPointProposal())
         {
             auto precommitMsg = cache->preCommitCache();
-            if (precommitMsg && precommitMsg->consensusProposal())
+            if (precommitMsg && precommitMsg->index() < m_config->committedProposal()->index() &&
+                precommitMsg->consensusProposal())
             {
                 m_config->validator()->asyncResetTxsFlag(
                     precommitMsg->consensusProposal()->data(), false);

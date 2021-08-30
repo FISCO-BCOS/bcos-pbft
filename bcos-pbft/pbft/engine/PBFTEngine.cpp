@@ -47,6 +47,9 @@ PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
         &PBFTEngine::finalizeConsensus, this, boost::placeholders::_1, boost::placeholders::_2));
     m_cacheProcessor->registerProposalAppliedHandler(boost::bind(&PBFTEngine::onProposalApplied,
         this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
+
+    m_cacheProcessor->registerOnLoadAndVerifyProposalSucc(
+        boost::bind(&PBFTEngine::onLoadAndVerifyProposalSucc, this, boost::placeholders::_1));
     initSendResponseHandler();
     // when the node first setup, set timeout to be true for view recovery
     // set timeout to be true to in case of notify-seal before the PBFTEngine started
@@ -113,6 +116,13 @@ void PBFTEngine::stop()
     m_cacheProcessor->clearAll();
 }
 
+void PBFTEngine::onLoadAndVerifyProposalSucc(PBFTProposalInterface::Ptr _proposal)
+{
+    // must add lock here to ensure thread-safe
+    Guard l(m_mutex);
+    m_cacheProcessor->updateCommitQueue(_proposal);
+}
+
 void PBFTEngine::onProposalApplyFailed(PBFTProposalInterface::Ptr _proposal)
 {
     PBFT_LOG(WARNING) << LOG_DESC("proposal execute failed") << printPBFTProposal(_proposal)
@@ -134,6 +144,7 @@ void PBFTEngine::onProposalApplyFailed(PBFTProposalInterface::Ptr _proposal)
         m_cacheProcessor->updateCommitQueue(_proposal);
     }
     m_config->setExpectedCheckPoint(m_config->committedProposal()->index() + 1);
+    m_cacheProcessor->eraseExecutedProposal(_proposal->hash());
     return;
 }
 
@@ -163,6 +174,7 @@ void PBFTEngine::onProposalApplySuccess(
     m_config->setExpectedCheckPoint(_executedProposal->index() + 1);
     m_cacheProcessor->checkAndCommitStableCheckPoint();
     m_cacheProcessor->tryToApplyCommitQueue();
+    m_cacheProcessor->eraseExecutedProposal(_proposal->hash());
 }
 
 // called after proposal executed successfully
@@ -212,6 +224,16 @@ void PBFTEngine::onRecvProposal(
         return;
     }
     // expired proposal
+    if (_proposalIndex <= m_config->syncingHighestNumber())
+    {
+        PBFT_LOG(WARNING) << LOG_DESC("asyncSubmitProposal failed for expired index")
+                          << LOG_KV("index", _proposalIndex)
+                          << LOG_KV("hash", _proposalHash.abridged())
+                          << m_config->printCurrentState()
+                          << LOG_KV("syncingHighestNumber", m_config->syncingHighestNumber());
+        m_config->validator()->asyncResetTxsFlag(_proposalData, false);
+        return;
+    }
     if (_proposalIndex <= m_config->committedProposal()->index() ||
         _proposalIndex < m_config->expectedCheckPoint() ||
         _proposalIndex < m_config->lowWaterMark())
@@ -377,6 +399,12 @@ void PBFTEngine::executeWorker()
         waitSignal();
         return;
     }
+    // when the node is syncing, not handle the PBFT message
+    if (m_config->committedProposal()->index() < m_config->syncingHighestNumber())
+    {
+        waitSignal();
+        return;
+    }
     // handle the PBFT message(here will wait when the msgQueue is empty)
     auto messageResult = m_msgQueue->tryPop(c_PopWaitSeconds);
     if (messageResult.first)
@@ -392,7 +420,7 @@ void PBFTEngine::executeWorker()
                 handleMsg(pbftMsg);
             }
             // Re-insert unqualified messages into the queue
-            else
+            else if (pbftMsg->index() > m_config->committedProposal()->index())
             {
                 m_msgQueue->push(pbftMsg);
             }
@@ -401,6 +429,11 @@ void PBFTEngine::executeWorker()
         {
             handleMsg(messageResult.second);
         }
+    }
+    // wait for PBFTMsg
+    else
+    {
+        waitSignal();
     }
 }
 
@@ -464,11 +497,13 @@ CheckResult PBFTEngine::checkPBFTMsgState(PBFTMessageInterface::Ptr _pbftReq) co
     }
     if (_pbftReq->index() < m_config->lowWaterMark() ||
         _pbftReq->index() < m_config->expectedCheckPoint() ||
-        _pbftReq->index() >= m_config->highWaterMark())
+        _pbftReq->index() >= m_config->highWaterMark() ||
+        _pbftReq->index() <= m_config->syncingHighestNumber())
     {
         PBFT_LOG(TRACE) << LOG_DESC("checkPBFTMsgState: invalid pbftMsg for invalid index")
                         << LOG_KV("highWaterMark", m_config->highWaterMark())
-                        << printPBFTMsgInfo(_pbftReq) << m_config->printCurrentState();
+                        << printPBFTMsgInfo(_pbftReq) << m_config->printCurrentState()
+                        << LOG_KV("syncingNumber", m_config->syncingHighestNumber());
         return CheckResult::INVALID;
     }
     // case index equal
@@ -740,6 +775,24 @@ bool PBFTEngine::handleCommitMsg(PBFTMessageInterface::Ptr _commitMsg)
 void PBFTEngine::onTimeout()
 {
     Guard l(m_mutex);
+    // when some proposals are executing, not trigger timeout
+    auto executingProposal = m_cacheProcessor->executingProposalSize();
+    if (executingProposal > 0 &&
+        m_config->expectedCheckPoint() > m_config->committedProposal()->index())
+    {
+        PBFT_LOG(INFO) << LOG_DESC("onTimeout: Proposal is executing, resetart the timer")
+                       << LOG_KV("executingProposalSize", executingProposal)
+                       << m_config->printCurrentState();
+        m_config->timer()->restart();
+        return;
+    }
+    else
+    {
+        PBFT_LOG(DEBUG) << LOG_DESC("clear executing proposals hash list")
+                        << LOG_KV("executingProposalSize", executingProposal)
+                        << m_config->printCurrentState();
+        m_cacheProcessor->mutableExecutingProposals().clear();
+    }
     m_config->resetTimeoutState();
     // clear the viewchange cache
     m_cacheProcessor->removeInvalidViewChange(

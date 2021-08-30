@@ -43,6 +43,10 @@ void PBFTCache::onCheckPointTimeout()
                           << m_config->printCurrentState();
         return;
     }
+    if (m_committedIndexNotifier)
+    {
+        m_committedIndexNotifier(m_config->committedProposal()->index());
+    }
     PBFT_LOG(WARNING) << LOG_DESC("onCheckPointTimeout: resend the checkpoint message package")
                       << LOG_KV("index", m_checkpointProposal->index())
                       << LOG_KV("hash", m_checkpointProposal->hash().abridged())
@@ -232,6 +236,12 @@ bool PBFTCache::checkAndCommit()
     {
         return false;
     }
+    // collect enough commit message before intoPrecommit
+    // can only into commit status when precommitted
+    if (!m_precommit)
+    {
+        return false;
+    }
     if (!collectEnoughCommitReq())
     {
         return false;
@@ -310,6 +320,7 @@ bool PBFTCache::checkAndCommitStableCheckPoint()
     setSignatureList(m_checkpointProposal, m_checkpointCacheList);
     m_stableCommitted = true;
     m_timer->stop();
+    m_config->setTimeoutState(false);
     PBFT_LOG(INFO) << LOG_DESC("checkAndCommitStableCheckPoint")
                    << LOG_KV("index", m_checkpointProposal->index())
                    << LOG_KV("hash", m_checkpointProposal->hash().abridged())

@@ -90,7 +90,8 @@ public:
     FakePBFTCacheFactory() = default;
     ~FakePBFTCacheFactory() override {}
 
-    PBFTCache::Ptr createPBFTCache(PBFTConfig::Ptr _config, BlockNumber _index) override
+    PBFTCache::Ptr createPBFTCache(PBFTConfig::Ptr _config, BlockNumber _index,
+        std::function<void(bcos::protocol::BlockNumber)>) override
     {
         return std::make_shared<FakePBFTCache>(_config, _index);
     }
@@ -129,6 +130,8 @@ public:
         m_cacheProcessor->registerProposalAppliedHandler(
             boost::bind(&FakePBFTEngine::onProposalApplied, this, boost::placeholders::_1,
                 boost::placeholders::_2, boost::placeholders::_3));
+        m_cacheProcessor->registerOnLoadAndVerifyProposalSucc(boost::bind(
+            &FakePBFTEngine::onLoadAndVerifyProposalSucc, this, boost::placeholders::_1));
         initSendResponseHandler();
     }
     ~FakePBFTEngine() override {}
