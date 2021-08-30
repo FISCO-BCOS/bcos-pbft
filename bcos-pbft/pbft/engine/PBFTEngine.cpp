@@ -775,23 +775,16 @@ bool PBFTEngine::handleCommitMsg(PBFTMessageInterface::Ptr _commitMsg)
 void PBFTEngine::onTimeout()
 {
     Guard l(m_mutex);
+    m_cacheProcessor->clearExpiredExecutingProposal();
     // when some proposals are executing, not trigger timeout
-    auto executingProposal = m_cacheProcessor->executingProposalSize();
-    if (executingProposal > 0 &&
-        m_config->expectedCheckPoint() > m_config->committedProposal()->index())
+    auto executingProposalSize = m_cacheProcessor->executingProposalSize();
+    if (executingProposalSize > 0)
     {
         PBFT_LOG(INFO) << LOG_DESC("onTimeout: Proposal is executing, resetart the timer")
-                       << LOG_KV("executingProposalSize", executingProposal)
+                       << LOG_KV("executingProposalSize", executingProposalSize)
                        << m_config->printCurrentState();
         m_config->timer()->restart();
         return;
-    }
-    else
-    {
-        PBFT_LOG(DEBUG) << LOG_DESC("clear executing proposals hash list")
-                        << LOG_KV("executingProposalSize", executingProposal)
-                        << m_config->printCurrentState();
-        m_cacheProcessor->mutableExecutingProposals().clear();
     }
     m_config->resetTimeoutState();
     // clear the viewchange cache

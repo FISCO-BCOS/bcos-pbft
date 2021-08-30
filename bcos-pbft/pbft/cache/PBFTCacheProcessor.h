@@ -166,12 +166,7 @@ public:
     }
 
     virtual size_t executingProposalSize() { return m_executingProposals.size(); }
-
-    virtual std::set<bcos::crypto::HashType>& mutableExecutingProposals()
-    {
-        return m_executingProposals;
-    }
-
+    virtual void clearExpiredExecutingProposal();
     virtual void registerOnLoadAndVerifyProposalSucc(
         std::function<void(PBFTProposalInterface::Ptr)> _onLoadAndVerifyProposalSucc)
     {
@@ -220,7 +215,7 @@ protected:
     std::priority_queue<PBFTProposalInterface::Ptr, std::vector<PBFTProposalInterface::Ptr>,
         PBFTProposalCmp>
         m_committedQueue;
-    std::set<bcos::crypto::HashType> m_executingProposals;
+    std::map<bcos::crypto::HashType, bcos::protocol::BlockNumber> m_executingProposals;
 
     std::set<bcos::protocol::BlockNumber> m_committedProposalList;
 

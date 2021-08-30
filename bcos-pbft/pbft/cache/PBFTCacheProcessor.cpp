@@ -299,7 +299,7 @@ void PBFTCacheProcessor::tryToApplyCommitQueue()
         // commit the proposal
         m_committedQueue.pop();
         // in case of the same block execute more than once
-        m_executingProposals.insert(proposal->hash());
+        m_executingProposals[proposal->hash()] = proposal->index();
         applyStateMachine(lastAppliedProposal, proposal);
     }
 }
@@ -885,5 +885,19 @@ void PBFTCacheProcessor::removeFutureProposals()
             continue;
         }
         pcache++;
+    }
+}
+
+void PBFTCacheProcessor::clearExpiredExecutingProposal()
+{
+    auto committedIndex = m_config->committedProposal()->index();
+    for (auto it = m_executingProposals.begin(); it != m_executingProposals.end();)
+    {
+        if (it->second > committedIndex)
+        {
+            it++;
+            continue;
+        }
+        it = m_executingProposals.erase(it);
     }
 }
