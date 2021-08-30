@@ -269,7 +269,7 @@ void PBFTCache::resetCache(ViewType _curView)
     if (!m_precommit && m_prePrepare && m_prePrepare->consensusProposal() &&
         m_prePrepare->view() < _curView)
     {
-        m_config->validator()->asyncResetTxsFlag(m_prePrepare->consensusProposal()->data(), false);
+        m_config->notifyResetSealing(m_config->committedProposal()->index() + 1);
     }
     // clear the expired prepare cache
     resetCacheAfterViewChange(m_prepareCacheList, _curView);
