@@ -224,6 +224,7 @@ void PBFTEngine::onRecvProposal(
         return;
     }
     // expired proposal
+    auto consProposalIndex = m_config->committedProposal()->index() + 1;
     if (_proposalIndex <= m_config->syncingHighestNumber())
     {
         PBFT_LOG(WARNING) << LOG_DESC("asyncSubmitProposal failed for expired index")
@@ -231,7 +232,7 @@ void PBFTEngine::onRecvProposal(
                           << LOG_KV("hash", _proposalHash.abridged())
                           << m_config->printCurrentState()
                           << LOG_KV("syncingHighestNumber", m_config->syncingHighestNumber());
-        m_config->validator()->asyncResetTxsFlag(_proposalData, false);
+        m_config->notifyResetSealing(consProposalIndex);
         return;
     }
     if (_proposalIndex <= m_config->committedProposal()->index() ||
@@ -254,7 +255,7 @@ void PBFTEngine::onRecvProposal(
                           << LOG_KV("index", _proposalIndex)
                           << LOG_KV("hash", _proposalHash.abridged())
                           << m_config->printCurrentState();
-        m_config->validator()->asyncResetTxsFlag(_proposalData, false);
+        m_config->notifyResetSealing(consProposalIndex);
         return;
     }
     if (m_config->timeout())
@@ -263,7 +264,7 @@ void PBFTEngine::onRecvProposal(
                           << LOG_KV("index", _proposalIndex)
                           << LOG_KV("hash", _proposalHash.abridged())
                           << m_config->printCurrentState();
-        m_config->validator()->asyncResetTxsFlag(_proposalData, false);
+        m_config->notifyResetSealing(m_config->committedProposal()->index() + 1);
         return;
     }
     PBFT_LOG(DEBUG) << LOG_DESC("asyncSubmitProposal") << LOG_KV("index", _proposalIndex)
@@ -303,7 +304,7 @@ void PBFTEngine::resetSealedTxs(std::shared_ptr<PBFTMessageInterface> _prePrepar
     {
         return;
     }
-    m_config->validator()->asyncResetTxsFlag(_prePrepareMsg->consensusProposal()->data(), false);
+    m_config->notifyResetSealing(m_config->committedProposal()->index() + 1);
 }
 
 // receive the new block notification from the sync module

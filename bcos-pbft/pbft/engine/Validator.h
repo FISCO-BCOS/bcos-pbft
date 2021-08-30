@@ -91,7 +91,7 @@ public:
         m_txPool->asyncVerifyBlock(_fromNode, _proposal->data(), _verifyFinishedHandler);
     }
 
-    void asyncResetTxsFlag(bytesConstRef _data, bool _flag = false) override;
+    void asyncResetTxsFlag(bytesConstRef _data, bool _flag) override;
 
     PBFTProposalInterface::Ptr generateEmptyProposal(
         PBFTMessageFactory::Ptr _factory, int64_t _index, int64_t _sealerId) override

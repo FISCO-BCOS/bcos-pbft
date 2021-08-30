@@ -35,7 +35,6 @@ namespace bcos
 {
 namespace consensus
 {
-const IndexType InvalidNodeIndex = -1;
 class PBFTConfig : public ConsensusConfig, public std::enable_shared_from_this<PBFTConfig>
 {
 public:
@@ -108,15 +107,13 @@ public:
         m_leaderSwitchPeriod.store(_leaderSwitchPeriod);
         // notify the sealer module to reset sealing
         auto proposalIndex = committedProposal()->index() + 1;
-        notifyResetSealing([this, proposalIndex]() {
-            // notify the sealer to reseal
-            reNotifySealer(proposalIndex);
-        });
+        notifyResetSealing(proposalIndex);
         PBFT_LOG(INFO) << LOG_DESC(
                               "updateLeaderSwitchPeriod and re-notify the sealer to seal block")
                        << LOG_KV("leader_period", m_leaderSwitchPeriod)
                        << LOG_KV("committedIndex", committedProposal()->index());
     }
+
     bcos::crypto::CryptoSuite::Ptr cryptoSuite() { return m_cryptoSuite; }
     std::shared_ptr<PBFTMessageFactory> pbftMessageFactory() { return m_pbftMessageFactory; }
     std::shared_ptr<bcos::front::FrontServiceInterface> frontService() { return m_frontService; }
@@ -279,6 +276,13 @@ public:
         m_sealerResetNotifier = _sealerResetNotifier;
     }
 
+    virtual void notifyResetSealing(bcos::protocol::BlockNumber _consIndex)
+    {
+        notifyResetSealing([this, _consIndex]() {
+            // notify the sealer to reseal
+            reNotifySealer(_consIndex);
+        });
+    }
     virtual void notifyResetSealing(std::function<void()> _callback = nullptr);
 
 protected:

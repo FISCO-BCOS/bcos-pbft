@@ -855,7 +855,7 @@ void PBFTCacheProcessor::removeFutureProposals()
         {
             continue;
         }
-        m_config->validator()->asyncResetTxsFlag(proposal->data(), false);
+        m_config->notifyResetSealing(committedIndex + 1);
     }
     m_committedProposalList.clear();
 
