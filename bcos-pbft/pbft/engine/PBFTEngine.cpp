@@ -267,8 +267,8 @@ void PBFTEngine::onRecvProposal(
         m_config->notifyResetSealing(m_config->committedProposal()->index() + 1);
         return;
     }
-    PBFT_LOG(DEBUG) << LOG_DESC("asyncSubmitProposal") << LOG_KV("index", _proposalIndex)
-                    << LOG_KV("hash", _proposalHash.abridged()) << m_config->printCurrentState();
+    PBFT_LOG(INFO) << LOG_DESC("asyncSubmitProposal") << LOG_KV("index", _proposalIndex)
+                   << LOG_KV("hash", _proposalHash.abridged()) << m_config->printCurrentState();
     // generate the pre-prepare packet
     auto pbftProposal = m_config->pbftMessageFactory()->createPBFTProposal();
     pbftProposal->setData(_proposalData);
@@ -480,10 +480,10 @@ void PBFTEngine::handleMsg(std::shared_ptr<PBFTBaseMessageInterface> _msg)
     }
     default:
     {
-        PBFT_LOG(DEBUG) << LOG_DESC("handleMsg: unknown PBFT message")
-                        << LOG_KV("type", std::to_string(_msg->packetType()))
-                        << LOG_KV("genIdx", _msg->generatedFrom())
-                        << LOG_KV("nodesef", m_config->nodeID()->hex());
+        PBFT_LOG(WARNING) << LOG_DESC("handleMsg: unknown PBFT message")
+                          << LOG_KV("type", std::to_string(_msg->packetType()))
+                          << LOG_KV("genIdx", _msg->generatedFrom())
+                          << LOG_KV("nodesef", m_config->nodeID()->hex());
         return;
     }
     }
@@ -578,8 +578,8 @@ bool PBFTEngine::checkProposalSignature(
 bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
     bool _needVerifyProposal, bool _generatedFromNewView, bool _needCheckSignature)
 {
-    PBFT_LOG(DEBUG) << LOG_DESC("handlePrePrepareMsg") << printPBFTMsgInfo(_prePrepareMsg)
-                    << m_config->printCurrentState();
+    PBFT_LOG(INFO) << LOG_DESC("handlePrePrepareMsg") << printPBFTMsgInfo(_prePrepareMsg)
+                   << m_config->printCurrentState();
 
     if (m_config->committedProposal()->index() < m_config->syncingHighestNumber())
     {
@@ -637,8 +637,8 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
         }
         // broadcast PrepareMsg the packet
         broadcastPrepareMsg(_prePrepareMsg);
-        PBFT_LOG(DEBUG) << LOG_DESC("handlePrePrepareMsg and broadcast prepare packet")
-                        << printPBFTMsgInfo(_prePrepareMsg) << m_config->printCurrentState();
+        PBFT_LOG(INFO) << LOG_DESC("handlePrePrepareMsg and broadcast prepare packet")
+                       << printPBFTMsgInfo(_prePrepareMsg) << m_config->printCurrentState();
         m_cacheProcessor->checkAndPreCommit();
         return true;
     }
@@ -867,16 +867,16 @@ bool PBFTEngine::isValidViewChangeMsg(
     // check the committed-proposal index
     if (_viewChangeMsg->committedProposal()->index() < m_config->committedProposal()->index())
     {
-        PBFT_LOG(DEBUG) << LOG_DESC("InvalidViewChangeReq: invalid index")
-                        << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
+        PBFT_LOG(INFO) << LOG_DESC("InvalidViewChangeReq: invalid index")
+                       << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
         return false;
     }
     // check the view
     if (_viewChangeMsg->view() < m_config->view())
     {
-        PBFT_LOG(DEBUG) << LOG_DESC("send viewchange to the node whose view falling behind")
-                        << LOG_KV("dst", _viewChangeMsg->from()->shortHex())
-                        << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
+        PBFT_LOG(INFO) << LOG_DESC("send viewchange to the node whose view falling behind")
+                       << LOG_KV("dst", _viewChangeMsg->from()->shortHex())
+                       << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
         sendViewChange(_viewChangeMsg->from());
         return false;
     }
@@ -884,11 +884,11 @@ bool PBFTEngine::isValidViewChangeMsg(
     if (_viewChangeMsg->committedProposal()->index() == m_config->committedProposal()->index() &&
         _viewChangeMsg->committedProposal()->hash() != m_config->committedProposal()->hash())
     {
-        PBFT_LOG(DEBUG) << LOG_DESC("InvalidViewChangeReq: conflict with local committedProposal")
-                        << LOG_DESC("received proposal")
-                        << printPBFTProposal(_viewChangeMsg->committedProposal())
-                        << LOG_DESC("local committedProposal")
-                        << printPBFTProposal(m_config->committedProposal());
+        PBFT_LOG(WARNING) << LOG_DESC("InvalidViewChangeReq: conflict with local committedProposal")
+                          << LOG_DESC("received proposal")
+                          << printPBFTProposal(_viewChangeMsg->committedProposal())
+                          << LOG_DESC("local committedProposal")
+                          << printPBFTProposal(m_config->committedProposal());
         return false;
     }
     // check the precommmitted proposals
@@ -896,8 +896,8 @@ bool PBFTEngine::isValidViewChangeMsg(
     {
         if (!m_cacheProcessor->checkPrecommitMsg(precommitMsg))
         {
-            PBFT_LOG(DEBUG) << LOG_DESC("InvalidViewChangeReq for invalid proposal")
-                            << printPBFTMsgInfo(precommitMsg) << m_config->printCurrentState();
+            PBFT_LOG(INFO) << LOG_DESC("InvalidViewChangeReq for invalid proposal")
+                           << printPBFTMsgInfo(precommitMsg) << m_config->printCurrentState();
             return false;
         }
     }
@@ -908,8 +908,8 @@ bool PBFTEngine::isValidViewChangeMsg(
     auto ret = checkSignature(_viewChangeMsg);
     if (ret == CheckResult::INVALID)
     {
-        PBFT_LOG(DEBUG) << LOG_DESC("InvalidViewChangeReq: invalid signature")
-                        << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
+        PBFT_LOG(INFO) << LOG_DESC("InvalidViewChangeReq: invalid signature")
+                       << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
         return false;
     }
     return true;
@@ -947,16 +947,16 @@ bool PBFTEngine::isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newView
     auto expectedLeader = m_config->leaderIndexInNewViewPeriod(_newViewMsg->view());
     if (expectedLeader != _newViewMsg->generatedFrom())
     {
-        PBFT_LOG(DEBUG) << LOG_DESC("InvalidNewViewMsg for invalid nextLeader")
-                        << LOG_KV("expectedLeader", expectedLeader)
-                        << LOG_KV("recvIdx", _newViewMsg->generatedFrom())
-                        << m_config->printCurrentState();
+        PBFT_LOG(WARNING) << LOG_DESC("InvalidNewViewMsg for invalid nextLeader")
+                          << LOG_KV("expectedLeader", expectedLeader)
+                          << LOG_KV("recvIdx", _newViewMsg->generatedFrom())
+                          << m_config->printCurrentState();
         return false;
     }
     if (_newViewMsg->view() <= m_config->view())
     {
-        PBFT_LOG(DEBUG) << LOG_DESC("InvalidNewViewMsg for invalid view")
-                        << printPBFTMsgInfo(_newViewMsg) << m_config->printCurrentState();
+        PBFT_LOG(INFO) << LOG_DESC("InvalidNewViewMsg for invalid view")
+                       << printPBFTMsgInfo(_newViewMsg) << m_config->printCurrentState();
         return false;
     }
     // check the viewchange
@@ -966,8 +966,8 @@ bool PBFTEngine::isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newView
     {
         if (!isValidViewChangeMsg(viewChangeReq))
         {
-            PBFT_LOG(DEBUG) << LOG_DESC("InvalidNewViewMsg for viewChange check failed")
-                            << printPBFTMsgInfo(viewChangeReq);
+            PBFT_LOG(WARNING) << LOG_DESC("InvalidNewViewMsg for viewChange check failed")
+                              << printPBFTMsgInfo(viewChangeReq);
             return false;
         }
         auto nodeInfo = m_config->getConsensusNodeByIndex(viewChangeReq->generatedFrom());
@@ -980,9 +980,9 @@ bool PBFTEngine::isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newView
     // TODO: need to ensure the accuracy of local weight parameters
     if (weight < m_config->minRequiredQuorum())
     {
-        PBFT_LOG(DEBUG) << LOG_DESC("InvalidNewViewMsg for unenough weight")
-                        << LOG_KV("weight", weight)
-                        << LOG_KV("minRequiredQuorum", m_config->minRequiredQuorum());
+        PBFT_LOG(WARNING) << LOG_DESC("InvalidNewViewMsg for unenough weight")
+                          << LOG_KV("weight", weight)
+                          << LOG_KV("minRequiredQuorum", m_config->minRequiredQuorum());
         return false;
     }
     // TODO: check the prePrepared message
@@ -996,14 +996,14 @@ bool PBFTEngine::isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newView
 
 bool PBFTEngine::handleNewViewMsg(NewViewMsgInterface::Ptr _newViewMsg)
 {
-    PBFT_LOG(DEBUG) << LOG_DESC("handleNewViewMsg: receive newViewChangeMsg")
-                    << printPBFTMsgInfo(_newViewMsg) << m_config->printCurrentState() << std::endl;
+    PBFT_LOG(INFO) << LOG_DESC("handleNewViewMsg: receive newViewChangeMsg")
+                   << printPBFTMsgInfo(_newViewMsg) << m_config->printCurrentState() << std::endl;
     if (!isValidNewViewMsg(_newViewMsg))
     {
         return false;
     }
-    PBFT_LOG(DEBUG) << LOG_DESC("handleNewViewMsg success") << printPBFTMsgInfo(_newViewMsg)
-                    << m_config->printCurrentState() << std::endl;
+    PBFT_LOG(INFO) << LOG_DESC("handleNewViewMsg success") << printPBFTMsgInfo(_newViewMsg)
+                   << m_config->printCurrentState() << std::endl;
     reHandlePrePrepareProposals(_newViewMsg);
     return true;
 }
@@ -1013,7 +1013,7 @@ void PBFTEngine::reachNewView(ViewType _view)
     m_config->resetNewViewState(_view);
     m_cacheProcessor->resetCacheAfterViewChange(
         m_config->view(), m_config->committedProposal()->index());
-    PBFT_LOG(DEBUG) << LOG_DESC("reachNewView") << m_config->printCurrentState();
+    PBFT_LOG(INFO) << LOG_DESC("reachNewView") << m_config->printCurrentState();
 }
 
 void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewReq)
@@ -1032,15 +1032,15 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
         // empty block proposal
         if (prePrepare->consensusProposal()->data().size() > 0)
         {
-            PBFT_LOG(DEBUG) << LOG_DESC("reHandlePrePrepareProposals: hit the proposal")
-                            << printPBFTMsgInfo(prePrepare) << m_config->printCurrentState();
+            PBFT_LOG(INFO) << LOG_DESC("reHandlePrePrepareProposals: hit the proposal")
+                           << printPBFTMsgInfo(prePrepare) << m_config->printCurrentState();
             handlePrePrepareMsg(prePrepare, true, true, false);
             continue;
         }
         // hit the cache
         if (m_cacheProcessor->tryToFillProposal(prePrepare))
         {
-            PBFT_LOG(DEBUG)
+            PBFT_LOG(INFO)
                 << LOG_DESC(
                        "reHandlePrePrepareProposals: hit the cache, into prepare phase directly")
                 << printPBFTMsgInfo(prePrepare) << m_config->printCurrentState();
@@ -1051,7 +1051,7 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
         auto from = m_config->getConsensusNodeByIndex(prePrepare->generatedFrom());
         m_logSync->requestPrecommitData(
             from->nodeID(), prePrepare, [this](PBFTMessageInterface::Ptr _prePrepare) {
-                PBFT_LOG(DEBUG)
+                PBFT_LOG(INFO)
                     << LOG_DESC(
                            "reHandlePrePrepareProposals: get the missed proposal and handle now")
                     << printPBFTMsgInfo(_prePrepare) << m_config->printCurrentState();
