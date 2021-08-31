@@ -54,11 +54,6 @@ public:
         m_frontService = _frontService;
         m_stateMachine = _stateMachine;
         m_storage = _storage;
-        // for resetConfig after submit the block to ledger
-        m_storage->registerConfigResetHandler(
-            [this](bcos::ledger::LedgerConfig::Ptr _ledgerConfig) {
-                resetConfig(_ledgerConfig, false);
-            });
         // for notify the transaction result
         m_storage->registerNotifyHandler(
             [this](bcos::protocol::Block::Ptr _block, bcos::protocol::BlockHeader::Ptr _header) {
