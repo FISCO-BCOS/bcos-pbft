@@ -917,29 +917,10 @@ bool PBFTEngine::isValidViewChangeMsg(
 
 bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
 {
-    auto ret = checkSignature(_viewChangeMsg);
-    if (ret == CheckResult::INVALID)
+    if (!isValidViewChangeMsg(_viewChangeMsg))
     {
         return false;
     }
-    // receive the viewchange message from the leader
-    if (!m_config->timeout() && _viewChangeMsg->view() > m_config->view() &&
-        _viewChangeMsg->generatedFrom() == m_config->leaderIndex(m_config->progressedIndex()))
-    {
-        m_config->resetTimeoutState();
-        // clear the viewchange cache
-        m_cacheProcessor->removeInvalidViewChange(
-            m_config->view(), m_config->committedProposal()->index());
-        broadcastViewChangeReq();
-        PBFT_LOG(INFO) << LOG_DESC(
-                              "Receive the viewchange from the leader, try to trigger viewchange")
-                       << m_config->printCurrentState();
-    }
-    if (!isValidViewChangeMsg(_viewChangeMsg, false))
-    {
-        return false;
-    }
-    // TODO: sync the proposal when the committedProposal is older than the index of the viewchange
     m_cacheProcessor->addViewChangeReq(_viewChangeMsg);
     // try to trigger fast view change if receive more than (f+1) valid view change messages whose
     // view is greater than the current view:
