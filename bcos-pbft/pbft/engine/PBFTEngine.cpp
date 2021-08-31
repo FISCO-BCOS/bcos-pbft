@@ -786,6 +786,12 @@ void PBFTEngine::onTimeout()
         m_config->timer()->restart();
         return;
     }
+    triggerTimeout();
+    PBFT_LOG(WARNING) << LOG_DESC("onTimeout") << m_config->printCurrentState();
+}
+
+void PBFTEngine::triggerTimeout()
+{
     m_config->resetTimeoutState();
     // clear the viewchange cache
     m_cacheProcessor->removeInvalidViewChange(
@@ -794,7 +800,6 @@ void PBFTEngine::onTimeout()
     m_cacheProcessor->notifyCommittedProposalIndex(m_config->committedProposal()->index());
     // broadcast viewchange and try to the new-view phase
     broadcastViewChangeReq();
-    PBFT_LOG(WARNING) << LOG_DESC("onTimeout") << m_config->printCurrentState();
 }
 
 ViewChangeMsgInterface::Ptr PBFTEngine::generateViewChange()
@@ -943,7 +948,8 @@ bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
     auto view = m_cacheProcessor->tryToTriggerFastViewChange();
     if (view > 0)
     {
-        broadcastViewChangeReq();
+        // trigger timeout to reach fast view change
+        triggerTimeout();
     }
     auto newViewMsg = m_cacheProcessor->checkAndTryIntoNewView();
     if (newViewMsg)

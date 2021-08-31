@@ -455,12 +455,22 @@ PBFTMessageList PBFTCacheProcessor::generatePrePrepareMsg(
                 if (precommitProposal->index() != proposal->index() ||
                     precommitProposal->hash() != proposal->hash())
                 {
-                    PBFT_LOG(FATAL)
-                        << LOG_DESC(
-                               "generatePrePrepareMsg error: found conflict precommit proposals")
-                        << LOG_DESC("proposal already exist:")
-                        << printPBFTProposal(precommitProposal) << LOG_DESC("conflicted proposal:")
-                        << printPBFTProposal(proposal);
+                    // fatal case: two proposals in the same view with different hash
+                    if (precommitProposal->view() == proposal->view())
+                    {
+                        PBFT_LOG(FATAL)
+                            << LOG_DESC(
+                                   "generatePrePrepareMsg error: found conflict precommit "
+                                   "proposals")
+                            << LOG_DESC("proposal already exist:")
+                            << printPBFTProposal(precommitProposal)
+                            << LOG_DESC("conflicted proposal:") << printPBFTProposal(proposal);
+                    }
+                    // newer precommit proposal
+                    if (precommitProposal->view() < proposal->view())
+                    {
+                        preparedProposals[proposal->index()] = proposal;
+                    }
                 }
                 continue;
             }
@@ -591,8 +601,14 @@ ViewType PBFTCacheProcessor::tryToTriggerFastViewChange()
     {
         return 0;
     }
-    m_config->setToView(viewToReach);
-    PBFT_LOG(INFO) << LOG_DESC("tryToTriggerFastViewChange") << m_config->printCurrentState();
+    if (viewToReach > 0)
+    {
+        // set toView to (viewToReach - 1) and then trigger timeout to increase toView to
+        // viewToReach
+        m_config->setToView(viewToReach - 1);
+    }
+    PBFT_LOG(INFO) << LOG_DESC("tryToTriggerFastViewChange") << LOG_KV("viewToReach", viewToReach)
+                   << m_config->printCurrentState();
     return viewToReach;
 }
 
