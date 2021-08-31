@@ -96,6 +96,8 @@ protected:
     PBFTProposalListPtr m_stateProposals = nullptr;
     std::atomic_bool m_stateFetched = {false};
     size_t m_timeout = 10000;
+    bcos::protocol::BlockNumber c_reservedCheckPointSize = 5;
+
     boost::condition_variable m_signalled;
     boost::mutex x_signalled;
     std::function<void(bcos::ledger::LedgerConfig::Ptr, bool _syncBlock)> m_finalizeHandler;

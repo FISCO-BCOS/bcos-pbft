@@ -186,7 +186,7 @@ void PBFTLogSync::onReceiveCommittedProposalRequest(
             // empty case
             if (!_proposalList || _proposalList->size() == 0)
             {
-                PBFT_LOG(WARNING)
+                PBFT_LOG(DEBUG)
                     << LOG_DESC("onReceiveCommittedProposalRequest: miss the expected proposal")
                     << LOG_KV("fromIndex", pbftRequest->index())
                     << LOG_KV("size", pbftRequest->size());

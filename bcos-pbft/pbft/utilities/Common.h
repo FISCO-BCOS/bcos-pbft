@@ -42,6 +42,8 @@ enum PacketType : uint32_t
     PreparedProposalRequest = 0x7,
     PreparedProposalResponse = 0x8,
     CheckPoint = 0x9,
+    RecoverRequest = 0xa,
+    RecoverResponse = 0xb,
 };
 DERIVE_BCOS_EXCEPTION(UnknownPBFTMsgType);
 DERIVE_BCOS_EXCEPTION(InitPBFTException);

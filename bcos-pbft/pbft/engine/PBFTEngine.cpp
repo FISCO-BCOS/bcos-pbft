@@ -478,6 +478,18 @@ void PBFTEngine::handleMsg(std::shared_ptr<PBFTBaseMessageInterface> _msg)
         handleCheckPointMsg(checkPointMsg);
         break;
     }
+    case PacketType::RecoverRequest:
+    {
+        auto request = std::dynamic_pointer_cast<PBFTMessageInterface>(_msg);
+        handleRecoverRequest(request);
+        break;
+    }
+    case PacketType::RecoverResponse:
+    {
+        auto recoverResponse = std::dynamic_pointer_cast<PBFTMessageInterface>(_msg);
+        handleRecoverResponse(recoverResponse);
+        break;
+    }
     default:
     {
         PBFT_LOG(WARNING) << LOG_DESC("handleMsg: unknown PBFT message")
@@ -843,6 +855,21 @@ void PBFTEngine::sendViewChange(bcos::crypto::NodeIDPtr _dstNode)
     }
 }
 
+void PBFTEngine::sendRecoverResponse(bcos::crypto::NodeIDPtr _dstNode)
+{
+    auto response = m_config->pbftMessageFactory()->createPBFTMsg();
+    response->setPacketType(PacketType::RecoverResponse);
+    response->setGeneratedFrom(m_config->nodeIndex());
+    response->setView(m_config->view());
+    response->setTimestamp(utcTime());
+    response->setIndex(m_config->committedProposal()->index());
+    auto encodedData = m_config->codec()->encode(response);
+    m_config->frontService()->asyncSendMessageByNodeID(
+        ModuleID::PBFT, _dstNode, ref(*encodedData), 0, nullptr);
+    PBFT_LOG(DEBUG) << LOG_DESC("sendRecoverResponse") << LOG_KV("peer", _dstNode->shortHex())
+                    << m_config->printCurrentState();
+}
+
 void PBFTEngine::broadcastViewChangeReq()
 {
     auto viewChangeReq = generateViewChange();
@@ -871,13 +898,24 @@ bool PBFTEngine::isValidViewChangeMsg(
                        << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
         return false;
     }
+
     // check the view
     if (_viewChangeMsg->view() < m_config->view())
     {
-        PBFT_LOG(INFO) << LOG_DESC("send viewchange to the node whose view falling behind")
-                       << LOG_KV("dst", _viewChangeMsg->from()->shortHex())
-                       << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
-        sendViewChange(_viewChangeMsg->from());
+        if (isTimeout())
+        {
+            PBFT_LOG(INFO) << LOG_DESC("send viewchange to the node whose view falling behind")
+                           << LOG_KV("dst", _viewChangeMsg->from()->shortHex())
+                           << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
+            sendViewChange(_viewChangeMsg->from());
+        }
+        else
+        {
+            PBFT_LOG(INFO) << LOG_DESC("sendRecoverResponse to the node whose view falling behind")
+                           << LOG_KV("dst", _viewChangeMsg->from()->shortHex())
+                           << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
+            sendRecoverResponse(_viewChangeMsg->from());
+        }
         return false;
     }
     // check the committed proposal hash
@@ -1085,23 +1123,23 @@ bool PBFTEngine::handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _chec
     // check index
     if (_checkPointMsg->index() <= m_config->committedProposal()->index())
     {
-        PBFT_LOG(WARNING) << LOG_DESC("handleCheckPointMsg: Invalid expired checkpoint msg")
-                          << LOG_KV("committedIndex", m_config->committedProposal()->index())
-                          << LOG_KV("recvIndex", _checkPointMsg->index())
-                          << LOG_KV("hash", _checkPointMsg->hash().abridged())
-                          << m_config->printCurrentState();
+        PBFT_LOG(DEBUG) << LOG_DESC("handleCheckPointMsg: Invalid expired checkpoint msg")
+                        << LOG_KV("committedIndex", m_config->committedProposal()->index())
+                        << LOG_KV("recvIndex", _checkPointMsg->index())
+                        << LOG_KV("hash", _checkPointMsg->hash().abridged())
+                        << m_config->printCurrentState();
         return false;
     }
     if (m_config->committedProposal()->index() < m_config->syncingHighestNumber())
     {
-        PBFT_LOG(WARNING) << LOG_DESC(
-                                 "handleCheckPointMsg: reject the checkPoint for the node is "
-                                 "syncing higher block")
-                          << LOG_KV("committedIndex", m_config->committedProposal()->index())
-                          << LOG_KV("recvIndex", _checkPointMsg->index())
-                          << LOG_KV("hash", _checkPointMsg->hash().abridged())
-                          << LOG_KV("syncingNum", m_config->syncingHighestNumber())
-                          << m_config->printCurrentState();
+        PBFT_LOG(INFO) << LOG_DESC(
+                              "handleCheckPointMsg: reject the checkPoint for the node is "
+                              "syncing higher block")
+                       << LOG_KV("committedIndex", m_config->committedProposal()->index())
+                       << LOG_KV("recvIndex", _checkPointMsg->index())
+                       << LOG_KV("hash", _checkPointMsg->hash().abridged())
+                       << LOG_KV("syncingNum", m_config->syncingHighestNumber())
+                       << m_config->printCurrentState();
         return false;
     }
     // check signature
@@ -1134,4 +1172,25 @@ bool PBFTEngine::handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _chec
         m_logSync->requestCommittedProposals(_checkPointMsg->from(), _checkPointMsg->index(), 1);
     }
     return true;
+}
+
+void PBFTEngine::handleRecoverResponse(PBFTMessageInterface::Ptr _recoverResponse)
+{
+    if (checkSignature(_recoverResponse) == CheckResult::INVALID)
+    {
+        return;
+    }
+    m_cacheProcessor->addRecoverReqCache(_recoverResponse);
+    m_cacheProcessor->checkAndTryToRecover();
+}
+
+void PBFTEngine::handleRecoverRequest(PBFTMessageInterface::Ptr _request)
+{
+    if (checkSignature(_request) == CheckResult::INVALID)
+    {
+        return;
+    }
+    sendRecoverResponse(_request->from());
+    PBFT_LOG(INFO) << LOG_DESC("handleRecoverRequest and response current state")
+                   << LOG_KV("peer", _request->from()->shortHex()) << m_config->printCurrentState();
 }

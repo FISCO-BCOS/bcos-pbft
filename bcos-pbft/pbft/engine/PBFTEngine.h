@@ -152,6 +152,10 @@ protected:
     virtual void onLoadAndVerifyProposalSucc(PBFTProposalInterface::Ptr _proposal);
     virtual void triggerTimeout();
 
+    void handleRecoverResponse(PBFTMessageInterface::Ptr _recoverResponse);
+    void handleRecoverRequest(PBFTMessageInterface::Ptr _request);
+    void sendRecoverResponse(bcos::crypto::NodeIDPtr _dstNode);
+
 private:
     // utility functions
     void waitSignal()
@@ -186,7 +190,7 @@ protected:
     // Message packets allowed to be processed in timeout mode
     const std::set<PacketType> c_timeoutAllowedPacket = {ViewChangePacket, NewViewPacket,
         CommittedProposalRequest, CommittedProposalResponse, PreparedProposalRequest,
-        PreparedProposalResponse, CheckPoint};
+        PreparedProposalResponse, CheckPoint, RecoverRequest, RecoverResponse};
 };
 }  // namespace consensus
 }  // namespace bcos
