@@ -351,7 +351,13 @@ void LedgerStorage::asyncCommitStableCheckPoint(
                     ledgerStorage->m_notifyHandler(_blockInfo, _blockHeader);
                 }
                 // remove the proposal committed into the ledger
-                ledgerStorage->asyncRemoveStabledCheckPoint(_blockHeader->number());
+                // don't remove the latest stabled checkpoint to response checkpoint msg to the
+                // requester
+                if (_blockHeader->number() > ledgerStorage->c_reservedCheckPointSize)
+                {
+                    ledgerStorage->asyncRemoveStabledCheckPoint(
+                        _blockHeader->number() - ledgerStorage->c_reservedCheckPointSize);
+                }
             }
             catch (std::exception const& e)
             {

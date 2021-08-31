@@ -73,16 +73,16 @@ void testPBFTEngineWithFaulty(size_t _consensusNodes, size_t _connectedNodes)
     // check the duplicated case
     for (size_t i = 0; i < 3; i++)
     {
-        leaderFaker->pbftEngine()->asyncSubmitProposal(
-            ref(*blockData), block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
+        leaderFaker->pbftEngine()->asyncSubmitProposal(false, ref(*blockData),
+            block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
     }
     // Discontinuous case
     auto faker = fakerMap[3];
     block = fakeBlock(cryptoSuite, faker, currentBlockNumber + 4, 10);
     blockData = std::make_shared<bytes>();
     block->encode(*blockData);
-    faker->pbftEngine()->asyncSubmitProposal(
-        ref(*blockData), block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
+    faker->pbftEngine()->asyncSubmitProposal(false, ref(*blockData), block->blockHeader()->number(),
+        block->blockHeader()->hash(), nullptr);
 
     // the next leader seal the next block
     IndexType nextLeaderIndex = 1;
@@ -91,8 +91,8 @@ void testPBFTEngineWithFaulty(size_t _consensusNodes, size_t _connectedNodes)
     block = fakeBlock(cryptoSuite, nextLeaderFacker, nextBlock, 10);
     blockData = std::make_shared<bytes>();
     block->encode(*blockData);
-    nextLeaderFacker->pbftEngine()->asyncSubmitProposal(
-        ref(*blockData), block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
+    nextLeaderFacker->pbftEngine()->asyncSubmitProposal(false, ref(*blockData),
+        block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
 
     // handle prepare message and broadcast commit messages
     auto startT = utcTime();
@@ -111,8 +111,8 @@ void testPBFTEngineWithFaulty(size_t _consensusNodes, size_t _connectedNodes)
     block = fakeBlock(cryptoSuite, faker, currentBlockNumber + 3, 10);
     blockData = std::make_shared<bytes>();
     block->encode(*blockData);
-    faker->pbftEngine()->asyncSubmitProposal(
-        ref(*blockData), block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
+    faker->pbftEngine()->asyncSubmitProposal(false, ref(*blockData), block->blockHeader()->number(),
+        block->blockHeader()->hash(), nullptr);
 
     startT = utcTime();
     while (!shouldExit(fakerMap, currentBlockNumber + 4, _connectedNodes) &&

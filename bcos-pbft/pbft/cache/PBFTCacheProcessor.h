@@ -173,6 +173,9 @@ public:
         m_onLoadAndVerifyProposalSucc = _onLoadAndVerifyProposalSucc;
     }
 
+    virtual void addRecoverReqCache(PBFTMessageInterface::Ptr _recoverResponse);
+    virtual bool checkAndTryToRecover();
+
 protected:
     virtual void loadAndVerifyProposal(bcos::crypto::NodeIDPtr _fromNode,
         PBFTProposalInterface::Ptr _proposal, size_t _retryTime = 0);
@@ -195,6 +198,7 @@ protected:
     PBFTMessageList generatePrePrepareMsg(
         std::map<IndexType, ViewChangeMsgInterface::Ptr> _viewChangeCache);
     void reCalculateViewChangeWeight();
+    void removeInvalidRecoverCache(ViewType _view);
 
 protected:
     PBFTCacheFactory::Ptr m_cacheFactory;
@@ -228,6 +232,10 @@ protected:
     std::function<void(bcos::protocol::BlockNumber, std::function<void(Error::Ptr)>)>
         m_committedProposalNotifier;
     std::function<void(PBFTProposalInterface::Ptr)> m_onLoadAndVerifyProposalSucc;
+
+    // the recover message cache
+    std::map<ViewType, std::map<IndexType, PBFTMessageInterface::Ptr>> m_recoverReqCache;
+    std::map<ViewType, uint64_t> m_recoverCacheWeight;
 };
 }  // namespace consensus
 }  // namespace bcos

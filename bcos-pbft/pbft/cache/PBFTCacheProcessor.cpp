@@ -708,6 +708,22 @@ void PBFTCacheProcessor::resetCacheAfterViewChange(
     m_maxCommittedIndex.clear();
     m_newViewGenerated = false;
     removeInvalidViewChange(_view, _latestCommittedProposal);
+    removeInvalidRecoverCache(_view);
+}
+
+void PBFTCacheProcessor::removeInvalidRecoverCache(ViewType _view)
+{
+    for (auto it = m_recoverReqCache.begin(); it != m_recoverReqCache.end();)
+    {
+        auto view = it->first;
+        if (view <= _view)
+        {
+            it = m_recoverReqCache.erase(it);
+            m_recoverCacheWeight.erase(view);
+            continue;
+        }
+        it++;
+    }
 }
 
 void PBFTCacheProcessor::removeInvalidViewChange(
@@ -891,8 +907,7 @@ void PBFTCacheProcessor::removeFutureProposals()
             if (precommitMsg && precommitMsg->index() < m_config->committedProposal()->index() &&
                 precommitMsg->consensusProposal())
             {
-                m_config->validator()->asyncResetTxsFlag(
-                    precommitMsg->consensusProposal()->data(), false);
+                m_config->notifyResetSealing(precommitMsg->consensusProposal()->index());
             }
             auto executedProposalIndex = cache->checkPointProposal()->index();
             m_config->storage()->asyncRemoveStabledCheckPoint(executedProposalIndex);
@@ -915,4 +930,55 @@ void PBFTCacheProcessor::clearExpiredExecutingProposal()
         }
         it = m_executingProposals.erase(it);
     }
+}
+
+void PBFTCacheProcessor::addRecoverReqCache(PBFTMessageInterface::Ptr _recoverResponse)
+{
+    auto fromIdx = _recoverResponse->generatedFrom();
+    auto view = _recoverResponse->view();
+    if (m_recoverReqCache.count(view) && m_recoverReqCache[view].count(fromIdx))
+    {
+        return;
+    }
+    m_recoverReqCache[view][fromIdx] = _recoverResponse;
+    // update the weight
+    auto nodeInfo = m_config->getConsensusNodeByIndex(fromIdx);
+    if (!nodeInfo)
+    {
+        return;
+    }
+    if (!m_recoverCacheWeight.count(view))
+    {
+        m_recoverCacheWeight[view] = 0;
+    }
+    m_recoverCacheWeight[view] += nodeInfo->weight();
+    PBFT_LOG(INFO) << LOG_DESC("addRecoverReqCache") << LOG_KV("weight", m_recoverCacheWeight[view])
+                   << printPBFTMsgInfo(_recoverResponse) << m_config->printCurrentState();
+    return;
+}
+
+bool PBFTCacheProcessor::checkAndTryToRecover()
+{
+    ViewType recoveredView = 0;
+    for (auto const& it : m_recoverCacheWeight)
+    {
+        auto view = it.first;
+        // collect enough recover response with the same view
+        if (it.second >= m_config->minRequiredQuorum() && recoveredView < view)
+        {
+            recoveredView = view;
+        }
+    }
+    if (recoveredView == 0)
+    {
+        return false;
+    }
+    m_config->resetNewViewState(recoveredView);
+    resetCacheAfterViewChange(recoveredView, m_config->committedProposal()->index());
+    // clear the recoverReqCache
+    m_recoverReqCache.clear();
+    m_recoverCacheWeight.clear();
+    PBFT_LOG(INFO) << LOG_DESC("checkAndTryToRecoverView: reachNewView")
+                   << LOG_KV("recoveredView", recoveredView) << m_config->printCurrentState();
+    return true;
 }

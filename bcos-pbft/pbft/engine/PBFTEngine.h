@@ -59,7 +59,7 @@ public:
     void start() override;
     void stop() override;
 
-    virtual void asyncSubmitProposal(bytesConstRef _proposalData,
+    virtual void asyncSubmitProposal(bool _containSysTxs, bytesConstRef _proposalData,
         bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash,
         std::function<void(Error::Ptr)> _onProposalSubmitted);
 
@@ -91,7 +91,7 @@ protected:
     virtual void onReceivePBFTMessage(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
         bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse);
 
-    virtual void onRecvProposal(bytesConstRef _proposalData,
+    virtual void onRecvProposal(bool _containSysTxs, bytesConstRef _proposalData,
         bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash);
 
     // PBFT main processing function
@@ -152,6 +152,10 @@ protected:
     virtual void onLoadAndVerifyProposalSucc(PBFTProposalInterface::Ptr _proposal);
     virtual void triggerTimeout();
 
+    void handleRecoverResponse(PBFTMessageInterface::Ptr _recoverResponse);
+    void handleRecoverRequest(PBFTMessageInterface::Ptr _request);
+    void sendRecoverResponse(bcos::crypto::NodeIDPtr _dstNode);
+
 private:
     // utility functions
     void waitSignal()
@@ -186,7 +190,7 @@ protected:
     // Message packets allowed to be processed in timeout mode
     const std::set<PacketType> c_timeoutAllowedPacket = {ViewChangePacket, NewViewPacket,
         CommittedProposalRequest, CommittedProposalResponse, PreparedProposalRequest,
-        PreparedProposalResponse, CheckPoint};
+        PreparedProposalResponse, CheckPoint, RecoverRequest, RecoverResponse};
 };
 }  // namespace consensus
 }  // namespace bcos
