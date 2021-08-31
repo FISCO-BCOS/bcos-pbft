@@ -39,17 +39,17 @@ public:
     virtual void addPrepareCache(PBFTMessageInterface::Ptr _prepareProposal)
     {
         addCache(m_prepareCacheList, m_prepareReqWeight, _prepareProposal);
-        PBFT_LOG(DEBUG) << LOG_DESC("addPrepareCache") << printPBFTMsgInfo(_prepareProposal)
-                        << m_config->printCurrentState()
-                        << LOG_KV("weight", m_prepareReqWeight[_prepareProposal->hash()]);
+        PBFT_LOG(INFO) << LOG_DESC("addPrepareCache") << printPBFTMsgInfo(_prepareProposal)
+                       << m_config->printCurrentState()
+                       << LOG_KV("weight", m_prepareReqWeight[_prepareProposal->hash()]);
     }
 
     virtual void addCommitCache(PBFTMessageInterface::Ptr _commitProposal)
     {
         addCache(m_commitCacheList, m_commitReqWeight, _commitProposal);
-        PBFT_LOG(DEBUG) << LOG_DESC("addCommitCache") << printPBFTMsgInfo(_commitProposal)
-                        << m_config->printCurrentState()
-                        << LOG_KV("weight", m_commitReqWeight[_commitProposal->hash()]);
+        PBFT_LOG(INFO) << LOG_DESC("addCommitCache") << printPBFTMsgInfo(_commitProposal)
+                       << m_config->printCurrentState()
+                       << LOG_KV("weight", m_commitReqWeight[_commitProposal->hash()]);
     }
 
     virtual void addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepareMsg)
@@ -65,8 +65,8 @@ public:
             return;
         }
         m_prePrepare = _prePrepareMsg;
-        PBFT_LOG(DEBUG) << LOG_DESC("addPrePrepareCache") << printPBFTMsgInfo(_prePrepareMsg)
-                        << m_config->printCurrentState();
+        PBFT_LOG(INFO) << LOG_DESC("addPrePrepareCache") << printPBFTMsgInfo(_prePrepareMsg)
+                       << m_config->printCurrentState();
     }
 
     bcos::protocol::BlockNumber index() const { return m_index; }
@@ -85,10 +85,10 @@ public:
     virtual void addCheckPointMsg(PBFTMessageInterface::Ptr _checkPointMsg)
     {
         addCache(m_checkpointCacheList, m_checkpointCacheWeight, _checkPointMsg);
-        PBFT_LOG(DEBUG) << LOG_DESC("addCheckPointMsg") << printPBFTMsgInfo(_checkPointMsg)
-                        << LOG_KV("Idx", m_config->nodeIndex())
-                        << LOG_KV("weight", m_checkpointCacheWeight[_checkPointMsg->hash()])
-                        << LOG_KV("minRequiredWeight", m_config->minRequiredQuorum());
+        PBFT_LOG(INFO) << LOG_DESC("addCheckPointMsg") << printPBFTMsgInfo(_checkPointMsg)
+                       << LOG_KV("Idx", m_config->nodeIndex())
+                       << LOG_KV("weight", m_checkpointCacheWeight[_checkPointMsg->hash()])
+                       << LOG_KV("minRequiredWeight", m_config->minRequiredQuorum());
     }
 
     virtual bool checkAndCommitStableCheckPoint();

@@ -139,9 +139,8 @@ public:
         auto progressedIndex = _committedProposal->index() + 1;
         if (progressedIndex > m_expectedCheckPoint)
         {
-            PBFT_LOG(DEBUG) << LOG_DESC("PBFTConfig: resetExpectedCheckPoint")
-                            << printCurrentState()
-                            << LOG_KV("expectedCheckPoint", m_expectedCheckPoint);
+            PBFT_LOG(INFO) << LOG_DESC("PBFTConfig: resetExpectedCheckPoint") << printCurrentState()
+                           << LOG_KV("expectedCheckPoint", m_expectedCheckPoint);
             m_expectedCheckPoint = _committedProposal->index() + 1;
         }
         if (progressedIndex > m_lowWaterMark)
@@ -154,8 +153,8 @@ public:
     void setExpectedCheckPoint(bcos::protocol::BlockNumber _expectedCheckPoint)
     {
         m_expectedCheckPoint = std::max(committedProposal()->index() + 1, _expectedCheckPoint);
-        PBFT_LOG(DEBUG) << LOG_DESC("PBFTConfig: setExpectedCheckPoint") << printCurrentState()
-                        << LOG_KV("expectedCheckPoint", m_expectedCheckPoint);
+        PBFT_LOG(INFO) << LOG_DESC("PBFTConfig: setExpectedCheckPoint") << printCurrentState()
+                       << LOG_KV("expectedCheckPoint", m_expectedCheckPoint);
     }
 
     StateMachineInterface::Ptr stateMachine() { return m_stateMachine; }

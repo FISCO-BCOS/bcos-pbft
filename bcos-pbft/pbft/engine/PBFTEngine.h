@@ -150,6 +150,7 @@ protected:
     virtual void resetSealedTxs(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg);
 
     virtual void onLoadAndVerifyProposalSucc(PBFTProposalInterface::Ptr _proposal);
+    virtual void triggerTimeout();
 
 private:
     // utility functions
@@ -181,7 +182,6 @@ protected:
     mutable Mutex m_mutex;
 
     const unsigned c_PopWaitSeconds = 5;
-
 
     // Message packets allowed to be processed in timeout mode
     const std::set<PacketType> c_timeoutAllowedPacket = {ViewChangePacket, NewViewPacket,

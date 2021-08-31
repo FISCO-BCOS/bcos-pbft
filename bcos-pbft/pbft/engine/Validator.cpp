@@ -68,15 +68,15 @@ void TxsValidator::asyncResetTxsFlag(
         [this, _block, _txsHashList, _flag, _retryTime](Error::Ptr _error) {
             if (_error == nullptr)
             {
-                PBFT_LOG(DEBUG) << LOG_DESC("asyncMarkTxs success")
-                                << LOG_KV("index", _block->blockHeader()->number())
-                                << LOG_KV("hash", _block->blockHeader()->hash().abridged())
-                                << LOG_KV("flag", _flag);
+                PBFT_LOG(INFO) << LOG_DESC("asyncMarkTxs success")
+                               << LOG_KV("index", _block->blockHeader()->number())
+                               << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                               << LOG_KV("flag", _flag);
                 return;
             }
-            PBFT_LOG(DEBUG) << LOG_DESC("asyncMarkTxs failed")
-                            << LOG_KV("code", _error->errorCode())
-                            << LOG_KV("msg", _error->errorMessage());
+            PBFT_LOG(WARNING) << LOG_DESC("asyncMarkTxs failed")
+                              << LOG_KV("code", _error->errorCode())
+                              << LOG_KV("msg", _error->errorMessage());
             if (_retryTime >= 3)
             {
                 return;

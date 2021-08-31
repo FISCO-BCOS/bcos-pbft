@@ -52,12 +52,12 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
 
     if (_ledgerConfig->sealerId() == -1)
     {
-        PBFT_LOG(DEBUG) << LOG_DESC("^^^^^^^^Report") << printCurrentState();
+        PBFT_LOG(INFO) << LOG_DESC("^^^^^^^^Report") << printCurrentState();
     }
     else
     {
-        PBFT_LOG(DEBUG) << LOG_DESC("^^^^^^^^Report") << LOG_KV("sealer", _ledgerConfig->sealerId())
-                        << printCurrentState();
+        PBFT_LOG(INFO) << LOG_DESC("^^^^^^^^Report") << LOG_KV("sealer", _ledgerConfig->sealerId())
+                       << printCurrentState();
     }
     // notify the latest block number to the sealer
     if (m_stateNotifier)
@@ -133,7 +133,8 @@ void PBFTConfig::reNotifySealer(bcos::protocol::BlockNumber _index)
         return;
     }
     PBFT_LOG(INFO) << LOG_DESC("reNotifySealer") << LOG_KV("expectedStart", _index)
-                   << LOG_KV("highWaterMark", highWaterMark()) << printCurrentState();
+                   << LOG_KV("highWaterMark", highWaterMark())
+                   << LOG_KV("leader", leaderIndex(_index)) << printCurrentState();
     m_sealStartIndex = (_index - 1);
     m_sealEndIndex = (_index - 1);
     notifySealer(_index);
