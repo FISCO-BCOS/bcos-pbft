@@ -339,13 +339,7 @@ void LedgerStorage::asyncCommitStableCheckPoint(
                                        << LOG_KV("index", _blockHeader->number())
                                        << LOG_KV("hash", _ledgerConfig->hash().abridged())
                                        << LOG_KV("timeCost", utcTime() - startT);
-
-                // resetConfig
                 _ledgerConfig->setSealerId(_blockHeader->sealer());
-                if (ledgerStorage->m_resetConfigHandler)
-                {
-                    ledgerStorage->m_resetConfigHandler(_ledgerConfig);
-                }
                 // finalize consensus
                 if (ledgerStorage->m_finalizeHandler)
                 {

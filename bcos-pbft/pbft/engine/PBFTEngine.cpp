@@ -320,7 +320,6 @@ void PBFTEngine::asyncNotifyNewBlock(
         PBFT_LOG(INFO) << LOG_DESC("The sync module notify the latestBlock")
                        << LOG_KV("index", _ledgerConfig->blockNumber())
                        << LOG_KV("hash", _ledgerConfig->hash().abridged());
-        m_config->resetConfig(_ledgerConfig, true);
         finalizeConsensus(_ledgerConfig, true);
     }
 }
@@ -1080,6 +1079,8 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
 void PBFTEngine::finalizeConsensus(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
 {
     Guard l(m_mutex);
+    // resetConfig after submit the block to ledger
+    m_config->resetConfig(_ledgerConfig, _syncedBlock);
     // tried to commit the stable checkpoint
     m_cacheProcessor->removeConsensusedCache(m_config->view(), _ledgerConfig->blockNumber());
     m_cacheProcessor->tryToApplyCommitQueue();

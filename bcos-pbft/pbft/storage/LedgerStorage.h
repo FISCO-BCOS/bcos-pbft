@@ -48,12 +48,6 @@ public:
     void asyncCommitProposal(PBFTProposalInterface::Ptr _proposal) override;
     // commit the executed-block into the blockchain
     void asyncCommmitStableCheckPoint(PBFTProposalInterface::Ptr _stableProposal) override;
-    void registerConfigResetHandler(
-        std::function<void(bcos::ledger::LedgerConfig::Ptr)> _resetConfigHandler) override
-    {
-        m_resetConfigHandler = _resetConfigHandler;
-    }
-
     void registerFinalizeHandler(
         std::function<void(bcos::ledger::LedgerConfig::Ptr, bool _syncBlock)> _finalizeHandler)
         override
@@ -104,8 +98,6 @@ protected:
     size_t m_timeout = 10000;
     boost::condition_variable m_signalled;
     boost::mutex x_signalled;
-
-    std::function<void(bcos::ledger::LedgerConfig::Ptr)> m_resetConfigHandler;
     std::function<void(bcos::ledger::LedgerConfig::Ptr, bool _syncBlock)> m_finalizeHandler;
 
     std::function<void(bcos::protocol::Block::Ptr, bcos::protocol::BlockHeader::Ptr)>
