@@ -12,4 +12,5 @@ message RawProposal
   bytes signature = 4;
   bytes extraData = 5;
   int64 sealerId = 6;
+  bool systemProposal = 7;
 };

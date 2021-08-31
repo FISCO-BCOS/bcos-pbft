@@ -907,8 +907,7 @@ void PBFTCacheProcessor::removeFutureProposals()
             if (precommitMsg && precommitMsg->index() < m_config->committedProposal()->index() &&
                 precommitMsg->consensusProposal())
             {
-                m_config->validator()->asyncResetTxsFlag(
-                    precommitMsg->consensusProposal()->data(), false);
+                m_config->notifyResetSealing(precommitMsg->consensusProposal()->index());
             }
             auto executedProposalIndex = cache->checkPointProposal()->index();
             m_config->storage()->asyncRemoveStabledCheckPoint(executedProposalIndex);

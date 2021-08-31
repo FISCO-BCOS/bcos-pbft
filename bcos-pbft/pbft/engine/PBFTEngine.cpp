@@ -206,18 +206,19 @@ void PBFTEngine::onProposalApplied(bool _execSuccess, PBFTProposalInterface::Ptr
     });
 }
 
-void PBFTEngine::asyncSubmitProposal(bytesConstRef _proposalData, BlockNumber _proposalIndex,
-    HashType const& _proposalHash, std::function<void(Error::Ptr)> _onProposalSubmitted)
+void PBFTEngine::asyncSubmitProposal(bool _containSysTxs, bytesConstRef _proposalData,
+    BlockNumber _proposalIndex, HashType const& _proposalHash,
+    std::function<void(Error::Ptr)> _onProposalSubmitted)
 {
     if (_onProposalSubmitted)
     {
         _onProposalSubmitted(nullptr);
     }
-    onRecvProposal(_proposalData, _proposalIndex, _proposalHash);
+    onRecvProposal(_containSysTxs, _proposalData, _proposalIndex, _proposalHash);
 }
 
-void PBFTEngine::onRecvProposal(
-    bytesConstRef _proposalData, BlockNumber _proposalIndex, HashType const& _proposalHash)
+void PBFTEngine::onRecvProposal(bool _containSysTxs, bytesConstRef _proposalData,
+    BlockNumber _proposalIndex, HashType const& _proposalHash)
 {
     if (_proposalData.size() == 0)
     {
@@ -275,6 +276,7 @@ void PBFTEngine::onRecvProposal(
     pbftProposal->setIndex(_proposalIndex);
     pbftProposal->setHash(_proposalHash);
     pbftProposal->setSealerId(m_config->nodeIndex());
+    pbftProposal->setSystemProposal(_containSysTxs);
 
     auto pbftMessage =
         m_config->pbftMessageFactory()->populateFrom(PacketType::PrePreparePacket, pbftProposal,
@@ -287,7 +289,8 @@ void PBFTEngine::onRecvProposal(
 
     PBFT_LOG(INFO) << LOG_DESC("++++++++++++++++ Generating seal on")
                    << LOG_KV("index", pbftMessage->index()) << LOG_KV("Idx", m_config->nodeIndex())
-                   << LOG_KV("hash", pbftMessage->hash().abridged());
+                   << LOG_KV("hash", pbftMessage->hash().abridged())
+                   << LOG_KV("sysProposal", pbftProposal->systemProposal());
 
     // handle the pre-prepare packet
     Guard l(m_mutex);
@@ -643,9 +646,14 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
         m_cacheProcessor->addPrePrepareCache(_prePrepareMsg);
         m_config->timer()->restart();
         auto nextProposalIndex = _prePrepareMsg->index();
-        if (nextProposalIndex <= m_config->highWaterMark() && !_generatedFromNewView)
+        if (!_prePrepareMsg->consensusProposal()->systemProposal() &&
+            nextProposalIndex <= m_config->highWaterMark() && !_generatedFromNewView)
         {
             m_config->notifySealer(nextProposalIndex);
+            PBFT_LOG(DEBUG)
+                << LOG_DESC(
+                       "Receive valid non-system prePrepare proposal, notify to seal next proposal")
+                << LOG_KV("nextProposalIndex", nextProposalIndex);
         }
         // broadcast PrepareMsg the packet
         broadcastPrepareMsg(_prePrepareMsg);

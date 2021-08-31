@@ -125,6 +125,12 @@ public:
 
     int64_t sealerId() override { return m_rawProposal->sealerid(); }
 
+    bool systemProposal() const override { return m_rawProposal->systemproposal(); }
+    void setSystemProposal(bool _systemProposal) override
+    {
+        m_rawProposal->set_systemproposal(_systemProposal);
+    }
+
 protected:
     void setRawProposal(std::shared_ptr<RawProposal> _rawProposal)
     {
