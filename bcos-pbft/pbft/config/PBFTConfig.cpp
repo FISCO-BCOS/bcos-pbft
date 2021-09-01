@@ -168,7 +168,7 @@ void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
                        << LOG_KV("expectedEndIndex", endProposalIndex) << printCurrentState();
         return;
     }
-    auto startSealIndex = std::max(m_sealStartIndex.load(), _progressedIndex);
+    auto startSealIndex = std::max(m_sealEndIndex.load(), _progressedIndex);
     if (startSealIndex > endProposalIndex)
     {
         PBFT_LOG(INFO) << LOG_DESC("notifySealer return for invalid seal range")
@@ -183,6 +183,7 @@ void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
     PBFT_LOG(INFO) << LOG_DESC("notifySealer: notify the new leader to seal block")
                    << LOG_KV("idx", nodeIndex()) << LOG_KV("startIndex", startSealIndex)
                    << LOG_KV("endIndex", endProposalIndex)
+                   << LOG_KV("notifyBeginIndex", _progressedIndex)
                    << LOG_KV("maxTxsToSeal", blockTxCountLimit()) << printCurrentState();
 }
 

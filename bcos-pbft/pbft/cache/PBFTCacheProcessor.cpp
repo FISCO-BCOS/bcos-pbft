@@ -32,6 +32,11 @@ void PBFTCacheProcessor::initState(PBFTProposalList const& _proposals, NodeIDPtr
 {
     for (auto proposal : _proposals)
     {
+        // the proposal has already been committed
+        if (proposal->index() <= m_config->committedProposal()->index())
+        {
+            continue;
+        }
         // try to verify and load the proposal
         loadAndVerifyProposal(_fromNode, proposal);
     }

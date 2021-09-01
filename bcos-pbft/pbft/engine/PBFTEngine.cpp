@@ -794,6 +794,12 @@ bool PBFTEngine::handleCommitMsg(PBFTMessageInterface::Ptr _commitMsg)
 
 void PBFTEngine::onTimeout()
 {
+    // only restart the timer if the node is not exist in the group
+    if (!m_config->isConsensusNode())
+    {
+        m_config->timer()->restart();
+        return;
+    }
     Guard l(m_mutex);
     m_cacheProcessor->clearExpiredExecutingProposal();
     // when some proposals are executing, not trigger timeout
@@ -1131,7 +1137,7 @@ bool PBFTEngine::handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _chec
     // check index
     if (_checkPointMsg->index() <= m_config->committedProposal()->index())
     {
-        PBFT_LOG(DEBUG) << LOG_DESC("handleCheckPointMsg: Invalid expired checkpoint msg")
+        PBFT_LOG(TRACE) << LOG_DESC("handleCheckPointMsg: Invalid expired checkpoint msg")
                         << LOG_KV("committedIndex", m_config->committedProposal()->index())
                         << LOG_KV("recvIndex", _checkPointMsg->index())
                         << LOG_KV("hash", _checkPointMsg->hash().abridged())
