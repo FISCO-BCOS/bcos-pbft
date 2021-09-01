@@ -112,6 +112,8 @@ public:
     virtual ViewChangeMsgInterface::Ptr fetchPrecommitData(
         bcos::protocol::BlockNumber _index, bcos::crypto::HashType const& _hash);
 
+    virtual PBFTProposalInterface::Ptr fetchPrecommitProposal(bcos::protocol::BlockNumber _index);
+
     virtual bool checkPrecommitMsg(PBFTMessageInterface::Ptr _precommitMsg);
 
     virtual void removeConsensusedCache(
@@ -128,7 +130,7 @@ public:
 
     virtual void resetTimer();
 
-    virtual bool shouldRequestCheckPoint(bcos::protocol::BlockNumber _checkPointIndex);
+    virtual bool shouldRequestCheckPoint(PBFTMessageInterface::Ptr _checkPointMsg);
 
     virtual void registerProposalAppliedHandler(
         std::function<void(bool, PBFTProposalInterface::Ptr, PBFTProposalInterface::Ptr)> _callback)
@@ -175,6 +177,11 @@ public:
 
     virtual void addRecoverReqCache(PBFTMessageInterface::Ptr _recoverResponse);
     virtual bool checkAndTryToRecover();
+
+    std::map<bcos::crypto::HashType, bcos::protocol::BlockNumber> const& executingProposals()
+    {
+        return m_executingProposals;
+    }
 
 protected:
     virtual void loadAndVerifyProposal(bcos::crypto::NodeIDPtr _fromNode,

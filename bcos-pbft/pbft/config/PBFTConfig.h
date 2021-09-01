@@ -100,9 +100,13 @@ public:
             return;
         }
         m_leaderSwitchPeriod.store(_leaderSwitchPeriod);
-        // notify the sealer module to reset sealing
-        auto proposalIndex = committedProposal()->index() + 1;
-        notifyResetSealing(proposalIndex);
+        // not notify the sealer to re-seal when the node is syncing
+        if (!m_syncingState)
+        {
+            // notify the sealer module to reset sealing
+            auto proposalIndex = committedProposal()->index() + 1;
+            notifyResetSealing(proposalIndex);
+        }
         PBFT_LOG(INFO) << LOG_DESC(
                               "updateLeaderSwitchPeriod and re-notify the sealer to seal block")
                        << LOG_KV("leader_period", m_leaderSwitchPeriod)
@@ -215,13 +219,6 @@ public:
         setView(_view);
         m_timeoutState.store(false);
     }
-
-    bcos::protocol::BlockNumber syncingHighestNumber() const { return m_syncingHighestNumber; }
-    void setSyncingHighestNumber(bcos::protocol::BlockNumber _number)
-    {
-        m_syncingHighestNumber = _number;
-    }
-
     virtual void setUnSealedTxsSize(size_t _unsealedTxsSize)
     {
         m_unsealedTxsSize = _unsealedTxsSize;
@@ -270,7 +267,7 @@ public:
         m_sealerResetNotifier = _sealerResetNotifier;
     }
 
-    virtual void notifyResetSealing(bcos::protocol::BlockNumber _consIndex)
+    void notifyResetSealing(bcos::protocol::BlockNumber _consIndex) override
     {
         notifyResetSealing([this, _consIndex]() {
             // notify the sealer to reseal
@@ -329,9 +326,6 @@ protected:
     const unsigned c_networkTimeoutInterval = 1000;
     // state variable that identifies whether has timed out
     std::atomic_bool m_timeoutState = {false};
-
-    bcos::protocol::BlockNumber m_syncingHighestNumber = {0};
-    std::atomic_bool m_syncingState = {false};
 
     std::atomic<size_t> m_unsealedTxsSize = {0};
 };

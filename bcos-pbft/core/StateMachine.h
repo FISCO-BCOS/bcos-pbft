@@ -35,9 +35,8 @@ public:
     {}
     ~StateMachine() override {}
 
-    void asyncApply(bcos::consensus::ConsensusNodeList const& _consensusNodeInfo,
-        ProposalInterface::ConstPtr _lastAppliedProposal, ProposalInterface::Ptr _proposal,
-        ProposalInterface::Ptr _executedProposal,
+    void asyncApply(ProposalInterface::ConstPtr _lastAppliedProposal,
+        ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
         std::function<void(bool)> _onExecuteFinished) override;
 
 protected:

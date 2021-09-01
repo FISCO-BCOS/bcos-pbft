@@ -102,6 +102,15 @@ public:
         m_committedIndexNotifier = _committedIndexNotifier;
     }
 
+    uint64_t getCollectedCheckPointWeight(bcos::crypto::HashType const& _hash)
+    {
+        if (m_checkpointCacheWeight.count(_hash))
+        {
+            return m_checkpointCacheWeight[_hash];
+        }
+        return 0;
+    }
+
 protected:
     bool checkPrePrepareProposalStatus();
     using CollectionCacheType =

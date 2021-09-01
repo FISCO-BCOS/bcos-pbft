@@ -33,6 +33,7 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
                    << LOG_KV("consensusTimeout", _ledgerConfig->consensusTimeout())
                    << LOG_KV("blockCountLimit", _ledgerConfig->blockTxCountLimit())
                    << LOG_KV("leaderPeriod", _ledgerConfig->leaderSwitchPeriod());
+    m_syncingState = _syncedBlock;
     // set committed proposal
     auto committedProposal = m_pbftMessageFactory->createPBFTProposal();
     committedProposal->setIndex(_ledgerConfig->blockNumber());
@@ -84,6 +85,8 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
     {
         m_timeoutState = true;
         m_syncingState = true;
+        // notify resetSealing(the syncing node should not seal block)
+        notifyResetSealing();
         return;
     }
     // after syncing finished, try to reach a new view after syncing completed

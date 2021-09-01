@@ -101,6 +101,12 @@ void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList
     }
     // update quorum
     updateQuorum();
+    // not notify to reseal the new block when the node is syncing
+    if (committedProposal() && !m_syncingState)
+    {
+        auto proposalIndex = committedProposal()->index() + 1;
+        notifyResetSealing(proposalIndex);
+    }
     CONSENSUS_LOG(INFO) << LOG_DESC("updateConsensusNodeList")
                         << LOG_KV("nodeNum", m_consensusNodeNum) << LOG_KV("nodeIndex", nodeIndex)
                         << LOG_KV("committedIndex",
