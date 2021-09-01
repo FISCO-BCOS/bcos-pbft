@@ -99,6 +99,8 @@ public:
     }
     virtual uint64_t blockTxCountLimit() const { return m_blockTxCountLimit.load(); }
 
+private:
+    bool compareConsensusNode(ConsensusNodeList const& _left, ConsensusNodeList const& _right);
 
 protected:
     bcos::crypto::KeyPairInterface::Ptr m_keyPair;
