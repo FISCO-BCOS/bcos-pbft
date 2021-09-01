@@ -75,7 +75,7 @@ void PBFTCacheProcessor::loadAndVerifyProposal(
                     auto waterMark = std::min(config->lowWaterMark(), _proposal->index() - 1);
                     waterMark = std::max(waterMark, config->progressedIndex());
                     config->setLowWaterMark(waterMark);
-                    PBFT_LOG(WARNING)
+                    PBFT_LOG(INFO)
                         << LOG_DESC("loadAndVerifyProposal failed") << printPBFTProposal(_proposal)
                         << LOG_KV("from", _fromNode->shortHex())
                         << LOG_KV("code", _error ? _error->errorCode() : 0)

@@ -101,8 +101,7 @@ void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList
     }
     // update quorum
     updateQuorum();
-    // not notify to reseal the new block when the node is syncing
-    if (committedProposal() && !m_syncingState)
+    if (committedProposal())
     {
         auto proposalIndex = committedProposal()->index() + 1;
         notifyResetSealing(proposalIndex);

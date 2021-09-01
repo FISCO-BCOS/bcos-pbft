@@ -33,7 +33,6 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
                    << LOG_KV("consensusTimeout", _ledgerConfig->consensusTimeout())
                    << LOG_KV("blockCountLimit", _ledgerConfig->blockTxCountLimit())
                    << LOG_KV("leaderPeriod", _ledgerConfig->leaderSwitchPeriod());
-    m_syncingState = _syncedBlock;
     // set committed proposal
     auto committedProposal = m_pbftMessageFactory->createPBFTProposal();
     committedProposal->setIndex(_ledgerConfig->blockNumber());

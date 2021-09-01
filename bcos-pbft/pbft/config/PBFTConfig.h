@@ -100,13 +100,9 @@ public:
             return;
         }
         m_leaderSwitchPeriod.store(_leaderSwitchPeriod);
-        // not notify the sealer to re-seal when the node is syncing
-        if (!m_syncingState)
-        {
-            // notify the sealer module to reset sealing
-            auto proposalIndex = committedProposal()->index() + 1;
-            notifyResetSealing(proposalIndex);
-        }
+        // notify the sealer module to reset sealing
+        auto proposalIndex = committedProposal()->index() + 1;
+        notifyResetSealing(proposalIndex);
         PBFT_LOG(INFO) << LOG_DESC(
                               "updateLeaderSwitchPeriod and re-notify the sealer to seal block")
                        << LOG_KV("leader_period", m_leaderSwitchPeriod)
