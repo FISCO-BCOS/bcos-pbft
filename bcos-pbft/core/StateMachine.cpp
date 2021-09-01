@@ -26,9 +26,9 @@ using namespace bcos::consensus;
 using namespace bcos::protocol;
 using namespace bcos::crypto;
 
-void StateMachine::asyncApply(ConsensusNodeList const& _consensusNodeInfo,
-    ProposalInterface::ConstPtr _lastAppliedProposal, ProposalInterface::Ptr _proposal,
-    ProposalInterface::Ptr _executedProposal, std::function<void(bool)> _onExecuteFinished)
+void StateMachine::asyncApply(ProposalInterface::ConstPtr _lastAppliedProposal,
+    ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
+    std::function<void(bool)> _onExecuteFinished)
 {
     if (_proposal->index() <= _lastAppliedProposal->index())
     {
@@ -71,15 +71,6 @@ void StateMachine::asyncApply(ConsensusNodeList const& _consensusNodeInfo,
     }
     // supplement the header info
     block->blockHeader()->setSealer(_proposal->sealerId());
-    std::vector<bytes> sealerList;
-    std::vector<uint64_t> weightList;
-    for (auto const& consensusNode : _consensusNodeInfo)
-    {
-        sealerList.push_back(consensusNode->nodeID()->data());
-        weightList.push_back(consensusNode->weight());
-    }
-    block->blockHeader()->setSealerList(std::move(sealerList));
-    block->blockHeader()->setConsensusWeights(std::move(weightList));
     // calls dispatcher to execute the block
     auto startT = utcTime();
     m_dispatcher->asyncExecuteBlock(block, false,

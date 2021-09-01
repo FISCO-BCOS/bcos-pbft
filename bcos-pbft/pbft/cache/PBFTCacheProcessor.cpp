@@ -32,6 +32,11 @@ void PBFTCacheProcessor::initState(PBFTProposalList const& _proposals, NodeIDPtr
 {
     for (auto proposal : _proposals)
     {
+        // the proposal has already been committed
+        if (proposal->index() <= m_config->committedProposal()->index())
+        {
+            continue;
+        }
         // try to verify and load the proposal
         loadAndVerifyProposal(_fromNode, proposal);
     }
@@ -70,7 +75,7 @@ void PBFTCacheProcessor::loadAndVerifyProposal(
                     auto waterMark = std::min(config->lowWaterMark(), _proposal->index() - 1);
                     waterMark = std::max(waterMark, config->progressedIndex());
                     config->setLowWaterMark(waterMark);
-                    PBFT_LOG(WARNING)
+                    PBFT_LOG(INFO)
                         << LOG_DESC("loadAndVerifyProposal failed") << printPBFTProposal(_proposal)
                         << LOG_KV("from", _fromNode->shortHex())
                         << LOG_KV("code", _error ? _error->errorCode() : 0)
@@ -313,8 +318,8 @@ void PBFTCacheProcessor::applyStateMachine(
     auto executedProposal = m_config->pbftMessageFactory()->createPBFTProposal();
     auto self = std::weak_ptr<PBFTCacheProcessor>(shared_from_this());
     auto startT = utcTime();
-    m_config->stateMachine()->asyncApply(m_config->consensusNodeList(), _lastAppliedProposal,
-        _proposal, executedProposal, [self, startT, _proposal, executedProposal](bool _ret) {
+    m_config->stateMachine()->asyncApply(_lastAppliedProposal, _proposal, executedProposal,
+        [self, startT, _proposal, executedProposal](bool _ret) {
             try
             {
                 auto cache = self.lock();
@@ -832,26 +837,40 @@ void PBFTCacheProcessor::tryToCommitStableCheckPoint()
     }
 }
 
-bool PBFTCacheProcessor::shouldRequestCheckPoint(bcos::protocol::BlockNumber _checkPointIndex)
+bool PBFTCacheProcessor::shouldRequestCheckPoint(PBFTMessageInterface::Ptr _checkPointMsg)
 {
+    auto checkPointIndex = _checkPointMsg->index();
     // expired checkpoint
-    if (_checkPointIndex <= m_config->committedProposal()->index() ||
-        _checkPointIndex <= m_config->syncingHighestNumber())
+    if (checkPointIndex <= m_config->committedProposal()->index() ||
+        checkPointIndex <= m_config->syncingHighestNumber())
     {
         return false;
     }
     // hit in the local committedProposalList or already been requested
-    if (m_committedProposalList.count(_checkPointIndex))
+    if (m_committedProposalList.count(checkPointIndex))
     {
         return false;
     }
-    // precompiled in the local cache
-    if (m_caches.count(_checkPointIndex) && m_caches[_checkPointIndex]->precommitted())
+    // has not receive any checkPoint message before
+    if (!m_caches.count(checkPointIndex))
     {
         return false;
     }
+    auto cache = m_caches[checkPointIndex];
+    // precommitted in the local cache
+    if (cache->precommitted())
+    {
+        return false;
+    }
+    auto checkPointWeight = cache->getCollectedCheckPointWeight(_checkPointMsg->hash());
+    auto minRequiredCheckPointWeight = m_config->maxFaultyQuorum() + 1;
+    if (checkPointWeight < minRequiredCheckPointWeight)
+    {
+        return false;
+    }
+    // collect more than (f+1) checkpoint message with the same hash
     // in case of request again
-    m_committedProposalList.insert(_checkPointIndex);
+    m_committedProposalList.insert(checkPointIndex);
     return true;
 }
 
@@ -882,11 +901,6 @@ void PBFTCacheProcessor::removeFutureProposals()
     {
         auto proposal = m_committedQueue.top();
         m_committedQueue.pop();
-        if (proposal->index() >= m_config->committedProposal()->index())
-        {
-            continue;
-        }
-        m_config->notifyResetSealing(committedIndex + 1);
     }
     m_committedProposalList.clear();
 
@@ -903,12 +917,6 @@ void PBFTCacheProcessor::removeFutureProposals()
         // remove the cache of the future proposal
         if (cache->index() >= committedIndex && cache->checkPointProposal())
         {
-            auto precommitMsg = cache->preCommitCache();
-            if (precommitMsg && precommitMsg->index() < m_config->committedProposal()->index() &&
-                precommitMsg->consensusProposal())
-            {
-                m_config->notifyResetSealing(precommitMsg->consensusProposal()->index());
-            }
             auto executedProposalIndex = cache->checkPointProposal()->index();
             m_config->storage()->asyncRemoveStabledCheckPoint(executedProposalIndex);
             pcache = m_caches.erase(pcache);
@@ -981,4 +989,20 @@ bool PBFTCacheProcessor::checkAndTryToRecover()
     PBFT_LOG(INFO) << LOG_DESC("checkAndTryToRecoverView: reachNewView")
                    << LOG_KV("recoveredView", recoveredView) << m_config->printCurrentState();
     return true;
+}
+
+PBFTProposalInterface::Ptr PBFTCacheProcessor::fetchPrecommitProposal(
+    bcos::protocol::BlockNumber _index)
+{
+    if (!m_caches.count(_index))
+    {
+        return nullptr;
+    }
+    auto cache = m_caches[_index];
+    if (cache->preCommitCache() == nullptr ||
+        cache->preCommitCache()->consensusProposal() == nullptr)
+    {
+        return nullptr;
+    }
+    return cache->preCommitCache()->consensusProposal();
 }

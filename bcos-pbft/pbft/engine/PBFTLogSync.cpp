@@ -174,6 +174,16 @@ void PBFTLogSync::onReceivePrecommitRequest(
     });
 }
 
+void PBFTLogSync::sendCommittedProposalResponse(
+    PBFTProposalList const& _proposalList, SendResponseCallback _sendResponse)
+{
+    auto pbftMessage = m_config->pbftMessageFactory()->createPBFTMsg();
+    pbftMessage->setPacketType(PacketType::CommittedProposalResponse);
+    pbftMessage->setProposals(_proposalList);
+    auto encodedData = m_config->codec()->encode(pbftMessage);
+    _sendResponse(ref(*encodedData));
+}
+
 void PBFTLogSync::onReceiveCommittedProposalRequest(
     PBFTBaseMessageInterface::Ptr _pbftMsg, SendResponseCallback _sendResponse)
 {
@@ -181,6 +191,15 @@ void PBFTLogSync::onReceiveCommittedProposalRequest(
     PBFT_LOG(INFO) << LOG_DESC("Receive CommittedProposalRequest")
                    << LOG_KV("fromIndex", pbftRequest->index())
                    << LOG_KV("size", pbftRequest->size());
+    // hit the local cache
+    auto proposal = m_pbftCache->fetchPrecommitProposal(pbftRequest->index());
+    if (pbftRequest->size() == 1 && proposal)
+    {
+        PBFTProposalList proposalList;
+        proposalList.emplace_back(proposal);
+        sendCommittedProposalResponse(proposalList, _sendResponse);
+        return;
+    }
     m_config->storage()->asyncGetCommittedProposals(pbftRequest->index(), pbftRequest->size(),
         [this, pbftRequest, _sendResponse](PBFTProposalListPtr _proposalList) {
             // empty case
@@ -194,11 +213,7 @@ void PBFTLogSync::onReceiveCommittedProposalRequest(
                 return;
             }
             // hit case
-            auto pbftMessage = m_config->pbftMessageFactory()->createPBFTMsg();
-            pbftMessage->setPacketType(PacketType::CommittedProposalResponse);
-            pbftMessage->setProposals(*_proposalList);
-            auto encodedData = m_config->codec()->encode(pbftMessage);
-            _sendResponse(ref(*encodedData));
+            sendCommittedProposalResponse(*_proposalList, _sendResponse);
         });
 }
 

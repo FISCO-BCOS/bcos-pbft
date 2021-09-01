@@ -215,13 +215,6 @@ public:
         setView(_view);
         m_timeoutState.store(false);
     }
-
-    bcos::protocol::BlockNumber syncingHighestNumber() const { return m_syncingHighestNumber; }
-    void setSyncingHighestNumber(bcos::protocol::BlockNumber _number)
-    {
-        m_syncingHighestNumber = _number;
-    }
-
     virtual void setUnSealedTxsSize(size_t _unsealedTxsSize)
     {
         m_unsealedTxsSize = _unsealedTxsSize;
@@ -270,7 +263,7 @@ public:
         m_sealerResetNotifier = _sealerResetNotifier;
     }
 
-    virtual void notifyResetSealing(bcos::protocol::BlockNumber _consIndex)
+    void notifyResetSealing(bcos::protocol::BlockNumber _consIndex) override
     {
         notifyResetSealing([this, _consIndex]() {
             // notify the sealer to reseal
@@ -329,9 +322,6 @@ protected:
     const unsigned c_networkTimeoutInterval = 1000;
     // state variable that identifies whether has timed out
     std::atomic_bool m_timeoutState = {false};
-
-    bcos::protocol::BlockNumber m_syncingHighestNumber = {0};
-    std::atomic_bool m_syncingState = {false};
 
     std::atomic<size_t> m_unsealedTxsSize = {0};
 };

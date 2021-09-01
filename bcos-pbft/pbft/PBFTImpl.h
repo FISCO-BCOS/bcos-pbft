@@ -105,6 +105,11 @@ public:
         m_pbftEngine->pbftConfig()->registerSealerResetNotifier(_sealerResetNotifier);
     }
 
+    ConsensusNodeList consensusNodeList() const override
+    {
+        return m_pbftEngine->pbftConfig()->consensusNodeList();
+    }
+
 protected:
     PBFTEngine::Ptr m_pbftEngine;
     BlockValidator::Ptr m_blockValidator;

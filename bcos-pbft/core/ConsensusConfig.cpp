@@ -47,6 +47,26 @@ NodeIDs ConsensusConfig::consensusNodeIDList(bool _excludeSelf) const
     return nodeIDList;
 }
 
+bool ConsensusConfig::compareConsensusNode(
+    ConsensusNodeList const& _left, ConsensusNodeList const& _right)
+{
+    if (_left.size() != _right.size())
+    {
+        return false;
+    }
+    size_t i = 0;
+    for (auto const& node : _left)
+    {
+        auto compareNode = _right[i];
+        if (node->nodeID()->data() != compareNode->nodeID()->data() ||
+            node->weight() != compareNode->weight())
+        {
+            return false;
+        }
+        i++;
+    }
+    return true;
+}
 void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList)
 {
     if (_consensusNodeList.size() == 0)
@@ -59,7 +79,8 @@ void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList
     // update the consensus list
     {
         UpgradableGuard l(x_consensusNodeList);
-        if (_consensusNodeList == *m_consensusNodeList)
+        // consensus node list have not been changed
+        if (compareConsensusNode(_consensusNodeList, *m_consensusNodeList))
         {
             return;
         }
@@ -80,6 +101,11 @@ void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList
     }
     // update quorum
     updateQuorum();
+    if (committedProposal())
+    {
+        auto proposalIndex = committedProposal()->index() + 1;
+        notifyResetSealing(proposalIndex);
+    }
     CONSENSUS_LOG(INFO) << LOG_DESC("updateConsensusNodeList")
                         << LOG_KV("nodeNum", m_consensusNodeNum) << LOG_KV("nodeIndex", nodeIndex)
                         << LOG_KV("committedIndex",

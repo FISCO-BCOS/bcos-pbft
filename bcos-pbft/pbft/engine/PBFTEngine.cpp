@@ -261,10 +261,9 @@ void PBFTEngine::onRecvProposal(bool _containSysTxs, bytesConstRef _proposalData
     }
     if (m_config->timeout())
     {
-        PBFT_LOG(WARNING) << LOG_DESC("onRecvProposal failed for timout now")
-                          << LOG_KV("index", _proposalIndex)
-                          << LOG_KV("hash", _proposalHash.abridged())
-                          << m_config->printCurrentState();
+        PBFT_LOG(INFO) << LOG_DESC("onRecvProposal failed for timout now")
+                       << LOG_KV("index", _proposalIndex)
+                       << LOG_KV("hash", _proposalHash.abridged()) << m_config->printCurrentState();
         m_config->notifyResetSealing(m_config->committedProposal()->index() + 1);
         return;
     }
@@ -593,12 +592,9 @@ bool PBFTEngine::checkProposalSignature(
 bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
     bool _needVerifyProposal, bool _generatedFromNewView, bool _needCheckSignature)
 {
-    PBFT_LOG(INFO) << LOG_DESC("handlePrePrepareMsg") << printPBFTMsgInfo(_prePrepareMsg)
-                   << m_config->printCurrentState();
-
     if (m_config->committedProposal()->index() < m_config->syncingHighestNumber())
     {
-        PBFT_LOG(WARNING)
+        PBFT_LOG(INFO)
             << LOG_DESC("handlePrePrepareMsg: reject the prePrepareMsg for the node is syncing")
             << LOG_KV("committedIndex", m_config->committedProposal()->index())
             << LOG_KV("recvIndex", _prePrepareMsg->index())
@@ -607,6 +603,19 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
             << m_config->printCurrentState();
         return false;
     }
+    if (m_cacheProcessor->executingProposals().count(_prePrepareMsg->hash()))
+    {
+        PBFT_LOG(DEBUG)
+            << LOG_DESC(
+                   "handlePrePrepareMsg: reject the prePrepareMsg for the proposal is executing")
+            << LOG_KV("committedIndex", m_config->committedProposal()->index())
+            << LOG_KV("recvIndex", _prePrepareMsg->index())
+            << LOG_KV("hash", _prePrepareMsg->hash().abridged()) << m_config->printCurrentState();
+        return false;
+    }
+    PBFT_LOG(INFO) << LOG_DESC("handlePrePrepareMsg") << printPBFTMsgInfo(_prePrepareMsg)
+                   << m_config->printCurrentState();
+
     auto result = checkPrePrepareMsg(_prePrepareMsg);
     if (result == CheckResult::INVALID)
     {
@@ -794,6 +803,12 @@ bool PBFTEngine::handleCommitMsg(PBFTMessageInterface::Ptr _commitMsg)
 
 void PBFTEngine::onTimeout()
 {
+    // only restart the timer if the node is not exist in the group
+    if (!m_config->isConsensusNode())
+    {
+        m_config->timer()->restart();
+        return;
+    }
     Guard l(m_mutex);
     m_cacheProcessor->clearExpiredExecutingProposal();
     // when some proposals are executing, not trigger timeout
@@ -1131,7 +1146,7 @@ bool PBFTEngine::handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _chec
     // check index
     if (_checkPointMsg->index() <= m_config->committedProposal()->index())
     {
-        PBFT_LOG(DEBUG) << LOG_DESC("handleCheckPointMsg: Invalid expired checkpoint msg")
+        PBFT_LOG(TRACE) << LOG_DESC("handleCheckPointMsg: Invalid expired checkpoint msg")
                         << LOG_KV("committedIndex", m_config->committedProposal()->index())
                         << LOG_KV("recvIndex", _checkPointMsg->index())
                         << LOG_KV("hash", _checkPointMsg->hash().abridged())
@@ -1171,7 +1186,7 @@ bool PBFTEngine::handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _chec
                    << printPBFTMsgInfo(_checkPointMsg) << m_config->printCurrentState();
     m_cacheProcessor->addCheckPointMsg(_checkPointMsg);
     m_cacheProcessor->checkAndCommitStableCheckPoint();
-    if (m_cacheProcessor->shouldRequestCheckPoint(_checkPointMsg->index()))
+    if (m_cacheProcessor->shouldRequestCheckPoint(_checkPointMsg))
     {
         PBFT_LOG(INFO) << LOG_DESC("request checkPoint proposal")
                        << LOG_KV("checkPointIndex", _checkPointMsg->index())

@@ -157,8 +157,9 @@ void LedgerStorage::asyncGetCommittedProposals(
                 {
                     if (value.empty())
                     {
-                        PBFT_STORAGE_LOG(WARNING) << LOG_DESC(
-                            "asyncGetCommittedProposals: Discontinuous committed proposal");
+                        PBFT_STORAGE_LOG(INFO)
+                            << LOG_DESC("asyncGetCommittedProposals: empty committed proposal")
+                            << LOG_KV("valuesSize", _values->size());
                         _onSuccess(nullptr);
                         return;
                     }
@@ -250,15 +251,19 @@ void LedgerStorage::asyncCommitProposal(PBFTProposalInterface::Ptr _committedPro
 void LedgerStorage::asyncPutProposal(std::string const& _dbName, std::string const& _key,
     bytesPointer _committedData, BlockNumber _proposalIndex, size_t _retryTime)
 {
+    auto startT = utcTime();
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
     m_storage->asyncPut(_dbName, _key,
         std::string_view((const char*)_committedData->data(), _committedData->size()),
-        [_dbName, _committedData, _key, _proposalIndex, _retryTime, self](Error::Ptr _error) {
+        [startT, _dbName, _committedData, _key, _proposalIndex, _retryTime, self](
+            Error::Ptr _error) {
             if (_error == nullptr)
             {
                 PBFT_STORAGE_LOG(INFO)
                     << LOG_DESC("asyncPutProposal: commit success") << LOG_KV("dbName", _dbName)
-                    << LOG_KV("key", _key) << LOG_KV("number", _proposalIndex);
+                    << LOG_KV("key", _key) << LOG_KV("number", _proposalIndex)
+                    << LOG_KV("timecost", (utcTime() - startT))
+                    << LOG_KV("dataSize", _committedData->size());
                 return;
             }
             PBFT_STORAGE_LOG(WARNING)

@@ -88,6 +88,9 @@ protected:
     void requestPBFTData(bcos::crypto::PublicPtr _from, PBFTRequestInterface::Ptr _pbftRequest,
         bcos::front::CallbackFunc _callback);
 
+    void sendCommittedProposalResponse(
+        PBFTProposalList const& _proposalList, SendResponseCallback _sendResponse);
+
 private:
     PBFTConfig::Ptr m_config;
     PBFTCacheProcessor::Ptr m_pbftCache;
