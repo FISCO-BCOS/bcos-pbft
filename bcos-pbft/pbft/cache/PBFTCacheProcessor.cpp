@@ -901,6 +901,12 @@ void PBFTCacheProcessor::removeFutureProposals()
     {
         auto proposal = m_committedQueue.top();
         m_committedQueue.pop();
+        // reset the sealed txs to be unsealed
+        if (proposal->index() >= m_config->committedProposal()->index())
+        {
+            continue;
+        }
+        m_config->validator()->asyncResetTxsFlag(proposal->data(), false);
     }
     m_committedProposalList.clear();
 
@@ -917,6 +923,13 @@ void PBFTCacheProcessor::removeFutureProposals()
         // remove the cache of the future proposal
         if (cache->index() >= committedIndex && cache->checkPointProposal())
         {
+            auto precommitMsg = cache->preCommitCache();
+            if (precommitMsg && precommitMsg->index() < m_config->committedProposal()->index() &&
+                precommitMsg->consensusProposal())
+            {
+                m_config->validator()->asyncResetTxsFlag(
+                    precommitMsg->consensusProposal()->data(), false);
+            }
             auto executedProposalIndex = cache->checkPointProposal()->index();
             m_config->storage()->asyncRemoveStabledCheckPoint(executedProposalIndex);
             pcache = m_caches.erase(pcache);
