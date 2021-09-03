@@ -518,7 +518,7 @@ CheckResult PBFTEngine::checkPBFTMsgState(PBFTMessageInterface::Ptr _pbftReq) co
         _pbftReq->index() >= m_config->highWaterMark() ||
         _pbftReq->index() <= m_config->syncingHighestNumber())
     {
-        PBFT_LOG(TRACE) << LOG_DESC("checkPBFTMsgState: invalid pbftMsg for invalid index")
+        PBFT_LOG(DEBUG) << LOG_DESC("checkPBFTMsgState: invalid pbftMsg for invalid index")
                         << LOG_KV("highWaterMark", m_config->highWaterMark())
                         << printPBFTMsgInfo(_pbftReq) << m_config->printCurrentState()
                         << LOG_KV("syncingNumber", m_config->syncingHighestNumber());
@@ -527,7 +527,7 @@ CheckResult PBFTEngine::checkPBFTMsgState(PBFTMessageInterface::Ptr _pbftReq) co
     // case index equal
     if (_pbftReq->view() != m_config->view())
     {
-        PBFT_LOG(TRACE) << LOG_DESC("checkPBFTMsgState: invalid pbftMsg for invalid view")
+        PBFT_LOG(DEBUG) << LOG_DESC("checkPBFTMsgState: invalid pbftMsg for invalid view")
                         << printPBFTMsgInfo(_pbftReq) << m_config->printCurrentState();
         return CheckResult::INVALID;
     }
@@ -543,6 +543,11 @@ CheckResult PBFTEngine::checkPrePrepareMsg(std::shared_ptr<PBFTMessageInterface>
     // check the existence of the msg
     if (m_cacheProcessor->existPrePrepare(_prePrepareMsg))
     {
+        PBFT_LOG(DEBUG) << LOG_DESC("handlePrePrepareMsg: duplicated")
+                        << LOG_KV("committedIndex", m_config->committedProposal()->index())
+                        << LOG_KV("recvIndex", _prePrepareMsg->index())
+                        << LOG_KV("hash", _prePrepareMsg->hash().abridged())
+                        << m_config->printCurrentState();
         return CheckResult::INVALID;
     }
     // check conflict
@@ -660,7 +665,7 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
         m_config->timer()->restart();
         auto nextProposalIndex = _prePrepareMsg->index();
         if (!_prePrepareMsg->consensusProposal()->systemProposal() &&
-            nextProposalIndex <= m_config->highWaterMark() && !_generatedFromNewView)
+            nextProposalIndex < m_config->highWaterMark() && !_generatedFromNewView)
         {
             m_config->notifySealer(nextProposalIndex);
             PBFT_LOG(DEBUG)
