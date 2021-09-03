@@ -540,6 +540,16 @@ CheckResult PBFTEngine::checkPrePrepareMsg(std::shared_ptr<PBFTMessageInterface>
     {
         return CheckResult::INVALID;
     }
+    // check the existence of the msg
+    if (m_cacheProcessor->existPrePrepare(_prePrepareMsg))
+    {
+        PBFT_LOG(DEBUG) << LOG_DESC("handlePrePrepareMsg: duplicated")
+                        << LOG_KV("committedIndex", m_config->committedProposal()->index())
+                        << LOG_KV("recvIndex", _prePrepareMsg->index())
+                        << LOG_KV("hash", _prePrepareMsg->hash().abridged())
+                        << m_config->printCurrentState();
+        return CheckResult::INVALID;
+    }
     // check conflict
     if (m_cacheProcessor->conflictWithPrecommitReq(_prePrepareMsg))
     {
@@ -611,16 +621,6 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
             << LOG_KV("recvIndex", _prePrepareMsg->index())
             << LOG_KV("hash", _prePrepareMsg->hash().abridged()) << m_config->printCurrentState();
         return false;
-    }
-    // check the existence of the msg
-    if (m_cacheProcessor->existPrePrepare(_prePrepareMsg))
-    {
-        PBFT_LOG(DEBUG) << LOG_DESC("handlePrePrepareMsg: duplicated")
-                        << LOG_KV("committedIndex", m_config->committedProposal()->index())
-                        << LOG_KV("recvIndex", _prePrepareMsg->index())
-                        << LOG_KV("hash", _prePrepareMsg->hash().abridged())
-                        << m_config->printCurrentState();
-        return CheckResult::INVALID;
     }
     PBFT_LOG(INFO) << LOG_DESC("handlePrePrepareMsg") << printPBFTMsgInfo(_prePrepareMsg)
                    << m_config->printCurrentState();

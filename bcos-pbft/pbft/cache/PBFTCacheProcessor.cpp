@@ -743,7 +743,8 @@ void PBFTCacheProcessor::removeInvalidViewChange(
             m_viewChangeWeight.erase(view);
             continue;
         }
-        auto viewChangeCache = it->second;
+        // Note: must use reference here, in case of erase nothing
+        auto& viewChangeCache = it->second;
         for (auto pcache = viewChangeCache.begin(); pcache != viewChangeCache.end();)
         {
             auto index = pcache->second->index();

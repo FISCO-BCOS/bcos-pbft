@@ -132,7 +132,8 @@ protected:
     {
         for (auto it = _caches.begin(); it != _caches.end();)
         {
-            auto cache = it->second;
+            // Note: must use reference here, in case of erase nothing
+            auto& cache = it->second;
             for (auto pcache = cache.begin(); pcache != cache.end();)
             {
                 auto pbftMsg = pcache->second;
@@ -163,7 +164,7 @@ protected:
             {
                 _quorum[hash] = 0;
             }
-            auto cache = it.second;
+            auto const& cache = it.second;
             for (auto pcache : cache)
             {
                 auto generatedFrom = pcache.second->generatedFrom();
