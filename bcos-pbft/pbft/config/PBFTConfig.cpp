@@ -162,7 +162,7 @@ void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
     }
     int64_t endProposalIndex =
         (_progressedIndex / m_leaderSwitchPeriod + 1) * m_leaderSwitchPeriod - 1;
-    endProposalIndex = std::min(endProposalIndex, highWaterMark());
+    endProposalIndex = std::min(endProposalIndex, (highWaterMark() - 1));
     if (m_sealEndIndex >= endProposalIndex)
     {
         PBFT_LOG(INFO) << LOG_DESC("notifySealer return for invalid seal range")
