@@ -128,6 +128,8 @@ protected:
     std::atomic<bcos::protocol::BlockNumber> m_progressedIndex = {0};
     std::atomic_bool m_syncingState = {false};
     bcos::protocol::BlockNumber m_syncingHighestNumber = {0};
+
+    std::atomic_bool m_nodeUpdated = {false};
 };
 }  // namespace consensus
 }  // namespace bcos

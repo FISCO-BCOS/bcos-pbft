@@ -35,7 +35,7 @@ public:
     {}
     ~StateMachine() override {}
 
-    void asyncApply(ProposalInterface::ConstPtr _lastAppliedProposal,
+    void asyncApply(ssize_t _execTimeout, ProposalInterface::ConstPtr _lastAppliedProposal,
         ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
         std::function<void(bool)> _onExecuteFinished) override;
 

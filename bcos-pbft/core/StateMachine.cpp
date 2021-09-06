@@ -26,9 +26,9 @@ using namespace bcos::consensus;
 using namespace bcos::protocol;
 using namespace bcos::crypto;
 
-void StateMachine::asyncApply(ProposalInterface::ConstPtr _lastAppliedProposal,
-    ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
-    std::function<void(bool)> _onExecuteFinished)
+void StateMachine::asyncApply(ssize_t _execTimeout,
+    ProposalInterface::ConstPtr _lastAppliedProposal, ProposalInterface::Ptr _proposal,
+    ProposalInterface::Ptr _executedProposal, std::function<void(bool)> _onExecuteFinished)
 {
     if (_proposal->index() <= _lastAppliedProposal->index())
     {
@@ -73,7 +73,8 @@ void StateMachine::asyncApply(ProposalInterface::ConstPtr _lastAppliedProposal,
     block->blockHeader()->setSealer(_proposal->sealerId());
     // calls dispatcher to execute the block
     auto startT = utcTime();
-    m_dispatcher->asyncExecuteBlock(block, false,
+    m_dispatcher->asyncExecuteBlock(
+        block, false,
         [startT, block, _onExecuteFinished, _proposal, _executedProposal](
             Error::Ptr _error, BlockHeader::Ptr _blockHeader) {
             if (!_onExecuteFinished)
@@ -112,6 +113,7 @@ void StateMachine::asyncApply(ProposalInterface::ConstPtr _lastAppliedProposal,
             // the transactions hash list
             _executedProposal->setExtraData(_proposal->data());
             _onExecuteFinished(true);
-        });
+        },
+        _execTimeout);
     return;
 }
