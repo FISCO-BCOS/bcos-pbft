@@ -354,7 +354,7 @@ void PBFTEngine::onReceivePBFTMessage(
 }
 
 void PBFTEngine::onReceivePBFTMessage(Error::Ptr _error, NodeIDPtr _fromNode, bytesConstRef _data,
-    std::function<void(bytesConstRef _respData)> _sendResponseCallback)
+    SendResponseCallback _sendResponseCallback)
 {
     try
     {
@@ -376,13 +376,45 @@ void PBFTEngine::onReceivePBFTMessage(Error::Ptr _error, NodeIDPtr _fromNode, by
         // the committed proposal request message
         if (pbftMsg->packetType() == PacketType::CommittedProposalRequest)
         {
-            m_logSync->onReceiveCommittedProposalRequest(pbftMsg, _sendResponseCallback);
+            auto self = std::weak_ptr<PBFTEngine>(shared_from_this());
+            m_worker->enqueue([self, pbftMsg, _sendResponseCallback]() {
+                try
+                {
+                    auto pbftEngine = self.lock();
+                    if (!pbftEngine)
+                    {
+                        return;
+                    }
+                    pbftEngine->onReceiveCommittedProposalRequest(pbftMsg, _sendResponseCallback);
+                }
+                catch (std::exception const& e)
+                {
+                    PBFT_LOG(WARNING) << LOG_DESC("onReceiveCommittedProposalRequest exception")
+                                      << LOG_KV("error", boost::diagnostic_information(e));
+                }
+            });
             return;
         }
         // the precommitted proposals request message
         if (pbftMsg->packetType() == PacketType::PreparedProposalRequest)
         {
-            m_logSync->onReceivePrecommitRequest(pbftMsg, _sendResponseCallback);
+            auto self = std::weak_ptr<PBFTEngine>(shared_from_this());
+            m_worker->enqueue([self, pbftMsg, _sendResponseCallback]() {
+                try
+                {
+                    auto pbftEngine = self.lock();
+                    if (!pbftEngine)
+                    {
+                        return;
+                    }
+                    pbftEngine->onReceivePrecommitRequest(pbftMsg, _sendResponseCallback);
+                }
+                catch (std::exception const& e)
+                {
+                    PBFT_LOG(WARNING) << LOG_DESC("onReceivePrecommitRequest exception")
+                                      << LOG_KV("error", boost::diagnostic_information(e));
+                }
+            });
             return;
         }
         m_msgQueue->push(pbftMsg);
@@ -697,10 +729,16 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
                 {
                     return;
                 }
+                auto committedIndex = pbftEngine->m_config->committedProposal()->index();
+                if (committedIndex >= _prePrepareMsg->index())
+                {
+                    return;
+                }
                 // Note: must reset the txs to be sealed no matter verify success or failed because
                 // some nodes may verify failed for timeout,  while other nodes may verify success
                 pbftEngine->m_config->validator()->asyncResetTxsFlag(
                     _prePrepareMsg->consensusProposal()->data(), true);
+
                 // verify exceptioned
                 if (_error != nullptr)
                 {
@@ -1225,4 +1263,74 @@ void PBFTEngine::handleRecoverRequest(PBFTMessageInterface::Ptr _request)
     sendRecoverResponse(_request->from());
     PBFT_LOG(INFO) << LOG_DESC("handleRecoverRequest and response current state")
                    << LOG_KV("peer", _request->from()->shortHex()) << m_config->printCurrentState();
+}
+
+void PBFTEngine::sendCommittedProposalResponse(
+    PBFTProposalList const& _proposalList, SendResponseCallback _sendResponse)
+{
+    auto pbftMessage = m_config->pbftMessageFactory()->createPBFTMsg();
+    pbftMessage->setPacketType(PacketType::CommittedProposalResponse);
+    pbftMessage->setProposals(_proposalList);
+    auto encodedData = m_config->codec()->encode(pbftMessage);
+    _sendResponse(ref(*encodedData));
+}
+
+void PBFTEngine::onReceiveCommittedProposalRequest(
+    PBFTBaseMessageInterface::Ptr _pbftMsg, SendResponseCallback _sendResponse)
+{
+    Guard l(m_mutex);
+    auto pbftRequest = std::dynamic_pointer_cast<PBFTRequestInterface>(_pbftMsg);
+    PBFT_LOG(INFO) << LOG_DESC("Receive CommittedProposalRequest")
+                   << LOG_KV("fromIndex", pbftRequest->index())
+                   << LOG_KV("size", pbftRequest->size());
+    // hit the local cache
+    auto proposal = m_cacheProcessor->fetchPrecommitProposal(pbftRequest->index());
+    if (pbftRequest->size() == 1 && proposal)
+    {
+        PBFTProposalList proposalList;
+        proposalList.emplace_back(proposal);
+        sendCommittedProposalResponse(proposalList, _sendResponse);
+        return;
+    }
+    m_config->storage()->asyncGetCommittedProposals(pbftRequest->index(), pbftRequest->size(),
+        [this, pbftRequest, _sendResponse](PBFTProposalListPtr _proposalList) {
+            // empty case
+            if (!_proposalList || _proposalList->size() == 0)
+            {
+                PBFT_LOG(DEBUG)
+                    << LOG_DESC("onReceiveCommittedProposalRequest: miss the expected proposal")
+                    << LOG_KV("fromIndex", pbftRequest->index())
+                    << LOG_KV("size", pbftRequest->size());
+                _sendResponse(bytesConstRef());
+                return;
+            }
+            // hit case
+            sendCommittedProposalResponse(*_proposalList, _sendResponse);
+        });
+}
+
+
+void PBFTEngine::onReceivePrecommitRequest(
+    std::shared_ptr<PBFTBaseMessageInterface> _pbftMessage, SendResponseCallback _sendResponse)
+{
+    Guard l(m_mutex);
+    // receive the precommitted proposals request message
+    auto pbftRequest = std::dynamic_pointer_cast<PBFTRequestInterface>(_pbftMessage);
+    // get the local precommitData
+    auto precommitMsg =
+        m_cacheProcessor->fetchPrecommitData(pbftRequest->index(), pbftRequest->hash());
+    if (!precommitMsg)
+    {
+        PBFT_LOG(INFO) << LOG_DESC("onReceivePrecommitRequest: miss the requested precommit")
+                       << LOG_KV("hash", pbftRequest->hash().abridged())
+                       << LOG_KV("index", pbftRequest->index());
+        return;
+    }
+    precommitMsg->setPacketType(PacketType::PreparedProposalResponse);
+    auto encodedData = m_config->codec()->encode(precommitMsg);
+    // response the precommitData
+    _sendResponse(ref(*encodedData));
+    PBFT_LOG(INFO) << LOG_DESC("Receive precommitRequest and send response")
+                   << LOG_KV("hash", pbftRequest->hash().abridged())
+                   << LOG_KV("index", pbftRequest->index());
 }

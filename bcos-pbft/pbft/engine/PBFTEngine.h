@@ -53,6 +53,7 @@ class PBFTEngine : public ConsensusEngine, public std::enable_shared_from_this<P
 {
 public:
     using Ptr = std::shared_ptr<PBFTEngine>;
+    using SendResponseCallback = std::function<void(bytesConstRef _respData)>;
     explicit PBFTEngine(std::shared_ptr<PBFTConfig> _config);
     ~PBFTEngine() override { stop(); }
 
@@ -89,7 +90,7 @@ public:
 protected:
     virtual void initSendResponseHandler();
     virtual void onReceivePBFTMessage(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
-        bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse);
+        bytesConstRef _data, SendResponseCallback _sendResponse);
 
     virtual void onRecvProposal(bool _containSysTxs, bytesConstRef _proposalData,
         bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash);
@@ -155,6 +156,27 @@ protected:
     void handleRecoverResponse(PBFTMessageInterface::Ptr _recoverResponse);
     void handleRecoverRequest(PBFTMessageInterface::Ptr _request);
     void sendRecoverResponse(bcos::crypto::NodeIDPtr _dstNode);
+
+    /**
+     * @brief Receive proposal requests from other nodes and reply to corresponding proposals
+     *
+     * @param _pbftMsg the proposal request
+     * @param _sendResponse callback used to send the requested-proposals back to the node
+     */
+    virtual void onReceiveCommittedProposalRequest(
+        PBFTBaseMessageInterface::Ptr _pbftMsg, SendResponseCallback _sendResponse);
+
+    /**
+     * @brief Receive precommit requests from other nodes and reply to the corresponding precommit
+     * data
+     *
+     * @param _pbftMessage the precommit request
+     * @param _sendResponse callback used to send the requested-proposals back to the node
+     */
+    virtual void onReceivePrecommitRequest(
+        std::shared_ptr<PBFTBaseMessageInterface> _pbftMessage, SendResponseCallback _sendResponse);
+    void sendCommittedProposalResponse(
+        PBFTProposalList const& _proposalList, SendResponseCallback _sendResponse);
 
 private:
     // utility functions
