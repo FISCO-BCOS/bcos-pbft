@@ -59,6 +59,11 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
         PBFT_LOG(INFO) << LOG_DESC("^^^^^^^^Report") << LOG_KV("sealer", _ledgerConfig->sealerId())
                        << printCurrentState();
     }
+    if (m_nodeUpdated)
+    {
+        // notify the txpool validator to update the consensusNodeList.
+        m_validator->updateValidatorConfig(consensusList, _ledgerConfig->observerNodeList());
+    }
     // notify the latest block number to the sealer
     if (m_stateNotifier)
     {

@@ -37,6 +37,8 @@ void PBFTCacheProcessor::initState(PBFTProposalList const& _proposals, NodeIDPtr
         {
             continue;
         }
+        // set the txs status to be sealed
+        m_config->validator()->asyncResetTxsFlag(proposal->data(), true);
         // try to verify and load the proposal
         loadAndVerifyProposal(_fromNode, proposal);
     }
@@ -318,8 +320,8 @@ void PBFTCacheProcessor::applyStateMachine(
     auto executedProposal = m_config->pbftMessageFactory()->createPBFTProposal();
     auto self = std::weak_ptr<PBFTCacheProcessor>(shared_from_this());
     auto startT = utcTime();
-    m_config->stateMachine()->asyncApply(_lastAppliedProposal, _proposal, executedProposal,
-        [self, startT, _proposal, executedProposal](bool _ret) {
+    m_config->stateMachine()->asyncApply(m_config->timer()->timeout(), _lastAppliedProposal,
+        _proposal, executedProposal, [self, startT, _proposal, executedProposal](bool _ret) {
             try
             {
                 auto cache = self.lock();

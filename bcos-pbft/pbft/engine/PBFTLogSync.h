@@ -44,24 +44,6 @@ public:
      */
     virtual void requestCommittedProposals(
         bcos::crypto::PublicPtr _from, bcos::protocol::BlockNumber _startIndex, size_t _offset);
-    /**
-     * @brief Receive proposal requests from other nodes and reply to corresponding proposals
-     *
-     * @param _pbftMsg the proposal request
-     * @param _sendResponse callback used to send the requested-proposals back to the node
-     */
-    virtual void onReceiveCommittedProposalRequest(
-        PBFTBaseMessageInterface::Ptr _pbftMsg, SendResponseCallback _sendResponse);
-
-    /**
-     * @brief Receive precommit requests from other nodes and reply to the corresponding precommit
-     * data
-     *
-     * @param _pbftMessage the precommit request
-     * @param _sendResponse callback used to send the requested-proposals back to the node
-     */
-    virtual void onReceivePrecommitRequest(
-        std::shared_ptr<PBFTBaseMessageInterface> _pbftMessage, SendResponseCallback _sendResponse);
 
     /**
      * @brief request precommit data from the given node
@@ -87,9 +69,6 @@ protected:
 
     void requestPBFTData(bcos::crypto::PublicPtr _from, PBFTRequestInterface::Ptr _pbftRequest,
         bcos::front::CallbackFunc _callback);
-
-    void sendCommittedProposalResponse(
-        PBFTProposalList const& _proposalList, SendResponseCallback _sendResponse);
 
 private:
     PBFTConfig::Ptr m_config;

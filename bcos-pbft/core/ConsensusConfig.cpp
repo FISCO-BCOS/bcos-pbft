@@ -82,11 +82,13 @@ void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList
         // consensus node list have not been changed
         if (compareConsensusNode(_consensusNodeList, *m_consensusNodeList))
         {
+            m_nodeUpdated = false;
             return;
         }
         UpgradeGuard ul(l);
         // consensus node list have been changed
         *m_consensusNodeList = _consensusNodeList;
+        m_nodeUpdated = true;
     }
     {
         // update the consensusNodeNum
