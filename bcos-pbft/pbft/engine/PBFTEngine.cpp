@@ -133,14 +133,14 @@ void PBFTEngine::onProposalApplyFailed(PBFTProposalInterface::Ptr _proposal)
     if (_proposal->index() >= m_config->committedProposal()->index() ||
         _proposal->index() >= m_config->syncingHighestNumber())
     {
-        if (m_config->timer()->running())
-        {
-            m_config->timer()->restart();
-        }
+        m_config->timer()->restart();
         PBFT_LOG(INFO) << LOG_DESC(
                               "proposal execute failed and re-push the proposal "
                               "into the cache")
                        << printPBFTProposal(_proposal);
+        // Note: must erase the proposal firstly for updateCommitQueue will not receive the
+        // duplicated executing proposal
+        m_cacheProcessor->eraseExecutedProposal(_proposal->hash());
         m_cacheProcessor->updateCommitQueue(_proposal);
     }
     m_config->setExpectedCheckPoint(m_config->committedProposal()->index() + 1);
@@ -857,12 +857,19 @@ void PBFTEngine::onTimeout()
         return;
     }
     Guard l(m_mutex);
+    if (m_cacheProcessor->tryToApplyCommitQueue())
+    {
+        PBFT_LOG(INFO) << LOG_DESC("onTimeout: apply proposal to state-machine, restart the timer")
+                       << m_config->printCurrentState();
+        m_config->timer()->restart();
+        return;
+    }
     m_cacheProcessor->clearExpiredExecutingProposal();
     // when some proposals are executing, not trigger timeout
     auto executingProposalSize = m_cacheProcessor->executingProposalSize();
     if (executingProposalSize > 0)
     {
-        PBFT_LOG(INFO) << LOG_DESC("onTimeout: Proposal is executing, resetart the timer")
+        PBFT_LOG(INFO) << LOG_DESC("onTimeout: Proposal is executing, restart the timer")
                        << LOG_KV("executingProposalSize", executingProposalSize)
                        << m_config->printCurrentState();
         m_config->timer()->restart();
@@ -1232,6 +1239,7 @@ bool PBFTEngine::handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _chec
                           "handleCheckPointMsg: try to add the checkpoint message into the cache")
                    << printPBFTMsgInfo(_checkPointMsg) << m_config->printCurrentState();
     m_cacheProcessor->addCheckPointMsg(_checkPointMsg);
+    m_cacheProcessor->tryToApplyCommitQueue();
     m_cacheProcessor->checkAndCommitStableCheckPoint();
     if (m_cacheProcessor->shouldRequestCheckPoint(_checkPointMsg))
     {

@@ -144,7 +144,7 @@ public:
     {
         m_committedProposalNotifier = _committedProposalNotifier;
     }
-    void tryToApplyCommitQueue();
+    bool tryToApplyCommitQueue();
 
     void removeFutureProposals();
     // notify the consensusing proposal index to the sync module
