@@ -271,7 +271,7 @@ ProposalInterface::ConstPtr PBFTCacheProcessor::getAppliedCheckPointProposal(
     return (m_caches[_index])->checkPointProposal();
 }
 
-void PBFTCacheProcessor::tryToApplyCommitQueue()
+bool PBFTCacheProcessor::tryToApplyCommitQueue()
 {
     while (!m_committedQueue.empty() &&
            m_committedQueue.top()->index() < m_config->expectedCheckPoint())
@@ -292,7 +292,7 @@ void PBFTCacheProcessor::tryToApplyCommitQueue()
         {
             PBFT_LOG(WARNING) << LOG_DESC("The last proposal has not been applied")
                               << m_config->printCurrentState();
-            return;
+            return false;
         }
         if (m_executingProposals.count(proposal->hash()))
         {
@@ -301,14 +301,16 @@ void PBFTCacheProcessor::tryToApplyCommitQueue()
                            << LOG_KV("index", proposal->index())
                            << LOG_KV("hash", proposal->hash().abridged())
                            << m_config->printCurrentState();
-            return;
+            return false;
         }
         // commit the proposal
         m_committedQueue.pop();
         // in case of the same block execute more than once
         m_executingProposals[proposal->hash()] = proposal->index();
         applyStateMachine(lastAppliedProposal, proposal);
+        return true;
     }
+    return false;
 }
 
 // execute the proposal and broadcast checkpoint message
