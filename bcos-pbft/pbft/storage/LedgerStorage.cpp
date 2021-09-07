@@ -20,8 +20,10 @@
  */
 #include "LedgerStorage.h"
 #include "../utilities/Common.h"
+#include <bcos-framework/interfaces/protocol/CommonError.h>
 #include <bcos-framework/interfaces/protocol/ProtocolTypeDef.h>
 #include <bcos-framework/interfaces/storage/StorageInterface.h>
+
 
 using namespace bcos;
 using namespace bcos::consensus;
@@ -316,9 +318,9 @@ void LedgerStorage::asyncCommitStableCheckPoint(
 {
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
     auto startT = utcTime();
-    m_ledger->asyncCommitBlock(
+    m_scheduler->commitBlock(
         _blockHeader, [_blockHeader, _blockInfo, startT, self](
-                          Error::Ptr _error, LedgerConfig::Ptr _ledgerConfig) {
+                          Error::Ptr&& _error, LedgerConfig::Ptr _ledgerConfig) {
             try
             {
                 auto ledgerStorage = self.lock();

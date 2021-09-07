@@ -29,25 +29,23 @@
 
 using namespace bcos;
 using namespace bcos::consensus;
-using namespace bcos::ledger;
 using namespace bcos::protocol;
 
 PBFTFactory::PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
     bcos::crypto::KeyPairInterface::Ptr _keyPair,
     std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
-    bcos::storage::StorageInterface::Ptr _storage,
+    bcos::storage::KVStorageInterface::Ptr _storage,
     std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
-    bcos::txpool::TxPoolInterface::Ptr _txpool,
-    bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
-    bcos::protocol::BlockFactory::Ptr _blockFactory,
+    bcos::dispatcher::SchedulerInterface::Ptr _scheduler,
+    bcos::txpool::TxPoolInterface::Ptr _txpool, bcos::protocol::BlockFactory::Ptr _blockFactory,
     bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory)
   : m_cryptoSuite(_cryptoSuite),
     m_keyPair(_keyPair),
     m_frontService(_frontService),
     m_storage(_storage),
     m_ledger(_ledger),
+    m_scheduler(_scheduler),
     m_txpool(_txpool),
-    m_dispatcher(_dispatcher),
     m_blockFactory(_blockFactory),
     m_txResultFactory(_txResultFactory)
 {}
@@ -62,11 +60,11 @@ PBFTImpl::Ptr PBFTFactory::createPBFT()
     auto validator = std::make_shared<TxsValidator>(m_txpool, m_blockFactory, m_txResultFactory);
 
     PBFT_LOG(DEBUG) << LOG_DESC("create StateMachine");
-    auto stateMachine = std::make_shared<StateMachine>(m_dispatcher, m_blockFactory);
+    auto stateMachine = std::make_shared<StateMachine>(m_scheduler, m_blockFactory);
 
     PBFT_LOG(DEBUG) << LOG_DESC("create pbftStorage");
     auto pbftStorage =
-        std::make_shared<LedgerStorage>(m_ledger, m_storage, m_blockFactory, pbftMessageFactory);
+        std::make_shared<LedgerStorage>(m_scheduler, m_storage, m_blockFactory, pbftMessageFactory);
 
     PBFT_LOG(DEBUG) << LOG_DESC("create pbftConfig");
     auto pbftConfig = std::make_shared<PBFTConfig>(m_cryptoSuite, m_keyPair, pbftMessageFactory,

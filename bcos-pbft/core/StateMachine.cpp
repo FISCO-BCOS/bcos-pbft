@@ -82,9 +82,9 @@ void StateMachine::asyncApply(ConsensusNodeList const& _consensusNodeInfo,
     block->blockHeader()->setConsensusWeights(std::move(weightList));
     // calls dispatcher to execute the block
     auto startT = utcTime();
-    m_dispatcher->asyncExecuteBlock(block, false,
+    m_scheduler->executeBlock(block, false,
         [startT, block, _onExecuteFinished, _proposal, _executedProposal](
-            Error::Ptr _error, BlockHeader::Ptr _blockHeader) {
+            Error::Ptr&& _error, BlockHeader::Ptr&& _blockHeader) {
             if (!_onExecuteFinished)
             {
                 return;

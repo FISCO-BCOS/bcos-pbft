@@ -29,11 +29,11 @@
 #include <bcos-framework/libprotocol/protobuf/PBBlockHeaderFactory.h>
 #include <bcos-framework/libprotocol/protobuf/PBTransactionFactory.h>
 #include <bcos-framework/libprotocol/protobuf/PBTransactionReceiptFactory.h>
-#include <bcos-framework/testutils/faker/FakeDispatcher.h>
 #include <bcos-framework/testutils/faker/FakeFrontService.h>
+#include <bcos-framework/testutils/faker/FakeKVStorage.h>
 #include <bcos-framework/testutils/faker/FakeLedger.h>
+#include <bcos-framework/testutils/faker/FakeScheduler.h>
 #include <bcos-framework/testutils/faker/FakeSealer.h>
-#include <bcos-framework/testutils/faker/FakeStorage.h>
 #include <bcos-framework/testutils/faker/FakeTxPool.h>
 #include <boost/bind/bind.hpp>
 #include <boost/test/unit_test.hpp>
@@ -184,13 +184,12 @@ public:
     FakePBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
         bcos::crypto::KeyPairInterface::Ptr _keyPair,
         std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
-        bcos::storage::StorageInterface::Ptr _storage,
+        bcos::storage::KVStorageInterface::Ptr _storage,
         std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
-        bcos::txpool::TxPoolInterface::Ptr _txpool,
-        bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
-        bcos::protocol::BlockFactory::Ptr _blockFactory,
+        bcos::dispatcher::SchedulerInterface::Ptr _scheduler,
+        bcos::txpool::TxPoolInterface::Ptr _txpool, bcos::protocol::BlockFactory::Ptr _blockFactory,
         bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory)
-      : PBFTFactory(_cryptoSuite, _keyPair, _frontService, _storage, _ledger, _txpool, _dispatcher,
+      : PBFTFactory(_cryptoSuite, _keyPair, _frontService, _storage, _ledger, _scheduler, _txpool,
             _blockFactory, _txResultFactory)
     {}
 
@@ -198,11 +197,11 @@ public:
     {
         auto pbft = PBFTFactory::createPBFT();
         auto orgPBFTConfig = pbft->pbftEngine()->pbftConfig();
-        auto stateMachine = std::make_shared<StateMachine>(m_dispatcher, m_blockFactory);
+        auto stateMachine = std::make_shared<StateMachine>(m_scheduler, m_blockFactory);
 
         PBFT_LOG(DEBUG) << LOG_DESC("create pbftStorage");
         auto pbftStorage = std::make_shared<LedgerStorage>(
-            m_ledger, m_storage, m_blockFactory, orgPBFTConfig->pbftMessageFactory());
+            m_scheduler, m_storage, m_blockFactory, orgPBFTConfig->pbftMessageFactory());
 
         auto pbftConfig = std::make_shared<FakePBFTConfig>(m_cryptoSuite, m_keyPair,
             orgPBFTConfig->pbftMessageFactory(), orgPBFTConfig->codec(), orgPBFTConfig->validator(),
@@ -235,8 +234,8 @@ public:
         // create fakeFrontService
         m_frontService = std::make_shared<FakeFrontService>(_keyPair->publicKey());
 
-        // create fakeStorage
-        m_storage = std::make_shared<FakeStorage>();
+        // create FakeKVStorage
+        m_storage = std::make_shared<FakeKVStorage>();
 
         // create fakeLedger
         if (_ledger == nullptr)
@@ -255,13 +254,13 @@ public:
         }
         // create fakeTxPool
         m_txpool = std::make_shared<FakeTxPool>();
-        // create FakeDispatcher
-        m_dispatcher = std::make_shared<FakeDispatcher>();
+        // create FakeScheduler
+        m_scheduler = std::make_shared<FakeScheduler>(m_ledger, m_blockFactory);
 
         auto txResultFactory = std::make_shared<TransactionSubmitResultFactoryImpl>();
 
         auto pbftFactory = std::make_shared<FakePBFTFactory>(_cryptoSuite, _keyPair, m_frontService,
-            m_storage, m_ledger, m_txpool, m_dispatcher, m_blockFactory, txResultFactory);
+            m_storage, m_ledger, m_scheduler, m_txpool, m_blockFactory, txResultFactory);
         m_pbft = pbftFactory->createPBFT();
         m_pbftEngine = std::dynamic_pointer_cast<FakePBFTEngine>(m_pbft->pbftEngine());
     }
@@ -287,10 +286,10 @@ public:
     void clearConsensusNodeList() { m_ledger->ledgerConfig()->mutableConsensusNodeList().clear(); }
 
     FakeFrontService::Ptr frontService() { return m_frontService; }
-    FakeStorage::Ptr storage() { return m_storage; }
+    FakeKVStorage::Ptr storage() { return m_storage; }
     FakeLedger::Ptr ledger() { return m_ledger; }
     FakeTxPool::Ptr txpool() { return m_txpool; }
-    FakeDispatcher::Ptr dispatcher() { return m_dispatcher; }
+    FakeScheduler::Ptr scheduler() { return m_scheduler; }
     PBFTImpl::Ptr pbft() { return m_pbft; }
     PBFTConfig::Ptr pbftConfig() { return m_pbft->pbftEngine()->pbftConfig(); }
     PublicPtr nodeID() { return m_nodeId; }
@@ -303,6 +302,8 @@ public:
         m_frontService = _fakeFrontService;
     }
 
+    BlockFactory::Ptr blockFactory() { return m_blockFactory; }
+
 private:
     CryptoSuite::Ptr m_cryptoSuite;
     KeyPairInterface::Ptr m_keyPair;
@@ -310,10 +311,10 @@ private:
     BlockFactory::Ptr m_blockFactory;
 
     FakeFrontService::Ptr m_frontService;
-    FakeStorage::Ptr m_storage;
+    FakeKVStorage::Ptr m_storage;
     FakeLedger::Ptr m_ledger;
     FakeTxPool::Ptr m_txpool;
-    FakeDispatcher::Ptr m_dispatcher;
+    FakeScheduler::Ptr m_scheduler;
     FakePBFTEngine::Ptr m_pbftEngine;
     PBFTImpl::Ptr m_pbft;
 };
@@ -390,7 +391,9 @@ inline Block::Ptr fakeBlock(CryptoSuite::Ptr _cryptoSuite, PBFTFixture::Ptr _fak
     auto block = _faker->ledger()->init(parent->blockHeader(), true, _proposalIndex, 0, 0);
     for (size_t i = 0; i < _txsHashSize; i++)
     {
-        block->appendTransactionHash(_cryptoSuite->hashImpl()->hash(std::to_string(i)));
+        auto hash = _cryptoSuite->hashImpl()->hash(std::to_string(i));
+        auto txMetaData = _faker->blockFactory()->createTransactionMetaData(hash, hash.abridged());
+        block->appendTransactionMetaData(txMetaData);
     }
     return block;
 }
