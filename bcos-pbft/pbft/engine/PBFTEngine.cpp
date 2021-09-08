@@ -977,7 +977,8 @@ bool PBFTEngine::isValidViewChangeMsg(
     }
 
     // check the view
-    if (_viewChangeMsg->view() < m_config->view())
+    if ((_viewChangeMsg->view() < m_config->view()) ||
+        (_viewChangeMsg->view() + 1 < m_config->toView()))
     {
         if (isTimeout())
         {
