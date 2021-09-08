@@ -21,7 +21,9 @@
 #pragma once
 #include "../framework/StateMachineInterface.h"
 #include <bcos-framework/interfaces/dispatcher/DispatcherInterface.h>
+#include <bcos-framework/interfaces/dispatcher/SchedulerInterface.h>
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
+
 namespace bcos
 {
 namespace consensus
@@ -29,9 +31,9 @@ namespace consensus
 class StateMachine : public StateMachineInterface
 {
 public:
-    StateMachine(bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
+    StateMachine(bcos::dispatcher::SchedulerInterface::Ptr _scheduler,
         bcos::protocol::BlockFactory::Ptr _blockFactory)
-      : m_dispatcher(_dispatcher), m_blockFactory(_blockFactory)
+      : m_scheduler(_scheduler), m_blockFactory(_blockFactory)
     {}
     ~StateMachine() override {}
 
@@ -41,7 +43,7 @@ public:
         std::function<void(bool)> _onExecuteFinished) override;
 
 protected:
-    bcos::dispatcher::DispatcherInterface::Ptr m_dispatcher;
+    bcos::dispatcher::SchedulerInterface::Ptr m_scheduler;
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
 };
 }  // namespace consensus

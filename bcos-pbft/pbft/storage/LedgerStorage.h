@@ -21,7 +21,7 @@
 #pragma once
 #include "../interfaces/PBFTMessageFactory.h"
 #include "../interfaces/PBFTStorage.h"
-#include <bcos-framework/interfaces/ledger/LedgerInterface.h>
+#include <bcos-framework/interfaces/dispatcher/SchedulerInterface.h>
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
 #include <bcos-framework/interfaces/storage/StorageInterface.h>
 
@@ -33,10 +33,10 @@ class LedgerStorage : public PBFTStorage, public std::enable_shared_from_this<Le
 {
 public:
     using Ptr = std::shared_ptr<LedgerStorage>;
-    LedgerStorage(std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
-        bcos::storage::StorageInterface::Ptr _storage,
+    LedgerStorage(bcos::dispatcher::SchedulerInterface::Ptr _scheduler,
+        bcos::storage::KVStorageInterface::Ptr _storage,
         bcos::protocol::BlockFactory::Ptr _blockFactory, PBFTMessageFactory::Ptr _messageFactory)
-      : m_ledger(_ledger),
+      : m_scheduler(_scheduler),
         m_storage(_storage),
         m_blockFactory(_blockFactory),
         m_messageFactory(_messageFactory)
@@ -87,8 +87,8 @@ protected:
     virtual void asyncGetLatestCommittedProposalIndex();
 
 protected:
-    std::shared_ptr<bcos::ledger::LedgerInterface> m_ledger;
-    bcos::storage::StorageInterface::Ptr m_storage;
+    bcos::dispatcher::SchedulerInterface::Ptr m_scheduler;
+    bcos::storage::KVStorageInterface::Ptr m_storage;
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
     PBFTMessageFactory::Ptr m_messageFactory;
 
