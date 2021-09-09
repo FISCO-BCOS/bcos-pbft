@@ -126,7 +126,7 @@ protected:
     virtual void sendViewChange(bcos::crypto::NodeIDPtr _dstNode);
 
     virtual bool handleViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg);
-    virtual bool isValidViewChangeMsg(
+    virtual bool isValidViewChangeMsg(bcos::crypto::NodeIDPtr _fromNode,
         std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg, bool _shouldCheckSig = true);
 
     virtual bool handleNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
