@@ -999,6 +999,9 @@ bool PBFTEngine::isValidViewChangeMsg(bcos::crypto::NodeIDPtr _fromNode,
                 sendRecoverResponse(_fromNode);
             }
         }
+    }
+    if (_viewChangeMsg->view() < m_config->view())
+    {
         return false;
     }
     // check the committed proposal hash
