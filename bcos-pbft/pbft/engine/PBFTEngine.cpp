@@ -965,7 +965,7 @@ void PBFTEngine::broadcastViewChangeReq()
     }
 }
 
-bool PBFTEngine::isValidViewChangeMsg(
+bool PBFTEngine::isValidViewChangeMsg(bcos::crypto::NodeIDPtr _fromNode,
     std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg, bool _shouldCheckSig)
 {
     // check the committed-proposal index
@@ -977,22 +977,27 @@ bool PBFTEngine::isValidViewChangeMsg(
     }
 
     // check the view
+
     if ((_viewChangeMsg->view() < m_config->view()) ||
         (_viewChangeMsg->view() + 1 < m_config->toView()))
     {
-        if (isTimeout())
+        if (_fromNode)
         {
-            PBFT_LOG(INFO) << LOG_DESC("send viewchange to the node whose view falling behind")
-                           << LOG_KV("dst", _viewChangeMsg->from()->shortHex())
-                           << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
-            sendViewChange(_viewChangeMsg->from());
-        }
-        else
-        {
-            PBFT_LOG(INFO) << LOG_DESC("sendRecoverResponse to the node whose view falling behind")
-                           << LOG_KV("dst", _viewChangeMsg->from()->shortHex())
-                           << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
-            sendRecoverResponse(_viewChangeMsg->from());
+            if (isTimeout())
+            {
+                PBFT_LOG(INFO) << LOG_DESC("send viewchange to the node whose view falling behind")
+                               << LOG_KV("dst", _fromNode->shortHex())
+                               << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
+                sendViewChange(_fromNode);
+            }
+            else
+            {
+                PBFT_LOG(INFO) << LOG_DESC(
+                                      "sendRecoverResponse to the node whose view falling behind")
+                               << LOG_KV("dst", _fromNode->shortHex())
+                               << printPBFTMsgInfo(_viewChangeMsg) << m_config->printCurrentState();
+                sendRecoverResponse(_fromNode);
+            }
         }
         return false;
     }
@@ -1033,7 +1038,7 @@ bool PBFTEngine::isValidViewChangeMsg(
 
 bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
 {
-    if (!isValidViewChangeMsg(_viewChangeMsg))
+    if (!isValidViewChangeMsg(_viewChangeMsg->from(), _viewChangeMsg))
     {
         return false;
     }
@@ -1080,7 +1085,7 @@ bool PBFTEngine::isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newView
     auto viewChangeList = _newViewMsg->viewChangeMsgList();
     for (auto viewChangeReq : viewChangeList)
     {
-        if (!isValidViewChangeMsg(viewChangeReq))
+        if (!isValidViewChangeMsg(_newViewMsg->from(), viewChangeReq))
         {
             PBFT_LOG(WARNING) << LOG_DESC("InvalidNewViewMsg for viewChange check failed")
                               << printPBFTMsgInfo(viewChangeReq);
