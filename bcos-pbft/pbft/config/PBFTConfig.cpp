@@ -27,6 +27,15 @@ using namespace bcos::ledger;
 
 void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
 {
+    bcos::protocol::BlockNumber committedIndex = 0;
+    if (m_committedProposal)
+    {
+        committedIndex = m_committedProposal->index();
+    }
+    if (_ledgerConfig->blockNumber() <= committedIndex && committedIndex > 0)
+    {
+        return;
+    }
     PBFT_LOG(INFO) << LOG_DESC("resetConfig")
                    << LOG_KV("committedIndex", _ledgerConfig->blockNumber())
                    << LOG_KV("propHash", _ledgerConfig->hash().abridged())

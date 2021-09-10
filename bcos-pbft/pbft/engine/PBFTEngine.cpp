@@ -317,16 +317,16 @@ void PBFTEngine::resetSealedTxs(std::shared_ptr<PBFTMessageInterface> _prePrepar
 void PBFTEngine::asyncNotifyNewBlock(
     LedgerConfig::Ptr _ledgerConfig, std::function<void(Error::Ptr)> _onRecv)
 {
-    if (_onRecv)
-    {
-        _onRecv(nullptr);
-    }
     if (m_config->shouldResetConfig(_ledgerConfig->blockNumber()))
     {
         PBFT_LOG(INFO) << LOG_DESC("The sync module notify the latestBlock")
                        << LOG_KV("index", _ledgerConfig->blockNumber())
                        << LOG_KV("hash", _ledgerConfig->hash().abridged());
         finalizeConsensus(_ledgerConfig, true);
+    }
+    if (_onRecv)
+    {
+        _onRecv(nullptr);
     }
 }
 
