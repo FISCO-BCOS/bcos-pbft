@@ -101,8 +101,7 @@ public:
         }
         m_leaderSwitchPeriod.store(_leaderSwitchPeriod);
         // notify the sealer module to reset sealing
-        auto proposalIndex = committedProposal()->index() + 1;
-        notifyResetSealing(proposalIndex);
+        notifyResetSealing(sealStartIndex());
         PBFT_LOG(INFO) << LOG_DESC(
                               "updateLeaderSwitchPeriod and re-notify the sealer to seal block")
                        << LOG_KV("leader_period", m_leaderSwitchPeriod)
@@ -263,14 +262,48 @@ public:
         m_sealerResetNotifier = _sealerResetNotifier;
     }
 
-    void notifyResetSealing(bcos::protocol::BlockNumber _consIndex) override
+    virtual void notifyResetSealing(bcos::protocol::BlockNumber _consIndex)
     {
         notifyResetSealing([this, _consIndex]() {
             // notify the sealer to reseal
             reNotifySealer(_consIndex);
         });
     }
+
     virtual void notifyResetSealing(std::function<void()> _callback = nullptr);
+
+    virtual void setWaitResealUntil(bcos::protocol::BlockNumber _waitResealUntil)
+    {
+        m_waitResealUntil = _waitResealUntil;
+    }
+
+    virtual void setWaitSealUntil(bcos::protocol::BlockNumber _waitSealUntil)
+    {
+        m_waitSealUntil = std::max(m_waitSealUntil.load(), _waitSealUntil);
+    }
+
+    void setConsensusNodeList(ConsensusNodeList& _consensusNodeList) override
+    {
+        ConsensusConfig::setConsensusNodeList(_consensusNodeList);
+        if (!m_nodeUpdated)
+        {
+            return;
+        }
+        if (committedProposal())
+        {
+            notifyResetSealing(sealStartIndex());
+        }
+    }
+
+    bcos::protocol::BlockNumber sealStartIndex()
+    {
+        auto sealStartIndex = expectedCheckPoint();
+        if (committedProposal())
+        {
+            sealStartIndex = std::max(sealStartIndex, committedProposal()->index() + 1);
+        }
+        return sealStartIndex;
+    }
 
 protected:
     void updateQuorum() override;
@@ -324,6 +357,10 @@ protected:
     std::atomic_bool m_timeoutState = {false};
 
     std::atomic<size_t> m_unsealedTxsSize = {0};
+    // notify the sealer to reseal new block until m_waitResealUntil stable committed
+    std::atomic<bcos::protocol::BlockNumber> m_waitResealUntil = {0};
+    // notify the ealer to seal new block until m_waitSealUntil committed
+    std::atomic<bcos::protocol::BlockNumber> m_waitSealUntil = {0};
 };
 }  // namespace consensus
 }  // namespace bcos
