@@ -57,12 +57,18 @@ BOOST_AUTO_TEST_CASE(testPBFTInit)
     auto ledgerConfig = faker->ledger()->ledgerConfig();
     auto pbftEngine = faker->pbftEngine();
 
+    auto proposalIndex = ledgerConfig->blockNumber() + 1;
+    auto parent = (faker->ledger()->ledgerData())[ledgerConfig->blockNumber()];
+    auto block = faker->ledger()->init(parent->blockHeader(), true, proposalIndex, 0, 0);
+    auto blockData = std::make_shared<bytes>();
+    block->encode(*blockData);
+
     faker->appendConsensusNode(faker->nodeID());
 
     // case3: with expired state
     auto pbftMsgFixture = std::make_shared<PBFTMessageFixture>(cryptoSuite, keyPair);
     auto fakedProposal = pbftMsgFixture->fakePBFTProposal(faker->ledger()->blockNumber() - 1,
-        ledgerConfig->hash(), bytes(), std::vector<int64_t>(), std::vector<bytes>());
+        ledgerConfig->hash(), *blockData, std::vector<int64_t>(), std::vector<bytes>());
     pbftConfig->storage()->asyncCommitProposal(fakedProposal);
     faker->init();
 
@@ -72,7 +78,7 @@ BOOST_AUTO_TEST_CASE(testPBFTInit)
     BOOST_CHECK(cacheProcessor->stableCheckPointQueueSize() == 0);
 
     fakedProposal = pbftMsgFixture->fakePBFTProposal(faker->ledger()->blockNumber(),
-        ledgerConfig->hash(), bytes(), std::vector<int64_t>(), std::vector<bytes>());
+        ledgerConfig->hash(), *blockData, std::vector<int64_t>(), std::vector<bytes>());
     pbftConfig->storage()->asyncCommitProposal(fakedProposal);
     faker->init();
 
@@ -140,11 +146,6 @@ BOOST_AUTO_TEST_CASE(testPBFTInit)
     std::cout << "##### case5: with new committed index and valid data" << std::endl;
     faker->clearConsensusNodeList();
     faker->appendConsensusNode(faker->nodeID());
-    auto proposalIndex = ledgerConfig->blockNumber() + 1;
-    auto parent = (faker->ledger()->ledgerData())[ledgerConfig->blockNumber()];
-    auto block = faker->ledger()->init(parent->blockHeader(), true, proposalIndex, 0, 0);
-    auto blockData = std::make_shared<bytes>();
-    block->encode(*blockData);
     fakedProposal = pbftMsgFixture->fakePBFTProposal(proposalIndex, block->blockHeader()->hash(),
         *blockData, std::vector<int64_t>(), std::vector<bytes>());
     pbftConfig->storage()->asyncCommitProposal(fakedProposal);

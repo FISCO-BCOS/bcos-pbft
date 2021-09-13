@@ -115,6 +115,8 @@ void PBFTImpl::init()
 
     m_ledgerFetcher->fetchBlockNumberAndHash();
     m_ledgerFetcher->fetchConsensusNodeList();
+    // Note: must fetchObserverNode here to notify the latest sealerList and observerList to txpool
+    m_ledgerFetcher->fetchObserverNodeList();
     m_ledgerFetcher->fetchConsensusTimeout();
     m_ledgerFetcher->fetchBlockTxCountLimit();
     m_ledgerFetcher->fetchConsensusLeaderPeriod();
