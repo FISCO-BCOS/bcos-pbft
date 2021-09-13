@@ -66,6 +66,7 @@ public:
         }
         m_prePrepare = _prePrepareMsg;
         PBFT_LOG(INFO) << LOG_DESC("addPrePrepareCache") << printPBFTMsgInfo(_prePrepareMsg)
+                       << LOG_KV("sys", _prePrepareMsg->consensusProposal()->systemProposal())
                        << m_config->printCurrentState();
     }
 

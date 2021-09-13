@@ -105,6 +105,8 @@ protected:
     virtual bool handlePrePrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg,
         bool _needVerifyProposal, bool _generatedFromNewView = false,
         bool _needCheckSignature = true);
+    virtual void resetSealedTxs(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg);
+
     virtual CheckResult checkPrePrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg);
     virtual CheckResult checkSignature(std::shared_ptr<PBFTBaseMessageInterface> _req);
     virtual bool checkProposalSignature(
@@ -147,16 +149,13 @@ protected:
     virtual void onProposalApplySuccess(
         PBFTProposalInterface::Ptr _proposal, PBFTProposalInterface::Ptr _executedProposal);
     virtual void onProposalApplyFailed(PBFTProposalInterface::Ptr _proposal);
-
-    virtual void resetSealedTxs(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg);
-
     virtual void onLoadAndVerifyProposalSucc(PBFTProposalInterface::Ptr _proposal);
     virtual void triggerTimeout();
 
     void handleRecoverResponse(PBFTMessageInterface::Ptr _recoverResponse);
     void handleRecoverRequest(PBFTMessageInterface::Ptr _request);
     void sendRecoverResponse(bcos::crypto::NodeIDPtr _dstNode);
-
+    bool isSyncingHigher();
     /**
      * @brief Receive proposal requests from other nodes and reply to corresponding proposals
      *

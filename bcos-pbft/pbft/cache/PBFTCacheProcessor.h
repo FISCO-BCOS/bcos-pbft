@@ -207,6 +207,8 @@ protected:
     void reCalculateViewChangeWeight();
     void removeInvalidRecoverCache(ViewType _view);
 
+    virtual void notifyToSealNextBlock(PBFTProposalInterface::Ptr _checkpointProposal);
+
 protected:
     PBFTCacheFactory::Ptr m_cacheFactory;
     PBFTConfig::Ptr m_config;
@@ -243,6 +245,8 @@ protected:
     // the recover message cache
     std::map<ViewType, std::map<IndexType, PBFTMessageInterface::Ptr>> m_recoverReqCache;
     std::map<ViewType, uint64_t> m_recoverCacheWeight;
+
+    bcos::protocol::BlockNumber m_maxNotifyIndex = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

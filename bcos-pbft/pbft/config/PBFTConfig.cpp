@@ -27,6 +27,15 @@ using namespace bcos::ledger;
 
 void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
 {
+    bcos::protocol::BlockNumber committedIndex = 0;
+    if (m_committedProposal)
+    {
+        committedIndex = m_committedProposal->index();
+    }
+    if (_ledgerConfig->blockNumber() <= committedIndex && committedIndex > 0)
+    {
+        return;
+    }
     PBFT_LOG(INFO) << LOG_DESC("resetConfig")
                    << LOG_KV("committedIndex", _ledgerConfig->blockNumber())
                    << LOG_KV("propHash", _ledgerConfig->hash().abridged())
@@ -102,7 +111,23 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
     // try to notify the sealer module to seal proposals
     if (!m_timeoutState)
     {
-        notifySealer(m_expectedCheckPoint);
+        if (m_waitResealUntil == _ledgerConfig->blockNumber())
+        {
+            auto notifyBeginIndex = std::max(sealStartIndex(), m_waitResealUntil + 1);
+            PBFT_LOG(INFO) << LOG_DESC("Reach reseal index")
+                           << LOG_KV("notifyBeginIndex", notifyBeginIndex) << printCurrentState();
+            reNotifySealer(notifyBeginIndex);
+        }
+        if (m_waitSealUntil > _ledgerConfig->blockNumber())
+        {
+            PBFT_LOG(INFO) << LOG_DESC(
+                                  "Not notify the sealer to sealing for not reach waitToSeal limit")
+                           << LOG_KV("sealUntil", m_waitSealUntil) << printCurrentState();
+        }
+        else
+        {
+            notifySealer(sealStartIndex());
+        }
     }
 }
 
@@ -114,7 +139,8 @@ void PBFTConfig::notifyResetSealing(std::function<void()> _callback)
     }
     // only notify the non-leader to reset sealing
     PBFT_LOG(INFO) << LOG_DESC("notifyResetSealing") << printCurrentState();
-    m_sealerResetNotifier([this, _callback](Error::Ptr _error) {
+    auto committedIndex = m_committedProposal->index();
+    m_sealerResetNotifier([this, _callback, committedIndex](Error::Ptr _error) {
         if (_error)
         {
             PBFT_LOG(INFO) << LOG_DESC("notifyResetSealing failed")
@@ -122,7 +148,7 @@ void PBFTConfig::notifyResetSealing(std::function<void()> _callback)
                            << LOG_KV("msg", _error->errorMessage()) << printCurrentState();
             return;
         }
-        if (_callback)
+        if (_callback && m_waitResealUntil <= committedIndex)
         {
             _callback();
         }
@@ -137,6 +163,13 @@ void PBFTConfig::reNotifySealer(bcos::protocol::BlockNumber _index)
         PBFT_LOG(INFO) << LOG_DESC("reNotifySealer return for invalid expectedStart")
                        << LOG_KV("expectedStart", _index)
                        << LOG_KV("highWaterMark", highWaterMark()) << printCurrentState();
+        return;
+    }
+    auto committedIndex = m_committedProposal->index();
+    if (m_waitSealUntil > committedIndex)
+    {
+        PBFT_LOG(INFO) << LOG_DESC("reNotifySealer return for not reach waitToSeal limit")
+                       << LOG_KV("sealUntil", m_waitSealUntil) << printCurrentState();
         return;
     }
     PBFT_LOG(INFO) << LOG_DESC("reNotifySealer") << LOG_KV("expectedStart", _index)

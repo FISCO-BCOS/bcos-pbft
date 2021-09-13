@@ -98,8 +98,6 @@ public:
         m_blockTxCountLimit = _blockTxCountLimit;
     }
     virtual uint64_t blockTxCountLimit() const { return m_blockTxCountLimit.load(); }
-    virtual void notifyResetSealing(bcos::protocol::BlockNumber _consIndex) = 0;
-
     bcos::protocol::BlockNumber syncingHighestNumber() const { return m_syncingHighestNumber; }
     void setSyncingHighestNumber(bcos::protocol::BlockNumber _number)
     {

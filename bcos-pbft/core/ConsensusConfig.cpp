@@ -103,11 +103,6 @@ void ConsensusConfig::setConsensusNodeList(ConsensusNodeList& _consensusNodeList
     }
     // update quorum
     updateQuorum();
-    if (committedProposal())
-    {
-        auto proposalIndex = committedProposal()->index() + 1;
-        notifyResetSealing(proposalIndex);
-    }
     CONSENSUS_LOG(INFO) << LOG_DESC("updateConsensusNodeList")
                         << LOG_KV("nodeNum", m_consensusNodeNum) << LOG_KV("nodeIndex", nodeIndex)
                         << LOG_KV("committedIndex",

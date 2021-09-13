@@ -107,7 +107,11 @@ void PBFTCacheProcessor::addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepar
             _pbftCache->addPrePrepareCache(proposal);
         });
     // notify the consensusing proposal index to the sync module
-    notifyCommittedProposalIndex(_prePrepareMsg->index());
+    if (m_maxNotifyIndex < _prePrepareMsg->index())
+    {
+        m_maxNotifyIndex = _prePrepareMsg->index();
+        notifyCommittedProposalIndex(m_maxNotifyIndex);
+    }
 }
 
 bool PBFTCacheProcessor::existPrePrepare(PBFTMessageInterface::Ptr _prePrepareMsg)
@@ -235,6 +239,7 @@ void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committed
     m_committedQueue.push(_committedProposal);
     m_committedProposalList.insert(_committedProposal->index());
     PBFT_LOG(INFO) << LOG_DESC("######## CommitProposal") << printPBFTProposal(_committedProposal)
+                   << LOG_KV("sys", _committedProposal->systemProposal())
                    << m_config->printCurrentState();
     tryToApplyCommitQueue();
 }
@@ -248,6 +253,9 @@ void PBFTCacheProcessor::notifyCommittedProposalIndex(bcos::protocol::BlockNumbe
     m_committedProposalNotifier(_index, [_index](Error::Ptr _error) {
         if (!_error)
         {
+            PBFT_LOG(INFO) << LOG_DESC(
+                                  "notify the committed proposal index to the sync module success")
+                           << LOG_KV("index", _index);
             return;
         }
         PBFT_LOG(WARNING) << LOG_DESC(
@@ -313,10 +321,32 @@ bool PBFTCacheProcessor::tryToApplyCommitQueue()
     return false;
 }
 
+void PBFTCacheProcessor::notifyToSealNextBlock(PBFTProposalInterface::Ptr _checkpointProposal)
+{
+    // notify the leader to seal next block
+    auto nextProposalIndex = _checkpointProposal->index() + 1;
+    if (!_checkpointProposal->systemProposal() && nextProposalIndex < m_config->highWaterMark())
+    {
+        m_config->notifySealer(nextProposalIndex);
+        PBFT_LOG(DEBUG)
+            << LOG_DESC(
+                   "Receive valid non-system prePrepare proposal, notify to seal next proposal")
+            << LOG_KV("nextProposalIndex", nextProposalIndex);
+    }
+    if (_checkpointProposal->systemProposal())
+    {
+        m_config->setWaitSealUntil(_checkpointProposal->index());
+        PBFT_LOG(INFO) << LOG_DESC(
+                              "Receive valid system prePrepare proposal, stop to notify sealing")
+                       << LOG_KV("waitSealUntil", _checkpointProposal->index());
+    }
+}
+
 // execute the proposal and broadcast checkpoint message
 void PBFTCacheProcessor::applyStateMachine(
     ProposalInterface::ConstPtr _lastAppliedProposal, PBFTProposalInterface::Ptr _proposal)
 {
+    notifyToSealNextBlock(_proposal);
     PBFT_LOG(INFO) << LOG_DESC("applyStateMachine") << LOG_KV("index", _proposal->index())
                    << LOG_KV("hash", _proposal->hash().abridged()) << m_config->printCurrentState();
     auto executedProposal = m_config->pbftMessageFactory()->createPBFTProposal();

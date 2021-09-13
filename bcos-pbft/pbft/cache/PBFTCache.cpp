@@ -98,11 +98,25 @@ void PBFTCache::addCache(CollectionCacheType& _cachedReq, QuorumRecoderType& _we
 
 bool PBFTCache::conflictWithProcessedReq(PBFTMessageInterface::Ptr _msg)
 {
+    if (_msg->view() < m_config->view())
+    {
+        return true;
+    }
     if (!m_prePrepare)
     {
         return false;
     }
-    return (_msg->hash() != m_prePrepare->hash() || _msg->view() < m_prePrepare->view());
+    // expired msg
+    if (_msg->view() < m_prePrepare->view())
+    {
+        return true;
+    }
+    // conflict msg
+    if (_msg->view() == m_prePrepare->view())
+    {
+        return (_msg->hash() != m_prePrepare->hash());
+    }
+    return false;
 }
 
 bool PBFTCache::checkPrePrepareProposalStatus()
@@ -269,7 +283,6 @@ void PBFTCache::resetCache(ViewType _curView)
     if (!m_precommit && m_prePrepare && m_prePrepare->consensusProposal() &&
         m_prePrepare->view() < _curView)
     {
-        m_config->notifyResetSealing(m_config->committedProposal()->index() + 1);
         // reset the exceptioned txs to unsealed
         m_config->validator()->asyncResetTxsFlag(m_prePrepare->consensusProposal()->data(), false);
     }

@@ -266,7 +266,7 @@ void PBFTEngine::onRecvProposal(bool _containSysTxs, bytesConstRef _proposalData
         PBFT_LOG(INFO) << LOG_DESC("onRecvProposal failed for timout now")
                        << LOG_KV("index", _proposalIndex)
                        << LOG_KV("hash", _proposalHash.abridged()) << m_config->printCurrentState();
-        m_config->notifyResetSealing(m_config->committedProposal()->index() + 1);
+        m_config->notifyResetSealing();
         m_config->validator()->asyncResetTxsFlag(_proposalData, false);
         return;
     }
@@ -283,12 +283,6 @@ void PBFTEngine::onRecvProposal(bool _containSysTxs, bytesConstRef _proposalData
     auto pbftMessage =
         m_config->pbftMessageFactory()->populateFrom(PacketType::PrePreparePacket, pbftProposal,
             m_config->pbftMsgDefaultVersion(), m_config->view(), utcTime(), m_config->nodeIndex());
-
-    // broadcast the pre-prepare packet
-    auto encodedData = m_config->codec()->encode(pbftMessage);
-    m_config->frontService()->asyncSendMessageByNodeIDs(
-        ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
-
     PBFT_LOG(INFO) << LOG_DESC("++++++++++++++++ Generating seal on")
                    << LOG_KV("index", pbftMessage->index()) << LOG_KV("Idx", m_config->nodeIndex())
                    << LOG_KV("hash", pbftMessage->hash().abridged())
@@ -297,7 +291,15 @@ void PBFTEngine::onRecvProposal(bool _containSysTxs, bytesConstRef _proposalData
     // handle the pre-prepare packet
     Guard l(m_mutex);
     auto ret = handlePrePrepareMsg(pbftMessage, false, false, false);
-    if (!ret)
+    // only broadcast the prePrepareMsg when local handlePrePrepareMsg success
+    if (ret)
+    {
+        // broadcast the pre-prepare packet
+        auto encodedData = m_config->codec()->encode(pbftMessage);
+        m_config->frontService()->asyncSendMessageByNodeIDs(
+            ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
+    }
+    else
     {
         resetSealedTxs(pbftMessage);
     }
@@ -309,7 +311,7 @@ void PBFTEngine::resetSealedTxs(std::shared_ptr<PBFTMessageInterface> _prePrepar
     {
         return;
     }
-    m_config->notifyResetSealing(m_config->committedProposal()->index() + 1);
+    m_config->notifyResetSealing();
     m_config->validator()->asyncResetTxsFlag(_prePrepareMsg->consensusProposal()->data(), false);
 }
 
@@ -438,7 +440,7 @@ void PBFTEngine::executeWorker()
         return;
     }
     // when the node is syncing, not handle the PBFT message
-    if (m_config->committedProposal()->index() < m_config->syncingHighestNumber())
+    if (isSyncingHigher())
     {
         waitSignal();
         return;
@@ -582,6 +584,11 @@ CheckResult PBFTEngine::checkPrePrepareMsg(std::shared_ptr<PBFTMessageInterface>
                         << m_config->printCurrentState();
         return CheckResult::INVALID;
     }
+    // already has prePrepare msg
+    if (m_cacheProcessor->conflictWithProcessedReq(_prePrepareMsg))
+    {
+        return CheckResult::INVALID;
+    }
     // check conflict
     if (m_cacheProcessor->conflictWithPrecommitReq(_prePrepareMsg))
     {
@@ -630,10 +637,21 @@ bool PBFTEngine::checkProposalSignature(
         nodeInfo->nodeID(), _proposal->hash(), _proposal->signature());
 }
 
+bool PBFTEngine::isSyncingHigher()
+{
+    auto committedIndex = m_config->committedProposal()->index();
+    auto syncNumber = m_config->syncingHighestNumber();
+    if (syncNumber < (committedIndex + m_config->warterMarkLimit()))
+    {
+        return false;
+    }
+    return true;
+}
+
 bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
     bool _needVerifyProposal, bool _generatedFromNewView, bool _needCheckSignature)
 {
-    if (m_config->committedProposal()->index() < m_config->syncingHighestNumber())
+    if (isSyncingHigher())
     {
         PBFT_LOG(INFO)
             << LOG_DESC("handlePrePrepareMsg: reject the prePrepareMsg for the node is syncing")
@@ -695,16 +713,6 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
         // add the pre-prepare packet into the cache
         m_cacheProcessor->addPrePrepareCache(_prePrepareMsg);
         m_config->timer()->restart();
-        auto nextProposalIndex = _prePrepareMsg->index();
-        if (!_prePrepareMsg->consensusProposal()->systemProposal() &&
-            nextProposalIndex < m_config->highWaterMark() && !_generatedFromNewView)
-        {
-            m_config->notifySealer(nextProposalIndex);
-            PBFT_LOG(DEBUG)
-                << LOG_DESC(
-                       "Receive valid non-system prePrepare proposal, notify to seal next proposal")
-                << LOG_KV("nextProposalIndex", nextProposalIndex);
-        }
         // broadcast PrepareMsg the packet
         broadcastPrepareMsg(_prePrepareMsg);
         PBFT_LOG(INFO) << LOG_DESC("handlePrePrepareMsg and broadcast prepare packet")
@@ -754,7 +762,6 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
                 {
                     PBFT_LOG(WARNING)
                         << LOG_DESC("verify proposal failed") << printPBFTMsgInfo(_prePrepareMsg);
-                    pbftEngine->resetSealedTxs(_prePrepareMsg);
                     pbftEngine->m_config->notifySealer(_prePrepareMsg->index(), true);
                     return;
                 }
@@ -1183,8 +1190,19 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
                 handlePrePrepareMsg(_prePrepare, true, true, false);
             });
     }
-    // re-notify the new leader to seal block
-    m_config->reNotifySealer(maxProposalIndex + 1);
+    if (prePrepareList.size() > 0)
+    {
+        // Note: in case of the reHandled proposals have system transactions, must wait to reseal
+        // until all reHandled proposal committed
+        m_config->setWaitResealUntil(maxProposalIndex);
+        PBFT_LOG(INFO) << LOG_DESC(
+                              "reHandlePrePrepareProposals and wait to reseal new proposal until ")
+                       << (maxProposalIndex);
+    }
+    else
+    {
+        m_config->reNotifySealer(maxProposalIndex + 1);
+    }
 }
 
 void PBFTEngine::finalizeConsensus(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
@@ -1192,9 +1210,9 @@ void PBFTEngine::finalizeConsensus(LedgerConfig::Ptr _ledgerConfig, bool _synced
     Guard l(m_mutex);
     // resetConfig after submit the block to ledger
     m_config->resetConfig(_ledgerConfig, _syncedBlock);
+    m_cacheProcessor->tryToApplyCommitQueue();
     // tried to commit the stable checkpoint
     m_cacheProcessor->removeConsensusedCache(m_config->view(), _ledgerConfig->blockNumber());
-    m_cacheProcessor->tryToApplyCommitQueue();
     m_cacheProcessor->tryToCommitStableCheckPoint();
     m_cacheProcessor->resetTimer();
     if (_syncedBlock)
@@ -1216,7 +1234,7 @@ bool PBFTEngine::handleCheckPointMsg(std::shared_ptr<PBFTMessageInterface> _chec
                         << m_config->printCurrentState();
         return false;
     }
-    if (m_config->committedProposal()->index() < m_config->syncingHighestNumber())
+    if (isSyncingHigher())
     {
         PBFT_LOG(INFO) << LOG_DESC(
                               "handleCheckPointMsg: reject the checkPoint for the node is "
