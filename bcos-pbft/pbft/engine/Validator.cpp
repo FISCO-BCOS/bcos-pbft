@@ -27,6 +27,10 @@ using namespace bcos::protocol;
 void TxsValidator::asyncResetTxsFlag(bytesConstRef _data, bool _flag)
 {
     auto block = m_blockFactory->createBlock(_data);
+    if (_flag)
+    {
+        insertResettingProposal(block->blockHeader()->hash());
+    }
     auto self = std::weak_ptr<TxsValidator>(shared_from_this());
     m_worker->enqueue([self, block, _flag]() {
         try
@@ -66,6 +70,11 @@ void TxsValidator::asyncResetTxsFlag(
     m_txPool->asyncMarkTxs(_txsHashList, _flag, _block->blockHeader()->number(),
         _block->blockHeader()->hash(),
         [this, _block, _txsHashList, _flag, _retryTime](Error::Ptr _error) {
+            // must ensure asyncResetTxsFlag success before seal new next blocks
+            if (_flag)
+            {
+                eraseResettingProposal(_block->blockHeader()->hash());
+            }
             if (_error == nullptr)
             {
                 PBFT_LOG(INFO) << LOG_DESC("asyncMarkTxs success")
@@ -80,6 +89,10 @@ void TxsValidator::asyncResetTxsFlag(
             if (_retryTime >= 3)
             {
                 return;
+            }
+            if (_flag)
+            {
+                insertResettingProposal(_block->blockHeader()->hash());
             }
             this->asyncResetTxsFlag(_block, _txsHashList, _flag, _retryTime + 1);
         });

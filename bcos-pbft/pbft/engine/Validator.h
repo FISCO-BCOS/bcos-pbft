@@ -52,6 +52,7 @@ public:
     virtual void stop() = 0;
     virtual void init() = 0;
     virtual void asyncResetTxPool() = 0;
+    virtual ssize_t resettingProposalSize() const = 0;
 };
 
 class TxsValidator : public ValidatorInterface, public std::enable_shared_from_this<TxsValidator>
@@ -64,7 +65,7 @@ public:
       : m_txPool(_txPool),
         m_blockFactory(_blockFactory),
         m_txResultFactory(_txResultFactory),
-        m_worker(std::make_shared<ThreadPool>("validator", 1))
+        m_worker(std::make_shared<ThreadPool>("validator", 2))
     {}
 
     ~TxsValidator() override {}
@@ -95,6 +96,11 @@ public:
     }
 
     void asyncResetTxsFlag(bytesConstRef _data, bool _flag) override;
+    ssize_t resettingProposalSize() const override
+    {
+        ReadGuard l(x_resettingProposals);
+        return m_resettingProposals.size();
+    }
 
     PBFTProposalInterface::Ptr generateEmptyProposal(
         PBFTMessageFactory::Ptr _factory, int64_t _index, int64_t _sealerId) override
@@ -164,6 +170,17 @@ public:
     }
 
 protected:
+    virtual void eraseResettingProposal(bcos::crypto::HashType const& _hash)
+    {
+        WriteGuard l(x_resettingProposals);
+        m_resettingProposals.erase(_hash);
+    }
+    virtual void insertResettingProposal(bcos::crypto::HashType const& _hash)
+    {
+        WriteGuard l(x_resettingProposals);
+        m_resettingProposals.insert(_hash);
+    }
+
     virtual void asyncResetTxsFlag(bcos::protocol::Block::Ptr _block,
         bcos::crypto::HashListPtr _txsHashList, bool _flag, size_t _retryTime = 0);
 
@@ -171,6 +188,8 @@ protected:
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
     bcos::protocol::TransactionSubmitResultFactory::Ptr m_txResultFactory;
     ThreadPool::Ptr m_worker;
+    std::set<bcos::crypto::HashType> m_resettingProposals;
+    mutable SharedMutex x_resettingProposals;
 };
 }  // namespace consensus
 }  // namespace bcos

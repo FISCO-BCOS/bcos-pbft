@@ -1195,9 +1195,9 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
         // Note: in case of the reHandled proposals have system transactions, must wait to reseal
         // until all reHandled proposal committed
         m_config->setWaitResealUntil(maxProposalIndex);
-        PBFT_LOG(INFO) << LOG_DESC(
-                              "reHandlePrePrepareProposals and wait to reseal new proposal until ")
-                       << (maxProposalIndex);
+        PBFT_LOG(INFO) << LOG_DESC("reHandlePrePrepareProposals and wait to reseal new proposal")
+                       << LOG_KV("waitResealUntil", maxProposalIndex)
+                       << m_config->printCurrentState();
     }
     else
     {

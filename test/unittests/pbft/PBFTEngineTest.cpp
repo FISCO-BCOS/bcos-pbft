@@ -151,6 +151,12 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
     auto leaderFaker = fakerMap[expectedLeader];
     auto nonLeaderFaker = fakerMap[(expectedLeader + 1) % consensusNodeSize];
 
+    auto ledgerConfig = leaderFaker->ledger()->ledgerConfig();
+    auto parent = (leaderFaker->ledger()->ledgerData())[ledgerConfig->blockNumber()];
+    auto block = leaderFaker->ledger()->init(parent->blockHeader(), true, expectedIndex, 0, 0);
+    auto blockData = std::make_shared<bytes>();
+    block->encode(*blockData);
+
     // case1: invalid block number
     auto hash = hashImpl->hash(std::string("invalidCase"));
     auto leaderMsgFixture =
@@ -161,8 +167,8 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
         hash, index, bytes(), 0, leaderMsgFixture, PacketType::PrePreparePacket);
 
     auto fakedProposal =
-        leaderMsgFixture->fakePBFTProposal(leaderFaker->ledger()->blockNumber() + 1, hash, bytes(),
-            std::vector<int64_t>(), std::vector<bytes>());
+        leaderMsgFixture->fakePBFTProposal(leaderFaker->ledger()->blockNumber() + 1, hash,
+            *blockData, std::vector<int64_t>(), std::vector<bytes>());
     pbftMsg->setConsensusProposal(fakedProposal);
     auto data = leaderFaker->pbftConfig()->codec()->encode(pbftMsg);
 
