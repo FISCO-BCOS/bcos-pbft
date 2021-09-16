@@ -212,6 +212,8 @@ protected:
     const std::set<PacketType> c_timeoutAllowedPacket = {ViewChangePacket, NewViewPacket,
         CommittedProposalRequest, CommittedProposalResponse, PreparedProposalRequest,
         PreparedProposalResponse, CheckPoint, RecoverRequest, RecoverResponse};
+
+    const std::set<PacketType> c_consensusPacket = {PrePreparePacket, PreparePacket, CommitPacket};
 };
 }  // namespace consensus
 }  // namespace bcos

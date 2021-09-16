@@ -29,7 +29,11 @@ void TxsValidator::asyncResetTxsFlag(bytesConstRef _data, bool _flag)
     auto block = m_blockFactory->createBlock(_data);
     if (_flag)
     {
-        insertResettingProposal(block->blockHeader()->hash());
+        // already has the reset request
+        if (!insertResettingProposal(block->blockHeader()->hash()))
+        {
+            return;
+        }
     }
     auto self = std::weak_ptr<TxsValidator>(shared_from_this());
     m_worker->enqueue([self, block, _flag]() {

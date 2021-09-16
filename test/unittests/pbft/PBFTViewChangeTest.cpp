@@ -126,7 +126,7 @@ BOOST_AUTO_TEST_CASE(testViewChangeWithPrecommitProposals)
     for (size_t i = 0; i < fakerMap.size(); i++)
     {
         auto faker = fakerMap[i];
-        faker->pbftConfig()->setConsensusTimeout(500);
+        faker->pbftConfig()->setConsensusTimeout(1000);
     }
     auto startT = utcTime();
     while (!shouldExit(fakerMap, futureBlockIndex) && (utcTime() - startT <= 10 * 3000))

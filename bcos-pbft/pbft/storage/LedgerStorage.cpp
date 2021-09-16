@@ -343,8 +343,10 @@ void LedgerStorage::asyncCommitStableCheckPoint(
                 PBFT_STORAGE_LOG(INFO) << LOG_DESC("asyncCommitStableCheckPoint success")
                                        << LOG_KV("index", _blockHeader->number())
                                        << LOG_KV("hash", _ledgerConfig->hash().abridged())
+                                       << LOG_KV("txs", _blockInfo->transactionsHashSize())
                                        << LOG_KV("timeCost", utcTime() - startT);
                 _ledgerConfig->setSealerId(_blockHeader->sealer());
+                _ledgerConfig->setTxsSize(_blockInfo->transactionsHashSize());
                 // finalize consensus
                 if (ledgerStorage->m_finalizeHandler)
                 {
