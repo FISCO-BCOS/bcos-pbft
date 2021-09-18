@@ -328,7 +328,7 @@ void PBFTCacheProcessor::notifyToSealNextBlock(PBFTProposalInterface::Ptr _check
     if (!_checkpointProposal->systemProposal() && nextProposalIndex < m_config->highWaterMark())
     {
         m_config->notifySealer(nextProposalIndex);
-        PBFT_LOG(DEBUG)
+        PBFT_LOG(INFO)
             << LOG_DESC(
                    "Receive valid non-system prePrepare proposal, notify to seal next proposal")
             << LOG_KV("nextProposalIndex", nextProposalIndex);
