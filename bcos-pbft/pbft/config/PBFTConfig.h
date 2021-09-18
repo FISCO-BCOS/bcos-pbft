@@ -305,6 +305,9 @@ public:
         return sealStartIndex;
     }
 
+    bool canHandleNewProposal();
+    bool canHandleNewProposal(PBFTBaseMessageInterface::Ptr _msg);
+
 protected:
     void updateQuorum() override;
     virtual void asyncNotifySealProposal(size_t _proposalIndex, size_t _proposalEndIndex,

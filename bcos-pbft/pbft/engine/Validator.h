@@ -175,10 +175,16 @@ protected:
         WriteGuard l(x_resettingProposals);
         m_resettingProposals.erase(_hash);
     }
-    virtual void insertResettingProposal(bcos::crypto::HashType const& _hash)
+    virtual bool insertResettingProposal(bcos::crypto::HashType const& _hash)
     {
-        WriteGuard l(x_resettingProposals);
+        UpgradableGuard l(x_resettingProposals);
+        if (m_resettingProposals.count(_hash))
+        {
+            return false;
+        }
+        UpgradeGuard ul(l);
         m_resettingProposals.insert(_hash);
+        return true;
     }
 
     virtual void asyncResetTxsFlag(bcos::protocol::Block::Ptr _block,

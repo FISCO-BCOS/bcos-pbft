@@ -420,6 +420,7 @@ void PBFTEngine::onReceivePBFTMessage(Error::Ptr _error, NodeIDPtr _fromNode, by
             return;
         }
         m_msgQueue->push(pbftMsg);
+        m_signalled.notify_all();
     }
     catch (std::exception const& _e)
     {
@@ -447,12 +448,13 @@ void PBFTEngine::executeWorker()
     }
     // handle the PBFT message(here will wait when the msgQueue is empty)
     auto messageResult = m_msgQueue->tryPop(c_PopWaitSeconds);
+    auto empty = m_msgQueue->empty();
     if (messageResult.first)
     {
+        auto pbftMsg = messageResult.second;
+        auto packetType = pbftMsg->packetType();
         if (m_config->timeout() == true)
         {
-            auto pbftMsg = messageResult.second;
-            auto packetType = pbftMsg->packetType();
             // Pre-prepare, prepare and commit type message packets are not allowed to be processed
             // in the timeout state
             if (c_timeoutAllowedPacket.count(packetType))
@@ -463,12 +465,29 @@ void PBFTEngine::executeWorker()
             else if (pbftMsg->index() > m_config->committedProposal()->index())
             {
                 m_msgQueue->push(pbftMsg);
+                if (empty)
+                {
+                    waitSignal();
+                }
             }
+            return;
         }
-        else
+        // can't handle the future consensus messages when handling the system proposal
+        if ((c_consensusPacket.count(packetType)) && !m_config->canHandleNewProposal(pbftMsg))
         {
-            handleMsg(messageResult.second);
+            PBFT_LOG(INFO) << LOG_DESC(
+                                  "receive consensus packet, re-push it to the msgQueue for "
+                                  "canHandleNewProposal")
+                           << LOG_KV("index", pbftMsg->index()) << LOG_KV("type", packetType)
+                           << m_config->printCurrentState();
+            m_msgQueue->push(pbftMsg);
+            if (empty)
+            {
+                waitSignal();
+            }
+            return;
         }
+        handleMsg(pbftMsg);
     }
     // wait for PBFTMsg
     else
@@ -559,7 +578,7 @@ CheckResult PBFTEngine::checkPBFTMsgState(PBFTMessageInterface::Ptr _pbftReq) co
         return CheckResult::INVALID;
     }
     // case index equal
-    if (_pbftReq->view() != m_config->view())
+    if (_pbftReq->view() < m_config->view())
     {
         PBFT_LOG(DEBUG) << LOG_DESC("checkPBFTMsgState: invalid pbftMsg for invalid view")
                         << printPBFTMsgInfo(_pbftReq) << m_config->printCurrentState();

@@ -66,7 +66,7 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
     else
     {
         PBFT_LOG(INFO) << LOG_DESC("^^^^^^^^Report") << LOG_KV("sealer", _ledgerConfig->sealerId())
-                       << printCurrentState();
+                       << LOG_KV("txs", _ledgerConfig->txsSize()) << printCurrentState();
     }
     if (m_nodeUpdated)
     {
@@ -167,6 +167,35 @@ void PBFTConfig::reNotifySealer(bcos::protocol::BlockNumber _index)
                    << LOG_KV("leader", leaderIndex(_index)) << printCurrentState();
 }
 
+bool PBFTConfig::canHandleNewProposal()
+{
+    auto committedIndex = m_committedProposal->index();
+    if (m_waitSealUntil > committedIndex)
+    {
+        return false;
+    }
+    if (m_waitResealUntil > committedIndex)
+    {
+        return false;
+    }
+    return true;
+}
+
+bool PBFTConfig::canHandleNewProposal(PBFTBaseMessageInterface::Ptr _msg)
+{
+    if (canHandleNewProposal())
+    {
+        return true;
+    }
+    auto committedIndex = m_committedProposal->index();
+    if (_msg->index() <= committedIndex || _msg->index() <= m_waitSealUntil ||
+        _msg->index() <= m_waitResealUntil)
+    {
+        return true;
+    }
+    return false;
+}
+
 void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
 {
     auto currentLeader = leaderIndex(_progressedIndex);
@@ -174,18 +203,10 @@ void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
     {
         return;
     }
-    auto committedIndex = m_committedProposal->index();
-    if (m_waitSealUntil > committedIndex)
+    if (!canHandleNewProposal())
     {
         PBFT_LOG(INFO) << LOG_DESC(
-                              "Not notify the sealer to sealing for not reach waitToSeal limit")
-                       << LOG_KV("sealUntil", m_waitSealUntil) << printCurrentState();
-        return;
-    }
-    if (m_waitResealUntil > committedIndex)
-    {
-        PBFT_LOG(INFO) << LOG_DESC("notifySealer return for not reach the reNotify index")
-                       << LOG_KV("waitResealUntil", m_waitResealUntil) << printCurrentState();
+            "Not notify the sealer to sealing for not reach waitResealUntil/waitToSeal limit");
         return;
     }
 
@@ -220,6 +241,7 @@ void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
                        << LOG_KV("expectedEndIndex", endProposalIndex) << printCurrentState();
         return;
     }
+    auto committedIndex = m_committedProposal->index();
     if (m_validator->resettingProposalSize() > 0 && (startSealIndex > (committedIndex + 1)))
     {
         PBFT_LOG(INFO) << LOG_DESC(
@@ -344,6 +366,9 @@ std::string PBFTConfig::printCurrentState()
                  << LOG_KV("view", view()) << LOG_KV("toView", toView())
                  << LOG_KV("changeCycle", m_timer->changeCycle())
                  << LOG_KV("expectedCheckPoint", m_expectedCheckPoint) << LOG_KV("Idx", nodeIndex())
+                 << LOG_KV("unsealedTxs", m_unsealedTxsSize.load())
+                 << LOG_KV("sealUntil", m_waitSealUntil)
+                 << LOG_KV("waitResealUntil", m_waitResealUntil)
                  << LOG_KV("nodeId", nodeID()->shortHex());
     return stringstream.str();
 }

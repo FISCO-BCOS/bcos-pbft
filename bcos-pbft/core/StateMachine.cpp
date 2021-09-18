@@ -98,6 +98,8 @@ void StateMachine::asyncApply(ssize_t _execTimeout,
                                 << LOG_KV("txsRoot", _blockHeader->txsRoot().abridged())
                                 << LOG_KV("receiptsRoot", _blockHeader->receiptsRoot().abridged())
                                 << LOG_KV("stateRoot", _blockHeader->stateRoot().abridged())
+                                << LOG_KV("txs", block->transactionsHashSize())
+                                << LOG_KV("timeCost", (utcTime() - startT))
                                 << LOG_KV("execPerTx", execT);
             if (_blockHeader->number() != block->blockHeader()->number())
             {
