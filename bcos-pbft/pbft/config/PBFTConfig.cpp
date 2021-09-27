@@ -169,7 +169,11 @@ void PBFTConfig::reNotifySealer(bcos::protocol::BlockNumber _index)
 
 bool PBFTConfig::canHandleNewProposal()
 {
-    auto committedIndex = m_committedProposal->index();
+    bcos::protocol::BlockNumber committedIndex = 0;
+    if (m_committedProposal)
+    {
+        m_committedProposal->index();
+    }
     if (m_waitSealUntil > committedIndex)
     {
         return false;
