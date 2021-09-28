@@ -172,7 +172,7 @@ bool PBFTConfig::canHandleNewProposal()
     bcos::protocol::BlockNumber committedIndex = 0;
     if (m_committedProposal)
     {
-        m_committedProposal->index();
+        committedIndex = m_committedProposal->index();
     }
     if (m_waitSealUntil > committedIndex)
     {
