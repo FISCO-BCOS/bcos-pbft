@@ -48,12 +48,12 @@ void PBFTImpl::stop()
     PBFT_LOG(INFO) << LOG_DESC("Stop the PBFT module.");
 }
 
-void PBFTImpl::asyncSubmitProposal(bytesConstRef _proposalData,
+void PBFTImpl::asyncSubmitProposal(bool _containSysTxs, bytesConstRef _proposalData,
     bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash,
     std::function<void(Error::Ptr)> _onProposalSubmitted)
 {
     return m_pbftEngine->asyncSubmitProposal(
-        _proposalData, _proposalIndex, _proposalHash, _onProposalSubmitted);
+        _containSysTxs, _proposalData, _proposalIndex, _proposalHash, _onProposalSubmitted);
 }
 
 void PBFTImpl::asyncGetPBFTView(std::function<void(Error::Ptr, ViewType)> _onGetView)
@@ -115,6 +115,8 @@ void PBFTImpl::init()
 
     m_ledgerFetcher->fetchBlockNumberAndHash();
     m_ledgerFetcher->fetchConsensusNodeList();
+    // Note: must fetchObserverNode here to notify the latest sealerList and observerList to txpool
+    m_ledgerFetcher->fetchObserverNodeList();
     m_ledgerFetcher->fetchConsensusTimeout();
     m_ledgerFetcher->fetchBlockTxCountLimit();
     m_ledgerFetcher->fetchConsensusLeaderPeriod();

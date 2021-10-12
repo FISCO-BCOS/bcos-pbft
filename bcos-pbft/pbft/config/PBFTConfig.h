@@ -35,7 +35,6 @@ namespace bcos
 {
 namespace consensus
 {
-const IndexType InvalidNodeIndex = -1;
 class PBFTConfig : public ConsensusConfig, public std::enable_shared_from_this<PBFTConfig>
 {
 public:
@@ -55,11 +54,6 @@ public:
         m_frontService = _frontService;
         m_stateMachine = _stateMachine;
         m_storage = _storage;
-        // for resetConfig after submit the block to ledger
-        m_storage->registerConfigResetHandler(
-            [this](bcos::ledger::LedgerConfig::Ptr _ledgerConfig) {
-                resetConfig(_ledgerConfig, false);
-            });
         // for notify the transaction result
         m_storage->registerNotifyHandler(
             [this](bcos::protocol::Block::Ptr _block, bcos::protocol::BlockHeader::Ptr _header) {
@@ -107,16 +101,13 @@ public:
         }
         m_leaderSwitchPeriod.store(_leaderSwitchPeriod);
         // notify the sealer module to reset sealing
-        auto proposalIndex = committedProposal()->index() + 1;
-        notifyResetSealing([this, proposalIndex]() {
-            // notify the sealer to reseal
-            reNotifySealer(proposalIndex);
-        });
+        notifyResetSealing(sealStartIndex());
         PBFT_LOG(INFO) << LOG_DESC(
                               "updateLeaderSwitchPeriod and re-notify the sealer to seal block")
                        << LOG_KV("leader_period", m_leaderSwitchPeriod)
                        << LOG_KV("committedIndex", committedProposal()->index());
     }
+
     bcos::crypto::CryptoSuite::Ptr cryptoSuite() { return m_cryptoSuite; }
     std::shared_ptr<PBFTMessageFactory> pbftMessageFactory() { return m_pbftMessageFactory; }
     std::shared_ptr<bcos::front::FrontServiceInterface> frontService() { return m_frontService; }
@@ -147,9 +138,8 @@ public:
         auto progressedIndex = _committedProposal->index() + 1;
         if (progressedIndex > m_expectedCheckPoint)
         {
-            PBFT_LOG(DEBUG) << LOG_DESC("PBFTConfig: resetExpectedCheckPoint")
-                            << printCurrentState()
-                            << LOG_KV("expectedCheckPoint", m_expectedCheckPoint);
+            PBFT_LOG(INFO) << LOG_DESC("PBFTConfig: resetExpectedCheckPoint") << printCurrentState()
+                           << LOG_KV("expectedCheckPoint", m_expectedCheckPoint);
             m_expectedCheckPoint = _committedProposal->index() + 1;
         }
         if (progressedIndex > m_lowWaterMark)
@@ -162,8 +152,8 @@ public:
     void setExpectedCheckPoint(bcos::protocol::BlockNumber _expectedCheckPoint)
     {
         m_expectedCheckPoint = std::max(committedProposal()->index() + 1, _expectedCheckPoint);
-        PBFT_LOG(DEBUG) << LOG_DESC("PBFTConfig: setExpectedCheckPoint") << printCurrentState()
-                        << LOG_KV("expectedCheckPoint", m_expectedCheckPoint);
+        PBFT_LOG(INFO) << LOG_DESC("PBFTConfig: setExpectedCheckPoint") << printCurrentState()
+                       << LOG_KV("expectedCheckPoint", m_expectedCheckPoint);
     }
 
     StateMachineInterface::Ptr stateMachine() { return m_stateMachine; }
@@ -224,13 +214,6 @@ public:
         setView(_view);
         m_timeoutState.store(false);
     }
-
-    bcos::protocol::BlockNumber syncingHighestNumber() const { return m_syncingHighestNumber; }
-    void setSyncingHighestNumber(bcos::protocol::BlockNumber _number)
-    {
-        m_syncingHighestNumber = _number;
-    }
-
     virtual void setUnSealedTxsSize(size_t _unsealedTxsSize)
     {
         m_unsealedTxsSize = _unsealedTxsSize;
@@ -279,7 +262,51 @@ public:
         m_sealerResetNotifier = _sealerResetNotifier;
     }
 
+    virtual void notifyResetSealing(bcos::protocol::BlockNumber _consIndex)
+    {
+        notifyResetSealing([this, _consIndex]() {
+            // notify the sealer to reseal
+            reNotifySealer(_consIndex);
+        });
+    }
+
     virtual void notifyResetSealing(std::function<void()> _callback = nullptr);
+
+    virtual void setWaitResealUntil(bcos::protocol::BlockNumber _waitResealUntil)
+    {
+        m_waitResealUntil = _waitResealUntil;
+    }
+
+    virtual void setWaitSealUntil(bcos::protocol::BlockNumber _waitSealUntil)
+    {
+        m_waitSealUntil = std::max(m_waitSealUntil.load(), _waitSealUntil);
+    }
+
+    void setConsensusNodeList(ConsensusNodeList& _consensusNodeList) override
+    {
+        ConsensusConfig::setConsensusNodeList(_consensusNodeList);
+        if (!m_nodeUpdated)
+        {
+            return;
+        }
+        if (committedProposal())
+        {
+            notifyResetSealing(sealStartIndex());
+        }
+    }
+
+    bcos::protocol::BlockNumber sealStartIndex()
+    {
+        auto sealStartIndex = expectedCheckPoint();
+        if (committedProposal())
+        {
+            sealStartIndex = std::max(sealStartIndex, committedProposal()->index() + 1);
+        }
+        return sealStartIndex;
+    }
+
+    bool canHandleNewProposal();
+    bool canHandleNewProposal(PBFTBaseMessageInterface::Ptr _msg);
 
 protected:
     void updateQuorum() override;
@@ -332,10 +359,11 @@ protected:
     // state variable that identifies whether has timed out
     std::atomic_bool m_timeoutState = {false};
 
-    bcos::protocol::BlockNumber m_syncingHighestNumber = {0};
-    std::atomic_bool m_syncingState = {false};
-
     std::atomic<size_t> m_unsealedTxsSize = {0};
+    // notify the sealer to reseal new block until m_waitResealUntil stable committed
+    std::atomic<bcos::protocol::BlockNumber> m_waitResealUntil = {0};
+    // notify the ealer to seal new block until m_waitSealUntil committed
+    std::atomic<bcos::protocol::BlockNumber> m_waitSealUntil = {0};
 };
 }  // namespace consensus
 }  // namespace bcos

@@ -159,8 +159,9 @@ void LedgerStorage::asyncGetCommittedProposals(
                 {
                     if (value.empty())
                     {
-                        PBFT_STORAGE_LOG(WARNING) << LOG_DESC(
-                            "asyncGetCommittedProposals: Discontinuous committed proposal");
+                        PBFT_STORAGE_LOG(INFO)
+                            << LOG_DESC("asyncGetCommittedProposals: empty committed proposal")
+                            << LOG_KV("valuesSize", _values->size());
                         _onSuccess(nullptr);
                         return;
                     }
@@ -252,15 +253,19 @@ void LedgerStorage::asyncCommitProposal(PBFTProposalInterface::Ptr _committedPro
 void LedgerStorage::asyncPutProposal(std::string const& _dbName, std::string const& _key,
     bytesPointer _committedData, BlockNumber _proposalIndex, size_t _retryTime)
 {
+    auto startT = utcTime();
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
     m_storage->asyncPut(_dbName, _key,
         std::string_view((const char*)_committedData->data(), _committedData->size()),
-        [_dbName, _committedData, _key, _proposalIndex, _retryTime, self](Error::Ptr _error) {
+        [startT, _dbName, _committedData, _key, _proposalIndex, _retryTime, self](
+            Error::Ptr _error) {
             if (_error == nullptr)
             {
                 PBFT_STORAGE_LOG(INFO)
                     << LOG_DESC("asyncPutProposal: commit success") << LOG_KV("dbName", _dbName)
-                    << LOG_KV("key", _key) << LOG_KV("number", _proposalIndex);
+                    << LOG_KV("key", _key) << LOG_KV("number", _proposalIndex)
+                    << LOG_KV("timecost", (utcTime() - startT))
+                    << LOG_KV("dataSize", _committedData->size());
                 return;
             }
             PBFT_STORAGE_LOG(WARNING)
@@ -340,14 +345,10 @@ void LedgerStorage::asyncCommitStableCheckPoint(
                 PBFT_STORAGE_LOG(INFO) << LOG_DESC("asyncCommitStableCheckPoint success")
                                        << LOG_KV("index", _blockHeader->number())
                                        << LOG_KV("hash", _ledgerConfig->hash().abridged())
+                                       << LOG_KV("txs", _blockInfo->transactionsHashSize())
                                        << LOG_KV("timeCost", utcTime() - startT);
-
-                // resetConfig
                 _ledgerConfig->setSealerId(_blockHeader->sealer());
-                if (ledgerStorage->m_resetConfigHandler)
-                {
-                    ledgerStorage->m_resetConfigHandler(_ledgerConfig);
-                }
+                _ledgerConfig->setTxsSize(_blockInfo->transactionsHashSize());
                 // finalize consensus
                 if (ledgerStorage->m_finalizeHandler)
                 {
@@ -359,7 +360,13 @@ void LedgerStorage::asyncCommitStableCheckPoint(
                     ledgerStorage->m_notifyHandler(_blockInfo, _blockHeader);
                 }
                 // remove the proposal committed into the ledger
-                ledgerStorage->asyncRemoveStabledCheckPoint(_blockHeader->number());
+                // don't remove the latest stabled checkpoint to response checkpoint msg to the
+                // requester
+                if (_blockHeader->number() > ledgerStorage->c_reservedCheckPointSize)
+                {
+                    ledgerStorage->asyncRemoveStabledCheckPoint(
+                        _blockHeader->number() - ledgerStorage->c_reservedCheckPointSize);
+                }
             }
             catch (std::exception const& e)
             {

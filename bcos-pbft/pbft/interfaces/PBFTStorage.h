@@ -45,9 +45,6 @@ public:
     // get the latest committed proposal from the storage
     virtual void asyncGetCommittedProposals(bcos::protocol::BlockNumber _start, size_t _offset,
         std::function<void(PBFTProposalListPtr)> _onSuccess) = 0;
-    virtual void registerConfigResetHandler(
-        std::function<void(bcos::ledger::LedgerConfig::Ptr)> _resetConfigHandler) = 0;
-
     virtual void registerFinalizeHandler(
         std::function<void(bcos::ledger::LedgerConfig::Ptr, bool)> _finalizeHandler) = 0;
     virtual void registerNotifyHandler(

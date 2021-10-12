@@ -153,10 +153,11 @@ public:
 
     void executeWorkerByRoundbin() { return PBFTEngine::executeWorker(); }
 
-    void onRecvProposal(bytesConstRef _proposalData, bcos::protocol::BlockNumber _proposalIndex,
+    void onRecvProposal(bool _containSysTxs, bytesConstRef _proposalData,
+        bcos::protocol::BlockNumber _proposalIndex,
         bcos::crypto::HashType const& _proposalHash) override
     {
-        PBFTEngine::onRecvProposal(_proposalData, _proposalIndex, _proposalHash);
+        PBFTEngine::onRecvProposal(_containSysTxs, _proposalData, _proposalIndex, _proposalHash);
     }
 
     bool handlePrePrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg,

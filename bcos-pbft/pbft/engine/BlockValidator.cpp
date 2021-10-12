@@ -50,6 +50,11 @@ void BlockValidator::asyncCheckBlock(
                 _onVerifyFinish(nullptr, false);
                 return;
             }
+            if (_block->transactionsSize() == 0)
+            {
+                _onVerifyFinish(nullptr, true);
+                return;
+            }
             if (!validator->checkSealerListAndWeightList(_block))
             {
                 _onVerifyFinish(nullptr, false);

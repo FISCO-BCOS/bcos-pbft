@@ -61,6 +61,10 @@ public:
     // the signature to the proposal(optional)
     virtual bytesConstRef signature() const = 0;
     virtual void setSignature(bytes const& _signature) = 0;
+
+    // the proposal type
+    virtual bool systemProposal() const = 0;
+    virtual void setSystemProposal(bool _systemProposal) = 0;
 };
 using ProposalList = std::vector<ProposalInterface::Ptr>;
 using ProposalListPtr = std::shared_ptr<ProposalList>;

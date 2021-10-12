@@ -26,7 +26,7 @@ using namespace bcos::consensus;
 using namespace bcos::protocol;
 using namespace bcos::crypto;
 
-void StateMachine::asyncApply(ConsensusNodeList const& _consensusNodeInfo,
+void StateMachine::asyncApply(ssize_t _execTimeout,
     ProposalInterface::ConstPtr _lastAppliedProposal, ProposalInterface::Ptr _proposal,
     ProposalInterface::Ptr _executedProposal, std::function<void(bool)> _onExecuteFinished)
 {
@@ -71,18 +71,10 @@ void StateMachine::asyncApply(ConsensusNodeList const& _consensusNodeInfo,
     }
     // supplement the header info
     block->blockHeader()->setSealer(_proposal->sealerId());
-    std::vector<bytes> sealerList;
-    std::vector<uint64_t> weightList;
-    for (auto const& consensusNode : _consensusNodeInfo)
-    {
-        sealerList.push_back(consensusNode->nodeID()->data());
-        weightList.push_back(consensusNode->weight());
-    }
-    block->blockHeader()->setSealerList(std::move(sealerList));
-    block->blockHeader()->setConsensusWeights(std::move(weightList));
     // calls dispatcher to execute the block
     auto startT = utcTime();
-    m_scheduler->executeBlock(block, false,
+    m_scheduler->executeBlock(
+        block, false,
         [startT, block, _onExecuteFinished, _proposal, _executedProposal](
             Error::Ptr&& _error, BlockHeader::Ptr&& _blockHeader) {
             if (!_onExecuteFinished)
@@ -106,6 +98,8 @@ void StateMachine::asyncApply(ConsensusNodeList const& _consensusNodeInfo,
                                 << LOG_KV("txsRoot", _blockHeader->txsRoot().abridged())
                                 << LOG_KV("receiptsRoot", _blockHeader->receiptsRoot().abridged())
                                 << LOG_KV("stateRoot", _blockHeader->stateRoot().abridged())
+                                << LOG_KV("txs", block->transactionsHashSize())
+                                << LOG_KV("timeCost", (utcTime() - startT))
                                 << LOG_KV("execPerTx", execT);
             if (_blockHeader->number() != block->blockHeader()->number())
             {
@@ -121,6 +115,7 @@ void StateMachine::asyncApply(ConsensusNodeList const& _consensusNodeInfo,
             // the transactions hash list
             _executedProposal->setExtraData(_proposal->data());
             _onExecuteFinished(true);
-        });
+        },
+        _execTimeout);
     return;
 }

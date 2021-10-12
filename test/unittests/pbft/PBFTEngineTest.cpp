@@ -73,16 +73,16 @@ void testPBFTEngineWithFaulty(size_t _consensusNodes, size_t _connectedNodes)
     // check the duplicated case
     for (size_t i = 0; i < 3; i++)
     {
-        leaderFaker->pbftEngine()->asyncSubmitProposal(
-            ref(*blockData), block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
+        leaderFaker->pbftEngine()->asyncSubmitProposal(false, ref(*blockData),
+            block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
     }
     // Discontinuous case
     auto faker = fakerMap[3];
     block = fakeBlock(cryptoSuite, faker, currentBlockNumber + 4, 10);
     blockData = std::make_shared<bytes>();
     block->encode(*blockData);
-    faker->pbftEngine()->asyncSubmitProposal(
-        ref(*blockData), block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
+    faker->pbftEngine()->asyncSubmitProposal(false, ref(*blockData), block->blockHeader()->number(),
+        block->blockHeader()->hash(), nullptr);
 
     // the next leader seal the next block
     IndexType nextLeaderIndex = 1;
@@ -91,8 +91,8 @@ void testPBFTEngineWithFaulty(size_t _consensusNodes, size_t _connectedNodes)
     block = fakeBlock(cryptoSuite, nextLeaderFacker, nextBlock, 10);
     blockData = std::make_shared<bytes>();
     block->encode(*blockData);
-    nextLeaderFacker->pbftEngine()->asyncSubmitProposal(
-        ref(*blockData), block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
+    nextLeaderFacker->pbftEngine()->asyncSubmitProposal(false, ref(*blockData),
+        block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
 
     // handle prepare message and broadcast commit messages
     auto startT = utcTime();
@@ -111,8 +111,8 @@ void testPBFTEngineWithFaulty(size_t _consensusNodes, size_t _connectedNodes)
     block = fakeBlock(cryptoSuite, faker, currentBlockNumber + 3, 10);
     blockData = std::make_shared<bytes>();
     block->encode(*blockData);
-    faker->pbftEngine()->asyncSubmitProposal(
-        ref(*blockData), block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
+    faker->pbftEngine()->asyncSubmitProposal(false, ref(*blockData), block->blockHeader()->number(),
+        block->blockHeader()->hash(), nullptr);
 
     startT = utcTime();
     while (!shouldExit(fakerMap, currentBlockNumber + 4, _connectedNodes) &&
@@ -151,6 +151,12 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
     auto leaderFaker = fakerMap[expectedLeader];
     auto nonLeaderFaker = fakerMap[(expectedLeader + 1) % consensusNodeSize];
 
+    auto ledgerConfig = leaderFaker->ledger()->ledgerConfig();
+    auto parent = (leaderFaker->ledger()->ledgerData())[ledgerConfig->blockNumber()];
+    auto block = leaderFaker->ledger()->init(parent->blockHeader(), true, expectedIndex, 0, 0);
+    auto blockData = std::make_shared<bytes>();
+    block->encode(*blockData);
+
     // case1: invalid block number
     auto hash = hashImpl->hash(std::string("invalidCase"));
     auto leaderMsgFixture =
@@ -161,8 +167,8 @@ BOOST_AUTO_TEST_CASE(testHandlePrePrepareMsg)
         hash, index, bytes(), 0, leaderMsgFixture, PacketType::PrePreparePacket);
 
     auto fakedProposal =
-        leaderMsgFixture->fakePBFTProposal(leaderFaker->ledger()->blockNumber() + 1, hash, bytes(),
-            std::vector<int64_t>(), std::vector<bytes>());
+        leaderMsgFixture->fakePBFTProposal(leaderFaker->ledger()->blockNumber() + 1, hash,
+            *blockData, std::vector<int64_t>(), std::vector<bytes>());
     pbftMsg->setConsensusProposal(fakedProposal);
     auto data = leaderFaker->pbftConfig()->codec()->encode(pbftMsg);
 
