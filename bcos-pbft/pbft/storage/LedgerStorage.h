@@ -23,7 +23,7 @@
 #include "../interfaces/PBFTStorage.h"
 #include <bcos-framework/interfaces/dispatcher/SchedulerInterface.h>
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
-#include <bcos-framework/interfaces/storage/StorageInterface.h>
+#include <bcos-framework/libutilities/KVStorageHelper.h>
 
 namespace bcos
 {
@@ -33,15 +33,18 @@ class LedgerStorage : public PBFTStorage, public std::enable_shared_from_this<Le
 {
 public:
     using Ptr = std::shared_ptr<LedgerStorage>;
-    LedgerStorage(bcos::dispatcher::SchedulerInterface::Ptr _scheduler,
-        bcos::storage::KVStorageInterface::Ptr _storage,
+    LedgerStorage(bcos::scheduler::SchedulerInterface::Ptr _scheduler,
+        std::shared_ptr<bcos::storage::KVStorageHelper> _storage,
         bcos::protocol::BlockFactory::Ptr _blockFactory, PBFTMessageFactory::Ptr _messageFactory)
       : m_scheduler(_scheduler),
         m_storage(_storage),
         m_blockFactory(_blockFactory),
         m_messageFactory(_messageFactory)
-    {}
+    {
+        createKVTable(m_pbftCommitDB);
+    }
 
+    void createKVTable(std::string const& _dbName);
     PBFTProposalListPtr loadState(bcos::protocol::BlockNumber _stabledIndex) override;
 
     // commit the committed proposal into the kv-storage
@@ -81,8 +84,8 @@ protected:
     virtual void asyncGetLatestCommittedProposalIndex();
 
 protected:
-    bcos::dispatcher::SchedulerInterface::Ptr m_scheduler;
-    bcos::storage::KVStorageInterface::Ptr m_storage;
+    bcos::scheduler::SchedulerInterface::Ptr m_scheduler;
+    std::shared_ptr<bcos::storage::KVStorageHelper> m_storage;
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
     PBFTMessageFactory::Ptr m_messageFactory;
 

@@ -26,9 +26,9 @@ using namespace bcos::consensus;
 using namespace bcos::protocol;
 using namespace bcos::crypto;
 
-void StateMachine::asyncApply(ssize_t _execTimeout,
-    ProposalInterface::ConstPtr _lastAppliedProposal, ProposalInterface::Ptr _proposal,
-    ProposalInterface::Ptr _executedProposal, std::function<void(bool)> _onExecuteFinished)
+void StateMachine::asyncApply(ssize_t, ProposalInterface::ConstPtr _lastAppliedProposal,
+    ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
+    std::function<void(bool)> _onExecuteFinished)
 {
     if (_proposal->index() <= _lastAppliedProposal->index())
     {
@@ -73,8 +73,7 @@ void StateMachine::asyncApply(ssize_t _execTimeout,
     block->blockHeader()->setSealer(_proposal->sealerId());
     // calls dispatcher to execute the block
     auto startT = utcTime();
-    m_scheduler->executeBlock(
-        block, false,
+    m_scheduler->executeBlock(block, false,
         [startT, block, _onExecuteFinished, _proposal, _executedProposal](
             Error::Ptr&& _error, BlockHeader::Ptr&& _blockHeader) {
             if (!_onExecuteFinished)
@@ -115,7 +114,6 @@ void StateMachine::asyncApply(ssize_t _execTimeout,
             // the transactions hash list
             _executedProposal->setExtraData(_proposal->data());
             _onExecuteFinished(true);
-        },
-        _execTimeout);
+        });
     return;
 }

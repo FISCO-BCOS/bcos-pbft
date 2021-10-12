@@ -29,8 +29,9 @@
 #include <bcos-framework/libprotocol/protobuf/PBBlockHeaderFactory.h>
 #include <bcos-framework/libprotocol/protobuf/PBTransactionFactory.h>
 #include <bcos-framework/libprotocol/protobuf/PBTransactionReceiptFactory.h>
+#include <bcos-framework/libstorage/StateStorage.h>
+#include <bcos-framework/libutilities/KVStorageHelper.h>
 #include <bcos-framework/testutils/faker/FakeFrontService.h>
-#include <bcos-framework/testutils/faker/FakeKVStorage.h>
 #include <bcos-framework/testutils/faker/FakeLedger.h>
 #include <bcos-framework/testutils/faker/FakeScheduler.h>
 #include <bcos-framework/testutils/faker/FakeSealer.h>
@@ -47,7 +48,7 @@ using namespace bcos::ledger;
 using namespace bcos::txpool;
 using namespace bcos::sealer;
 using namespace bcos::protocol;
-using namespace bcos::dispatcher;
+using namespace bcos::scheduler;
 using namespace bcos::consensus;
 
 namespace bcos
@@ -185,9 +186,9 @@ public:
     FakePBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
         bcos::crypto::KeyPairInterface::Ptr _keyPair,
         std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
-        bcos::storage::KVStorageInterface::Ptr _storage,
+        std::shared_ptr<bcos::storage::KVStorageHelper> _storage,
         std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
-        bcos::dispatcher::SchedulerInterface::Ptr _scheduler,
+        bcos::scheduler::SchedulerInterface::Ptr _scheduler,
         bcos::txpool::TxPoolInterface::Ptr _txpool, bcos::protocol::BlockFactory::Ptr _blockFactory,
         bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory)
       : PBFTFactory(_cryptoSuite, _keyPair, _frontService, _storage, _ledger, _scheduler, _txpool,
@@ -235,8 +236,8 @@ public:
         // create fakeFrontService
         m_frontService = std::make_shared<FakeFrontService>(_keyPair->publicKey());
 
-        // create FakeKVStorage
-        m_storage = std::make_shared<FakeKVStorage>();
+        // create KVStorageHelper
+        m_storage = std::make_shared<KVStorageHelper>(std::make_shared<StateStorage>(nullptr));
 
         // create fakeLedger
         if (_ledger == nullptr)
@@ -287,7 +288,7 @@ public:
     void clearConsensusNodeList() { m_ledger->ledgerConfig()->mutableConsensusNodeList().clear(); }
 
     FakeFrontService::Ptr frontService() { return m_frontService; }
-    FakeKVStorage::Ptr storage() { return m_storage; }
+    std::shared_ptr<KVStorageHelper> storage() { return m_storage; }
     FakeLedger::Ptr ledger() { return m_ledger; }
     FakeTxPool::Ptr txpool() { return m_txpool; }
     FakeScheduler::Ptr scheduler() { return m_scheduler; }
@@ -312,7 +313,7 @@ private:
     BlockFactory::Ptr m_blockFactory;
 
     FakeFrontService::Ptr m_frontService;
-    FakeKVStorage::Ptr m_storage;
+    std::shared_ptr<KVStorageHelper> m_storage;
     FakeLedger::Ptr m_ledger;
     FakeTxPool::Ptr m_txpool;
     FakeScheduler::Ptr m_scheduler;

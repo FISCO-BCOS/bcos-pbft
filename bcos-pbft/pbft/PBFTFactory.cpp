@@ -34,10 +34,10 @@ using namespace bcos::protocol;
 PBFTFactory::PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
     bcos::crypto::KeyPairInterface::Ptr _keyPair,
     std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
-    bcos::storage::KVStorageInterface::Ptr _storage,
+    std::shared_ptr<bcos::storage::KVStorageHelper> _storage,
     std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
-    bcos::dispatcher::SchedulerInterface::Ptr _scheduler,
-    bcos::txpool::TxPoolInterface::Ptr _txpool, bcos::protocol::BlockFactory::Ptr _blockFactory,
+    bcos::scheduler::SchedulerInterface::Ptr _scheduler, bcos::txpool::TxPoolInterface::Ptr _txpool,
+    bcos::protocol::BlockFactory::Ptr _blockFactory,
     bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory)
   : m_cryptoSuite(_cryptoSuite),
     m_keyPair(_keyPair),
