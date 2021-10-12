@@ -32,9 +32,9 @@ public:
     StateMachineInterface() = default;
     virtual ~StateMachineInterface() {}
 
-    virtual void asyncApply(bcos::consensus::ConsensusNodeList const& _consensusNodeInfo,
-        ProposalInterface::ConstPtr _lastAppliedProposal, ProposalInterface::Ptr _proposal,
-        ProposalInterface::Ptr _executedProposal, std::function<void(bool)> _onExecuteFinished) = 0;
+    virtual void asyncApply(ssize_t _execTimeout, ProposalInterface::ConstPtr _lastAppliedProposal,
+        ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
+        std::function<void(bool)> _onExecuteFinished) = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

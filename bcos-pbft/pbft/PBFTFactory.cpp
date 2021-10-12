@@ -34,10 +34,10 @@ using namespace bcos::protocol;
 PBFTFactory::PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
     bcos::crypto::KeyPairInterface::Ptr _keyPair,
     std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
-    bcos::storage::KVStorageInterface::Ptr _storage,
+    std::shared_ptr<bcos::storage::KVStorageHelper> _storage,
     std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
-    bcos::dispatcher::SchedulerInterface::Ptr _scheduler,
-    bcos::txpool::TxPoolInterface::Ptr _txpool, bcos::protocol::BlockFactory::Ptr _blockFactory,
+    bcos::scheduler::SchedulerInterface::Ptr _scheduler, bcos::txpool::TxPoolInterface::Ptr _txpool,
+    bcos::protocol::BlockFactory::Ptr _blockFactory,
     bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory)
   : m_cryptoSuite(_cryptoSuite),
     m_keyPair(_keyPair),
@@ -53,24 +53,24 @@ PBFTFactory::PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
 PBFTImpl::Ptr PBFTFactory::createPBFT()
 {
     auto pbftMessageFactory = std::make_shared<PBFTMessageFactoryImpl>();
-    PBFT_LOG(DEBUG) << LOG_DESC("create PBFTCodec");
+    PBFT_LOG(INFO) << LOG_DESC("create PBFTCodec");
     auto pbftCodec = std::make_shared<PBFTCodec>(m_keyPair, m_cryptoSuite, pbftMessageFactory);
 
-    PBFT_LOG(DEBUG) << LOG_DESC("create PBFT validator");
+    PBFT_LOG(INFO) << LOG_DESC("create PBFT validator");
     auto validator = std::make_shared<TxsValidator>(m_txpool, m_blockFactory, m_txResultFactory);
 
     PBFT_LOG(DEBUG) << LOG_DESC("create StateMachine");
     auto stateMachine = std::make_shared<StateMachine>(m_scheduler, m_blockFactory);
 
-    PBFT_LOG(DEBUG) << LOG_DESC("create pbftStorage");
+    PBFT_LOG(INFO) << LOG_DESC("create pbftStorage");
     auto pbftStorage =
         std::make_shared<LedgerStorage>(m_scheduler, m_storage, m_blockFactory, pbftMessageFactory);
 
-    PBFT_LOG(DEBUG) << LOG_DESC("create pbftConfig");
+    PBFT_LOG(INFO) << LOG_DESC("create pbftConfig");
     auto pbftConfig = std::make_shared<PBFTConfig>(m_cryptoSuite, m_keyPair, pbftMessageFactory,
         pbftCodec, validator, m_frontService, stateMachine, pbftStorage);
 
-    PBFT_LOG(DEBUG) << LOG_DESC("create PBFTEngine");
+    PBFT_LOG(INFO) << LOG_DESC("create PBFTEngine");
     auto pbftEngine = std::make_shared<PBFTEngine>(pbftConfig);
 
     PBFT_LOG(INFO) << LOG_DESC("create PBFT");

@@ -23,9 +23,9 @@
 #include "config/PBFTConfig.h"
 #include <bcos-framework/interfaces/dispatcher/DispatcherInterface.h>
 #include <bcos-framework/interfaces/dispatcher/SchedulerInterface.h>
-#include <bcos-framework/interfaces/storage/StorageInterface.h>
 #include <bcos-framework/interfaces/sync/BlockSyncInterface.h>
 #include <bcos-framework/libtool/LedgerConfigFetcher.h>
+#include <bcos-framework/libutilities/KVStorageHelper.h>
 
 namespace bcos
 {
@@ -38,9 +38,9 @@ public:
     PBFTFactory(bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
         bcos::crypto::KeyPairInterface::Ptr _keyPair,
         std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
-        bcos::storage::KVStorageInterface::Ptr _storage,
+        std::shared_ptr<bcos::storage::KVStorageHelper> _storage,
         std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
-        bcos::dispatcher::SchedulerInterface::Ptr _scheduler,
+        bcos::scheduler::SchedulerInterface::Ptr _scheduler,
         bcos::txpool::TxPoolInterface::Ptr _txpool, bcos::protocol::BlockFactory::Ptr _blockFactory,
         bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory);
 
@@ -51,9 +51,9 @@ protected:
     bcos::crypto::CryptoSuite::Ptr m_cryptoSuite;
     bcos::crypto::KeyPairInterface::Ptr m_keyPair;
     std::shared_ptr<bcos::front::FrontServiceInterface> m_frontService;
-    bcos::storage::KVStorageInterface::Ptr m_storage;
+    std::shared_ptr<bcos::storage::KVStorageHelper> m_storage;
     std::shared_ptr<bcos::ledger::LedgerInterface> m_ledger;
-    bcos::dispatcher::SchedulerInterface::Ptr m_scheduler;
+    bcos::scheduler::SchedulerInterface::Ptr m_scheduler;
     bcos::txpool::TxPoolInterface::Ptr m_txpool;
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
     bcos::protocol::TransactionSubmitResultFactory::Ptr m_txResultFactory;

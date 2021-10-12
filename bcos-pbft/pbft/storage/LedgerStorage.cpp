@@ -22,8 +22,7 @@
 #include "../utilities/Common.h"
 #include <bcos-framework/interfaces/protocol/CommonError.h>
 #include <bcos-framework/interfaces/protocol/ProtocolTypeDef.h>
-#include <bcos-framework/interfaces/storage/StorageInterface.h>
-
+#include <bcos-framework/interfaces/storage/Table.h>
 
 using namespace bcos;
 using namespace bcos::consensus;
@@ -138,7 +137,8 @@ void LedgerStorage::asyncGetCommittedProposals(
     }
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
     m_storage->asyncGetBatch(m_pbftCommitDB, keys,
-        [self, _onSuccess](Error::Ptr _error, std::shared_ptr<std::vector<std::string>> _values) {
+        [self, _onSuccess](
+            Error::UniquePtr&& _error, std::shared_ptr<std::vector<std::string>>&& _values) {
             if (_error != nullptr)
             {
                 PBFT_STORAGE_LOG(WARNING)
@@ -159,8 +159,9 @@ void LedgerStorage::asyncGetCommittedProposals(
                 {
                     if (value.empty())
                     {
-                        PBFT_STORAGE_LOG(WARNING) << LOG_DESC(
-                            "asyncGetCommittedProposals: Discontinuous committed proposal");
+                        PBFT_STORAGE_LOG(INFO)
+                            << LOG_DESC("asyncGetCommittedProposals: empty committed proposal")
+                            << LOG_KV("valuesSize", _values->size());
                         _onSuccess(nullptr);
                         return;
                     }
@@ -184,7 +185,7 @@ void LedgerStorage::asyncGetLatestCommittedProposalIndex()
 {
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
     m_storage->asyncGet(m_pbftCommitDB, m_maxCommittedProposalKey,
-        [self](Error::Ptr _error, const std::string& _value) {
+        [self](Error::UniquePtr&& _error, std::string_view&& _value) {
             try
             {
                 auto storage = self.lock();
@@ -193,7 +194,7 @@ void LedgerStorage::asyncGetLatestCommittedProposalIndex()
                     storage->m_signalled.notify_all();
                     return;
                 }
-                if (_error != nullptr && _error->errorCode() == StorageErrorCode::NotFound)
+                if (_value.size() == 0)
                 {
                     storage->m_maxCommittedProposalIndexFetched = true;
                     storage->m_signalled.notify_all();
@@ -252,15 +253,20 @@ void LedgerStorage::asyncCommitProposal(PBFTProposalInterface::Ptr _committedPro
 void LedgerStorage::asyncPutProposal(std::string const& _dbName, std::string const& _key,
     bytesPointer _committedData, BlockNumber _proposalIndex, size_t _retryTime)
 {
+    auto startT = utcTime();
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
+    // TODO: optimize here to decrease copy overhead
     m_storage->asyncPut(_dbName, _key,
-        std::string_view((const char*)_committedData->data(), _committedData->size()),
-        [_dbName, _committedData, _key, _proposalIndex, _retryTime, self](Error::Ptr _error) {
+        std::string((const char*)_committedData->data(), _committedData->size()),
+        [startT, _dbName, _committedData, _key, _proposalIndex, _retryTime, self](
+            Error::UniquePtr&& _error) {
             if (_error == nullptr)
             {
                 PBFT_STORAGE_LOG(INFO)
                     << LOG_DESC("asyncPutProposal: commit success") << LOG_KV("dbName", _dbName)
-                    << LOG_KV("key", _key) << LOG_KV("number", _proposalIndex);
+                    << LOG_KV("key", _key) << LOG_KV("number", _proposalIndex)
+                    << LOG_KV("timecost", (utcTime() - startT))
+                    << LOG_KV("dataSize", _committedData->size());
                 return;
             }
             PBFT_STORAGE_LOG(WARNING)
@@ -340,14 +346,10 @@ void LedgerStorage::asyncCommitStableCheckPoint(
                 PBFT_STORAGE_LOG(INFO) << LOG_DESC("asyncCommitStableCheckPoint success")
                                        << LOG_KV("index", _blockHeader->number())
                                        << LOG_KV("hash", _ledgerConfig->hash().abridged())
+                                       << LOG_KV("txs", _blockInfo->transactionsHashSize())
                                        << LOG_KV("timeCost", utcTime() - startT);
-
-                // resetConfig
                 _ledgerConfig->setSealerId(_blockHeader->sealer());
-                if (ledgerStorage->m_resetConfigHandler)
-                {
-                    ledgerStorage->m_resetConfigHandler(_ledgerConfig);
-                }
+                _ledgerConfig->setTxsSize(_blockInfo->transactionsHashSize());
                 // finalize consensus
                 if (ledgerStorage->m_finalizeHandler)
                 {
@@ -359,7 +361,13 @@ void LedgerStorage::asyncCommitStableCheckPoint(
                     ledgerStorage->m_notifyHandler(_blockInfo, _blockHeader);
                 }
                 // remove the proposal committed into the ledger
-                ledgerStorage->asyncRemoveStabledCheckPoint(_blockHeader->number());
+                // don't remove the latest stabled checkpoint to response checkpoint msg to the
+                // requester
+                if (_blockHeader->number() > ledgerStorage->c_reservedCheckPointSize)
+                {
+                    ledgerStorage->asyncRemoveStabledCheckPoint(
+                        _blockHeader->number() - ledgerStorage->c_reservedCheckPointSize);
+                }
             }
             catch (std::exception const& e)
             {
@@ -378,7 +386,7 @@ void LedgerStorage::asyncRemoveStabledCheckPoint(size_t _stabledCheckPointIndex)
 
 void LedgerStorage::asyncRemove(std::string const& _dbName, std::string const& _key)
 {
-    m_storage->asyncRemove(_dbName, _key, [_dbName, _key](Error::Ptr _error) {
+    m_storage->asyncRemove(_dbName, _key, [_dbName, _key](const Error::Ptr& _error) {
         if (_error == nullptr)
         {
             PBFT_STORAGE_LOG(INFO) << LOG_DESC("asyncRemove success") << LOG_KV("dbName", _dbName)
@@ -389,4 +397,32 @@ void LedgerStorage::asyncRemove(std::string const& _dbName, std::string const& _
         PBFT_STORAGE_LOG(WARNING) << LOG_DESC("asyncRemove failed") << LOG_KV("dbName", _dbName)
                                   << LOG_KV("key", _key);
     });
+}
+
+void LedgerStorage::createKVTable(std::string const& _dbName)
+{
+    auto ret = std::make_shared<std::promise<Error::Ptr>>();
+    auto future = ret->get_future();
+    std::string valueFields = "value";
+    m_storage->storage()->asyncCreateTable(
+        _dbName, valueFields, [_dbName, ret](Error::UniquePtr&& _error, std::optional<Table>&&) {
+            if (_error && _error->errorCode() != bcos::storage::StorageError::TableExists)
+            {
+                PBFT_STORAGE_LOG(WARNING)
+                    << LOG_DESC("createKVTable error") << LOG_KV("table", _dbName)
+                    << LOG_KV("code", _error->errorCode()) << LOG_KV("msg", _error->errorMessage());
+                ret->set_value(std::move(_error));
+                return;
+            }
+            ret->set_value(nullptr);
+            PBFT_STORAGE_LOG(INFO) << LOG_DESC("createKVTable success") << LOG_KV("table", _dbName);
+        });
+    auto error = future.get();
+    if (error)
+    {
+        BOOST_THROW_EXCEPTION(
+            InitPBFTException() << errinfo_comment(
+                "Create PBFT backup DB failed, code: " + std::to_string(error->errorCode()) +
+                ", message:" + error->errorMessage()));
+    }
 }

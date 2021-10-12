@@ -53,13 +53,14 @@ class PBFTEngine : public ConsensusEngine, public std::enable_shared_from_this<P
 {
 public:
     using Ptr = std::shared_ptr<PBFTEngine>;
+    using SendResponseCallback = std::function<void(bytesConstRef _respData)>;
     explicit PBFTEngine(std::shared_ptr<PBFTConfig> _config);
     ~PBFTEngine() override { stop(); }
 
     void start() override;
     void stop() override;
 
-    virtual void asyncSubmitProposal(bytesConstRef _proposalData,
+    virtual void asyncSubmitProposal(bool _containSysTxs, bytesConstRef _proposalData,
         bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash,
         std::function<void(Error::Ptr)> _onProposalSubmitted);
 
@@ -89,9 +90,9 @@ public:
 protected:
     virtual void initSendResponseHandler();
     virtual void onReceivePBFTMessage(bcos::Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
-        bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse);
+        bytesConstRef _data, SendResponseCallback _sendResponse);
 
-    virtual void onRecvProposal(bytesConstRef _proposalData,
+    virtual void onRecvProposal(bool _containSysTxs, bytesConstRef _proposalData,
         bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash);
 
     // PBFT main processing function
@@ -104,6 +105,8 @@ protected:
     virtual bool handlePrePrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg,
         bool _needVerifyProposal, bool _generatedFromNewView = false,
         bool _needCheckSignature = true);
+    virtual void resetSealedTxs(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg);
+
     virtual CheckResult checkPrePrepareMsg(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg);
     virtual CheckResult checkSignature(std::shared_ptr<PBFTBaseMessageInterface> _req);
     virtual bool checkProposalSignature(
@@ -125,7 +128,7 @@ protected:
     virtual void sendViewChange(bcos::crypto::NodeIDPtr _dstNode);
 
     virtual bool handleViewChangeMsg(std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg);
-    virtual bool isValidViewChangeMsg(
+    virtual bool isValidViewChangeMsg(bcos::crypto::NodeIDPtr _fromNode,
         std::shared_ptr<ViewChangeMsgInterface> _viewChangeMsg, bool _shouldCheckSig = true);
 
     virtual bool handleNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg);
@@ -146,10 +149,33 @@ protected:
     virtual void onProposalApplySuccess(
         PBFTProposalInterface::Ptr _proposal, PBFTProposalInterface::Ptr _executedProposal);
     virtual void onProposalApplyFailed(PBFTProposalInterface::Ptr _proposal);
-
-    virtual void resetSealedTxs(std::shared_ptr<PBFTMessageInterface> _prePrepareMsg);
-
     virtual void onLoadAndVerifyProposalSucc(PBFTProposalInterface::Ptr _proposal);
+    virtual void triggerTimeout();
+
+    void handleRecoverResponse(PBFTMessageInterface::Ptr _recoverResponse);
+    void handleRecoverRequest(PBFTMessageInterface::Ptr _request);
+    void sendRecoverResponse(bcos::crypto::NodeIDPtr _dstNode);
+    bool isSyncingHigher();
+    /**
+     * @brief Receive proposal requests from other nodes and reply to corresponding proposals
+     *
+     * @param _pbftMsg the proposal request
+     * @param _sendResponse callback used to send the requested-proposals back to the node
+     */
+    virtual void onReceiveCommittedProposalRequest(
+        PBFTBaseMessageInterface::Ptr _pbftMsg, SendResponseCallback _sendResponse);
+
+    /**
+     * @brief Receive precommit requests from other nodes and reply to the corresponding precommit
+     * data
+     *
+     * @param _pbftMessage the precommit request
+     * @param _sendResponse callback used to send the requested-proposals back to the node
+     */
+    virtual void onReceivePrecommitRequest(
+        std::shared_ptr<PBFTBaseMessageInterface> _pbftMessage, SendResponseCallback _sendResponse);
+    void sendCommittedProposalResponse(
+        PBFTProposalList const& _proposalList, SendResponseCallback _sendResponse);
 
 private:
     // utility functions
@@ -182,11 +208,12 @@ protected:
 
     const unsigned c_PopWaitSeconds = 5;
 
-
     // Message packets allowed to be processed in timeout mode
     const std::set<PacketType> c_timeoutAllowedPacket = {ViewChangePacket, NewViewPacket,
         CommittedProposalRequest, CommittedProposalResponse, PreparedProposalRequest,
-        PreparedProposalResponse, CheckPoint};
+        PreparedProposalResponse, CheckPoint, RecoverRequest, RecoverResponse};
+
+    const std::set<PacketType> c_consensusPacket = {PrePreparePacket, PreparePacket, CommitPacket};
 };
 }  // namespace consensus
 }  // namespace bcos

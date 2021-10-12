@@ -27,6 +27,14 @@ using namespace bcos::protocol;
 void TxsValidator::asyncResetTxsFlag(bytesConstRef _data, bool _flag)
 {
     auto block = m_blockFactory->createBlock(_data);
+    if (_flag)
+    {
+        // already has the reset request
+        if (!insertResettingProposal(block->blockHeader()->hash()))
+        {
+            return;
+        }
+    }
     auto self = std::weak_ptr<TxsValidator>(shared_from_this());
     m_worker->enqueue([self, block, _flag]() {
         try
@@ -66,20 +74,29 @@ void TxsValidator::asyncResetTxsFlag(
     m_txPool->asyncMarkTxs(_txsHashList, _flag, _block->blockHeader()->number(),
         _block->blockHeader()->hash(),
         [this, _block, _txsHashList, _flag, _retryTime](Error::Ptr _error) {
+            // must ensure asyncResetTxsFlag success before seal new next blocks
+            if (_flag)
+            {
+                eraseResettingProposal(_block->blockHeader()->hash());
+            }
             if (_error == nullptr)
             {
-                PBFT_LOG(DEBUG) << LOG_DESC("asyncMarkTxs success")
-                                << LOG_KV("index", _block->blockHeader()->number())
-                                << LOG_KV("hash", _block->blockHeader()->hash().abridged())
-                                << LOG_KV("flag", _flag);
+                PBFT_LOG(INFO) << LOG_DESC("asyncMarkTxs success")
+                               << LOG_KV("index", _block->blockHeader()->number())
+                               << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                               << LOG_KV("flag", _flag);
                 return;
             }
-            PBFT_LOG(DEBUG) << LOG_DESC("asyncMarkTxs failed")
-                            << LOG_KV("code", _error->errorCode())
-                            << LOG_KV("msg", _error->errorMessage());
+            PBFT_LOG(WARNING) << LOG_DESC("asyncMarkTxs failed")
+                              << LOG_KV("code", _error->errorCode())
+                              << LOG_KV("msg", _error->errorMessage());
             if (_retryTime >= 3)
             {
                 return;
+            }
+            if (_flag)
+            {
+                insertResettingProposal(_block->blockHeader()->hash());
             }
             this->asyncResetTxsFlag(_block, _txsHashList, _flag, _retryTime + 1);
         });

@@ -98,11 +98,25 @@ void PBFTCache::addCache(CollectionCacheType& _cachedReq, QuorumRecoderType& _we
 
 bool PBFTCache::conflictWithProcessedReq(PBFTMessageInterface::Ptr _msg)
 {
+    if (_msg->view() < m_config->view())
+    {
+        return true;
+    }
     if (!m_prePrepare)
     {
         return false;
     }
-    return (_msg->hash() != m_prePrepare->hash() || _msg->view() < m_prePrepare->view());
+    // expired msg
+    if (_msg->view() < m_prePrepare->view())
+    {
+        return true;
+    }
+    // conflict msg
+    if (_msg->view() == m_prePrepare->view())
+    {
+        return (_msg->hash() != m_prePrepare->hash());
+    }
+    return false;
 }
 
 bool PBFTCache::checkPrePrepareProposalStatus()
@@ -156,8 +170,8 @@ void PBFTCache::intoPrecommit()
     auto precommitProposalWithoutData =
         m_config->pbftMessageFactory()->populateFrom(m_precommit->consensusProposal(), false);
     m_precommitWithoutData->setConsensusProposal(precommitProposalWithoutData);
-    PBFT_LOG(DEBUG) << LOG_DESC("intoPrecommit") << printPBFTMsgInfo(m_precommit)
-                    << m_config->printCurrentState();
+    PBFT_LOG(INFO) << LOG_DESC("intoPrecommit") << printPBFTMsgInfo(m_precommit)
+                   << m_config->printCurrentState();
 }
 
 void PBFTCache::setSignatureList(PBFTProposalInterface::Ptr _proposal, CollectionCacheType& _cache)
@@ -218,10 +232,10 @@ bool PBFTCache::checkAndPreCommit()
     // add the commitReq to local cache
     addCommitCache(commitReq);
     // broadcast the commitReq
-    PBFT_LOG(DEBUG) << LOG_DESC("checkAndPreCommit: broadcast commitMsg")
-                    << LOG_KV("Idx", m_config->nodeIndex())
-                    << LOG_KV("hash", commitReq->hash().abridged())
-                    << LOG_KV("index", commitReq->index());
+    PBFT_LOG(INFO) << LOG_DESC("checkAndPreCommit: broadcast commitMsg")
+                   << LOG_KV("Idx", m_config->nodeIndex())
+                   << LOG_KV("hash", commitReq->hash().abridged())
+                   << LOG_KV("index", commitReq->index());
     auto encodedData = m_config->codec()->encode(commitReq, m_config->pbftMsgDefaultVersion());
     m_config->frontService()->asyncSendMessageByNodeIDs(
         bcos::protocol::ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
@@ -246,9 +260,9 @@ bool PBFTCache::checkAndCommit()
     {
         return false;
     }
-    PBFT_LOG(DEBUG) << LOG_DESC("checkAndCommit")
-                    << printPBFTProposal(m_precommit->consensusProposal())
-                    << m_config->printCurrentState();
+    PBFT_LOG(INFO) << LOG_DESC("checkAndCommit")
+                   << printPBFTProposal(m_precommit->consensusProposal())
+                   << m_config->printCurrentState();
     m_submitted.store(true);
     return true;
 }
@@ -269,6 +283,7 @@ void PBFTCache::resetCache(ViewType _curView)
     if (!m_precommit && m_prePrepare && m_prePrepare->consensusProposal() &&
         m_prePrepare->view() < _curView)
     {
+        // reset the exceptioned txs to unsealed
         m_config->validator()->asyncResetTxsFlag(m_prePrepare->consensusProposal()->data(), false);
     }
     // clear the expired prepare cache
@@ -298,8 +313,8 @@ void PBFTCache::setCheckPointProposal(PBFTProposalInterface::Ptr _proposal)
     m_checkpointProposal = _proposal;
     // Note: the timer can only been started after setCheckPointProposal success
     m_timer->start();
-    PBFT_LOG(DEBUG) << LOG_DESC("setCheckPointProposal") << printPBFTProposal(m_checkpointProposal)
-                    << m_config->printCurrentState();
+    PBFT_LOG(INFO) << LOG_DESC("setCheckPointProposal") << printPBFTProposal(m_checkpointProposal)
+                   << m_config->printCurrentState();
 }
 
 bool PBFTCache::collectEnoughCheckpoint()

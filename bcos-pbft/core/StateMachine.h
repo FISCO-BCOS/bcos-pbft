@@ -31,19 +31,18 @@ namespace consensus
 class StateMachine : public StateMachineInterface
 {
 public:
-    StateMachine(bcos::dispatcher::SchedulerInterface::Ptr _scheduler,
+    StateMachine(bcos::scheduler::SchedulerInterface::Ptr _scheduler,
         bcos::protocol::BlockFactory::Ptr _blockFactory)
       : m_scheduler(_scheduler), m_blockFactory(_blockFactory)
     {}
     ~StateMachine() override {}
 
-    void asyncApply(bcos::consensus::ConsensusNodeList const& _consensusNodeInfo,
-        ProposalInterface::ConstPtr _lastAppliedProposal, ProposalInterface::Ptr _proposal,
-        ProposalInterface::Ptr _executedProposal,
+    void asyncApply(ssize_t _execTimeout, ProposalInterface::ConstPtr _lastAppliedProposal,
+        ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
         std::function<void(bool)> _onExecuteFinished) override;
 
 protected:
-    bcos::dispatcher::SchedulerInterface::Ptr m_scheduler;
+    bcos::scheduler::SchedulerInterface::Ptr m_scheduler;
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
 };
 }  // namespace consensus

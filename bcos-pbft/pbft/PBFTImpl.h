@@ -40,7 +40,7 @@ public:
     void start() override;
     void stop() override;
 
-    void asyncSubmitProposal(bytesConstRef _proposalData,
+    void asyncSubmitProposal(bool _containSysTxs, bytesConstRef _proposalData,
         bcos::protocol::BlockNumber _proposalIndex, bcos::crypto::HashType const& _proposalHash,
         std::function<void(Error::Ptr)> _onProposalSubmitted) override;
 
@@ -103,6 +103,11 @@ public:
         std::function<void(std::function<void(Error::Ptr)>)> _sealerResetNotifier)
     {
         m_pbftEngine->pbftConfig()->registerSealerResetNotifier(_sealerResetNotifier);
+    }
+
+    ConsensusNodeList consensusNodeList() const override
+    {
+        return m_pbftEngine->pbftConfig()->consensusNodeList();
     }
 
 protected:

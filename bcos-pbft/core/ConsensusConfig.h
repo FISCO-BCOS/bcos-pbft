@@ -98,7 +98,14 @@ public:
         m_blockTxCountLimit = _blockTxCountLimit;
     }
     virtual uint64_t blockTxCountLimit() const { return m_blockTxCountLimit.load(); }
+    bcos::protocol::BlockNumber syncingHighestNumber() const { return m_syncingHighestNumber; }
+    void setSyncingHighestNumber(bcos::protocol::BlockNumber _number)
+    {
+        m_syncingHighestNumber = _number;
+    }
 
+private:
+    bool compareConsensusNode(ConsensusNodeList const& _left, ConsensusNodeList const& _right);
 
 protected:
     bcos::crypto::KeyPairInterface::Ptr m_keyPair;
@@ -117,6 +124,10 @@ protected:
     mutable bcos::SharedMutex x_committedProposal;
 
     std::atomic<bcos::protocol::BlockNumber> m_progressedIndex = {0};
+    std::atomic_bool m_syncingState = {false};
+    bcos::protocol::BlockNumber m_syncingHighestNumber = {0};
+
+    std::atomic_bool m_nodeUpdated = {false};
 };
 }  // namespace consensus
 }  // namespace bcos

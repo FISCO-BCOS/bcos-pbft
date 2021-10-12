@@ -112,6 +112,8 @@ public:
     virtual ViewChangeMsgInterface::Ptr fetchPrecommitData(
         bcos::protocol::BlockNumber _index, bcos::crypto::HashType const& _hash);
 
+    virtual PBFTProposalInterface::Ptr fetchPrecommitProposal(bcos::protocol::BlockNumber _index);
+
     virtual bool checkPrecommitMsg(PBFTMessageInterface::Ptr _precommitMsg);
 
     virtual void removeConsensusedCache(
@@ -128,7 +130,7 @@ public:
 
     virtual void resetTimer();
 
-    virtual bool shouldRequestCheckPoint(bcos::protocol::BlockNumber _checkPointIndex);
+    virtual bool shouldRequestCheckPoint(PBFTMessageInterface::Ptr _checkPointMsg);
 
     virtual void registerProposalAppliedHandler(
         std::function<void(bool, PBFTProposalInterface::Ptr, PBFTProposalInterface::Ptr)> _callback)
@@ -142,7 +144,7 @@ public:
     {
         m_committedProposalNotifier = _committedProposalNotifier;
     }
-    void tryToApplyCommitQueue();
+    bool tryToApplyCommitQueue();
 
     void removeFutureProposals();
     // notify the consensusing proposal index to the sync module
@@ -166,16 +168,19 @@ public:
     }
 
     virtual size_t executingProposalSize() { return m_executingProposals.size(); }
-
-    virtual std::set<bcos::crypto::HashType>& mutableExecutingProposals()
-    {
-        return m_executingProposals;
-    }
-
+    virtual void clearExpiredExecutingProposal();
     virtual void registerOnLoadAndVerifyProposalSucc(
         std::function<void(PBFTProposalInterface::Ptr)> _onLoadAndVerifyProposalSucc)
     {
         m_onLoadAndVerifyProposalSucc = _onLoadAndVerifyProposalSucc;
+    }
+
+    virtual void addRecoverReqCache(PBFTMessageInterface::Ptr _recoverResponse);
+    virtual bool checkAndTryToRecover();
+
+    std::map<bcos::crypto::HashType, bcos::protocol::BlockNumber> const& executingProposals()
+    {
+        return m_executingProposals;
     }
 
 protected:
@@ -200,6 +205,9 @@ protected:
     PBFTMessageList generatePrePrepareMsg(
         std::map<IndexType, ViewChangeMsgInterface::Ptr> _viewChangeCache);
     void reCalculateViewChangeWeight();
+    void removeInvalidRecoverCache(ViewType _view);
+
+    virtual void notifyToSealNextBlock(PBFTProposalInterface::Ptr _checkpointProposal);
 
 protected:
     PBFTCacheFactory::Ptr m_cacheFactory;
@@ -220,7 +228,7 @@ protected:
     std::priority_queue<PBFTProposalInterface::Ptr, std::vector<PBFTProposalInterface::Ptr>,
         PBFTProposalCmp>
         m_committedQueue;
-    std::set<bcos::crypto::HashType> m_executingProposals;
+    std::map<bcos::crypto::HashType, bcos::protocol::BlockNumber> m_executingProposals;
 
     std::set<bcos::protocol::BlockNumber> m_committedProposalList;
 
@@ -233,6 +241,12 @@ protected:
     std::function<void(bcos::protocol::BlockNumber, std::function<void(Error::Ptr)>)>
         m_committedProposalNotifier;
     std::function<void(PBFTProposalInterface::Ptr)> m_onLoadAndVerifyProposalSucc;
+
+    // the recover message cache
+    std::map<ViewType, std::map<IndexType, PBFTMessageInterface::Ptr>> m_recoverReqCache;
+    std::map<ViewType, uint64_t> m_recoverCacheWeight;
+
+    bcos::protocol::BlockNumber m_maxNotifyIndex = 0;
 };
 }  // namespace consensus
 }  // namespace bcos
