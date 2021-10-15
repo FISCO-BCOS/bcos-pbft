@@ -119,7 +119,7 @@ void PBFTEngine::stop()
 void PBFTEngine::onLoadAndVerifyProposalSucc(PBFTProposalInterface::Ptr _proposal)
 {
     // must add lock here to ensure thread-safe
-    Guard l(m_mutex);
+    RecursiveGuard l(m_mutex);
     m_cacheProcessor->updateCommitQueue(_proposal);
 }
 
@@ -128,7 +128,7 @@ void PBFTEngine::onProposalApplyFailed(PBFTProposalInterface::Ptr _proposal)
     PBFT_LOG(WARNING) << LOG_DESC("proposal execute failed") << printPBFTProposal(_proposal)
                       << m_config->printCurrentState();
     // Note: must add lock here to ensure thread-safe
-    Guard l(m_mutex);
+    RecursiveGuard l(m_mutex);
     // re-push the proposal into the queue
     if (_proposal->index() >= m_config->committedProposal()->index() ||
         _proposal->index() >= m_config->syncingHighestNumber())
@@ -163,7 +163,7 @@ void PBFTEngine::onProposalApplySuccess(
     m_config->frontService()->asyncSendMessageByNodeIDs(
         ModuleID::PBFT, m_config->consensusNodeIDList(), ref(*encodedData));
     // Note: must lock here to ensure thread safe
-    Guard l(m_mutex);
+    RecursiveGuard l(m_mutex);
     // restart the timer when proposal execute finished to in case of timeout
     if (m_config->timer()->running())
     {
@@ -289,7 +289,7 @@ void PBFTEngine::onRecvProposal(bool _containSysTxs, bytesConstRef _proposalData
                    << LOG_KV("sysProposal", pbftProposal->systemProposal());
 
     // handle the pre-prepare packet
-    Guard l(m_mutex);
+    RecursiveGuard l(m_mutex);
     auto ret = handlePrePrepareMsg(pbftMessage, false, false, false);
     // only broadcast the prePrepareMsg when local handlePrePrepareMsg success
     if (ret)
@@ -498,7 +498,7 @@ void PBFTEngine::executeWorker()
 
 void PBFTEngine::handleMsg(std::shared_ptr<PBFTBaseMessageInterface> _msg)
 {
-    Guard l(m_mutex);
+    RecursiveGuard l(m_mutex);
     switch (_msg->packetType())
     {
     case PacketType::PrePreparePacket:
@@ -785,7 +785,7 @@ bool PBFTEngine::handlePrePrepareMsg(PBFTMessageInterface::Ptr _prePrepareMsg,
                     return;
                 }
                 // verify success
-                Guard l(pbftEngine->m_mutex);
+                RecursiveGuard l(pbftEngine->m_mutex);
                 pbftEngine->handlePrePrepareMsg(
                     _prePrepareMsg, false, _generatedFromNewView, false);
             }
@@ -882,7 +882,7 @@ void PBFTEngine::onTimeout()
         m_config->timer()->restart();
         return;
     }
-    Guard l(m_mutex);
+    RecursiveGuard l(m_mutex);
     if (m_cacheProcessor->tryToApplyCommitQueue())
     {
         PBFT_LOG(INFO) << LOG_DESC("onTimeout: apply proposal to state-machine, restart the timer")
@@ -1205,7 +1205,7 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
                     << LOG_DESC(
                            "reHandlePrePrepareProposals: get the missed proposal and handle now")
                     << printPBFTMsgInfo(_prePrepare) << m_config->printCurrentState();
-                Guard l(m_mutex);
+                RecursiveGuard l(m_mutex);
                 handlePrePrepareMsg(_prePrepare, true, true, false);
             });
     }
@@ -1226,7 +1226,7 @@ void PBFTEngine::reHandlePrePrepareProposals(NewViewMsgInterface::Ptr _newViewRe
 
 void PBFTEngine::finalizeConsensus(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
 {
-    Guard l(m_mutex);
+    RecursiveGuard l(m_mutex);
     // resetConfig after submit the block to ledger
     m_config->resetConfig(_ledgerConfig, _syncedBlock);
     m_cacheProcessor->tryToApplyCommitQueue();
@@ -1332,7 +1332,7 @@ void PBFTEngine::sendCommittedProposalResponse(
 void PBFTEngine::onReceiveCommittedProposalRequest(
     PBFTBaseMessageInterface::Ptr _pbftMsg, SendResponseCallback _sendResponse)
 {
-    Guard l(m_mutex);
+    RecursiveGuard l(m_mutex);
     auto pbftRequest = std::dynamic_pointer_cast<PBFTRequestInterface>(_pbftMsg);
     PBFT_LOG(INFO) << LOG_DESC("Receive CommittedProposalRequest")
                    << LOG_KV("fromIndex", pbftRequest->index())
@@ -1367,7 +1367,7 @@ void PBFTEngine::onReceiveCommittedProposalRequest(
 void PBFTEngine::onReceivePrecommitRequest(
     std::shared_ptr<PBFTBaseMessageInterface> _pbftMessage, SendResponseCallback _sendResponse)
 {
-    Guard l(m_mutex);
+    RecursiveGuard l(m_mutex);
     // receive the precommitted proposals request message
     auto pbftRequest = std::dynamic_pointer_cast<PBFTRequestInterface>(_pbftMessage);
     // get the local precommitData
