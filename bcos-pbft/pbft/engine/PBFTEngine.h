@@ -204,7 +204,7 @@ protected:
 
     boost::condition_variable m_signalled;
     boost::mutex x_signalled;
-    mutable Mutex m_mutex;
+    mutable RecursiveMutex m_mutex;
 
     const unsigned c_PopWaitSeconds = 5;
 
