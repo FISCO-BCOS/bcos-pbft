@@ -20,7 +20,6 @@
  */
 #pragma once
 #include "../framework/StateMachineInterface.h"
-#include <bcos-framework/interfaces/dispatcher/DispatcherInterface.h>
 #include <bcos-framework/interfaces/dispatcher/SchedulerInterface.h>
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
 
