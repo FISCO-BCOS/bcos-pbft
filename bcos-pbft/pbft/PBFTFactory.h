@@ -21,7 +21,6 @@
 #pragma once
 #include "PBFTImpl.h"
 #include "config/PBFTConfig.h"
-#include <bcos-framework/interfaces/dispatcher/DispatcherInterface.h>
 #include <bcos-framework/interfaces/dispatcher/SchedulerInterface.h>
 #include <bcos-framework/interfaces/sync/BlockSyncInterface.h>
 #include <bcos-framework/libtool/LedgerConfigFetcher.h>
