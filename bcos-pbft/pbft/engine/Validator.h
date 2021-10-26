@@ -125,7 +125,10 @@ public:
         for (size_t i = 0; i < _block->transactionsHashSize(); i++)
         {
             auto const& hash = _block->transactionHash(i);
-            results->push_back(m_txResultFactory->createTxSubmitResult(_header, hash));
+            auto result = m_txResultFactory->createTxSubmitResult();
+            result->setTxHash(hash);
+            result->setBlockHash(_header->hash());
+            results->emplace_back(std::move(result));
         }
         m_txPool->asyncNotifyBlockResult(
             _header->number(), results, [_block, _header](Error::Ptr _error) {
