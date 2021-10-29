@@ -146,8 +146,9 @@ BOOST_AUTO_TEST_CASE(testPBFTInit)
     std::cout << "##### case5: with new committed index and valid data" << std::endl;
     faker->clearConsensusNodeList();
     faker->appendConsensusNode(faker->nodeID());
-    fakedProposal = pbftMsgFixture->fakePBFTProposal(proposalIndex, block->blockHeader()->hash(),
-        *blockData, std::vector<int64_t>(), std::vector<bytes>());
+    auto blockHeader = block->blockHeader();
+    fakedProposal = pbftMsgFixture->fakePBFTProposal(proposalIndex, blockHeader->hash(), *blockData,
+        std::vector<int64_t>(), std::vector<bytes>());
     pbftConfig->storage()->asyncCommitProposal(fakedProposal);
     faker->init();
     BOOST_CHECK(pbftConfig->minRequiredQuorum() == 1);

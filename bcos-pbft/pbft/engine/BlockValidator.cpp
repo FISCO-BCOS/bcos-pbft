@@ -30,8 +30,9 @@ void BlockValidator::asyncCheckBlock(
 {
     auto self = std::weak_ptr<BlockValidator>(shared_from_this());
     m_taskPool->enqueue([self, _block, _onVerifyFinish]() {
+        auto blockHeader = _block->blockHeader();
         // ignore the genesis block
-        if (_block->blockHeader()->number() == 0)
+        if (blockHeader->number() == 0)
         {
             _onVerifyFinish(nullptr, true);
             return;
@@ -45,7 +46,7 @@ void BlockValidator::asyncCheckBlock(
                 return;
             }
             auto config = validator->m_config;
-            if (_block->blockHeader()->number() <= config->committedProposal()->index())
+            if (blockHeader->number() <= config->committedProposal()->index())
             {
                 _onVerifyFinish(nullptr, false);
                 return;
@@ -78,21 +79,21 @@ void BlockValidator::asyncCheckBlock(
 
 bool BlockValidator::checkSealerListAndWeightList(Block::Ptr _block)
 {
+    // Note: for tars service, blockHeader must be here to ensure the sealer list not been released
+    auto blockHeader = _block->blockHeader();
     // check sealer(sealer must be a consensus node)
-    if (!m_config->getConsensusNodeByIndex(_block->blockHeader()->sealer()))
+    if (!m_config->getConsensusNodeByIndex(blockHeader->sealer()))
     {
         PBFT_LOG(ERROR)
             << LOG_DESC("checkBlock for sync module: invalid sealer for not a consensus node")
-            << LOG_KV("sealer", _block->blockHeader()->sealer())
-            << LOG_KV("hash", _block->blockHeader()->hash().abridged())
-            << LOG_KV("number", _block->blockHeader()->number());
+            << LOG_KV("sealer", blockHeader->sealer())
+            << LOG_KV("hash", blockHeader->hash().abridged())
+            << LOG_KV("number", blockHeader->number());
         return false;
     }
-    // Note: for tars service, blockHeader must be here to ensure the sealer list not been released
-    auto blockHeader = _block->blockHeader();
     // check the sealer list
     auto blockSealerList = blockHeader->sealerList();
-    auto blockWeightList = _block->blockHeader()->consensusWeights();
+    auto blockWeightList = blockHeader->consensusWeights();
     auto consensusNodeList = m_config->consensusNodeList();
     if ((size_t)blockSealerList.size() != (size_t)consensusNodeList.size() ||
         (size_t)blockWeightList.size() != (size_t)consensusNodeList.size())
@@ -101,9 +102,8 @@ bool BlockValidator::checkSealerListAndWeightList(Block::Ptr _block)
                         << LOG_KV("Nsealer", consensusNodeList.size())
                         << LOG_KV("NBlockSealer", blockSealerList.size())
                         << LOG_KV("NBlockWeight", blockWeightList.size())
-                        << LOG_KV("hash", _block->blockHeader()->hash().abridged())
-                        << LOG_KV("number", _block->blockHeader()->number())
-                        << m_config->printCurrentState();
+                        << LOG_KV("hash", blockHeader->hash().abridged())
+                        << LOG_KV("number", blockHeader->number()) << m_config->printCurrentState();
         return false;
     }
     size_t i = 0;
@@ -115,7 +115,7 @@ bool BlockValidator::checkSealerListAndWeightList(Block::Ptr _block)
             PBFT_LOG(ERROR) << LOG_DESC("checkBlock for sync module: inconsistent sealerList")
                             << LOG_KV("blkSealer", consNodePtr->nodeID()->shortHex())
                             << LOG_KV("chainSealer", *toHexString(blockSealer))
-                            << LOG_KV("number", _block->blockHeader()->number())
+                            << LOG_KV("number", blockHeader->number())
                             << LOG_KV("weight", consNodePtr->weight())
                             << m_config->printCurrentState();
             return false;
@@ -127,7 +127,7 @@ bool BlockValidator::checkSealerListAndWeightList(Block::Ptr _block)
             PBFT_LOG(ERROR) << LOG_DESC("checkBlock for sync module: inconsistent weight")
                             << LOG_KV("blkWeight", blockWeight)
                             << LOG_KV("chainWeight", consNodePtr->weight())
-                            << LOG_KV("number", _block->blockHeader()->number())
+                            << LOG_KV("number", blockHeader->number())
                             << LOG_KV("blkSealer", consNodePtr->nodeID()->shortHex())
                             << LOG_KV("chainSealer", *toHexString(blockSealer))
                             << m_config->printCurrentState();
@@ -141,20 +141,22 @@ bool BlockValidator::checkSealerListAndWeightList(Block::Ptr _block)
 bool BlockValidator::checkSignatureList(Block::Ptr _block)
 {
     // check sign num
-    auto signatureList = _block->blockHeader()->signatureList();
+    // Note: for tars service, blockHeader must be here to ensure the signatureList
+    auto blockHeader = _block->blockHeader();
+    auto signatureList = blockHeader->signatureList();
     // check sign and weight
     size_t signatureWeight = 0;
     for (auto const& sign : signatureList)
     {
         auto nodeIndex = sign.index;
         auto nodeInfo = m_config->getConsensusNodeByIndex(nodeIndex);
-        if (!nodeInfo || !m_config->cryptoSuite()->signatureImpl()->verify(nodeInfo->nodeID(),
-                             _block->blockHeader()->hash(), ref(sign.signature)))
+        if (!nodeInfo || !m_config->cryptoSuite()->signatureImpl()->verify(
+                             nodeInfo->nodeID(), blockHeader->hash(), ref(sign.signature)))
         {
             PBFT_LOG(ERROR) << LOG_DESC("checkBlock for sync module: checkSign failed")
                             << LOG_KV("sealerIdx", nodeIndex)
-                            << LOG_KV("blockHash", _block->blockHeader()->hash().abridged())
-                            << LOG_KV("number", _block->blockHeader()->number());
+                            << LOG_KV("blockHash", blockHeader->hash().abridged())
+                            << LOG_KV("number", blockHeader->number());
             return false;
         }
         signatureWeight += nodeInfo->weight();

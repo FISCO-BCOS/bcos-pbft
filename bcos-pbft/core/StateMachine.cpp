@@ -43,7 +43,8 @@ void StateMachine::asyncApply(ssize_t, ProposalInterface::ConstPtr _lastAppliedP
     }
     auto block = m_blockFactory->createBlock(_proposal->data());
     // invalid block
-    if (!block->blockHeader())
+    auto blockHeader = block->blockHeader();
+    if (!blockHeader)
     {
         if (_onExecuteFinished)
         {
@@ -57,7 +58,7 @@ void StateMachine::asyncApply(ssize_t, ProposalInterface::ConstPtr _lastAppliedP
         ParentInfoList parentInfoList;
         ParentInfo parentInfo{_lastAppliedProposal->index(), _lastAppliedProposal->hash()};
         parentInfoList.push_back(parentInfo);
-        block->blockHeader()->setParentInfo(std::move(parentInfoList));
+        blockHeader->setParentInfo(std::move(parentInfoList));
         CONSENSUS_LOG(DEBUG) << LOG_DESC("setParentInfo for the proposal")
                              << LOG_KV("proposalIndex", _proposal->index())
                              << LOG_KV("lastAppliedProposal", _lastAppliedProposal->index())
@@ -70,7 +71,7 @@ void StateMachine::asyncApply(ssize_t, ProposalInterface::ConstPtr _lastAppliedP
                              << LOG_KV("proposal", _proposal->index());
     }
     // supplement the header info
-    block->blockHeader()->setSealer(_proposal->sealerId());
+    blockHeader->setSealer(_proposal->sealerId());
     // calls dispatcher to execute the block
     auto startT = utcTime();
     m_scheduler->executeBlock(block, false,
@@ -80,10 +81,11 @@ void StateMachine::asyncApply(ssize_t, ProposalInterface::ConstPtr _lastAppliedP
             {
                 return;
             }
+            auto blockHeader = block->blockHeader();
             if (_error != nullptr)
             {
                 CONSENSUS_LOG(WARNING) << LOG_DESC("asyncExecuteBlock failed")
-                                       << LOG_KV("number", block->blockHeader()->number())
+                                       << LOG_KV("number", blockHeader->number())
                                        << LOG_KV("errorCode", _error->errorCode())
                                        << LOG_KV("errorInfo", _error->errorMessage());
                 _onExecuteFinished(false);
@@ -100,10 +102,10 @@ void StateMachine::asyncApply(ssize_t, ProposalInterface::ConstPtr _lastAppliedP
                                 << LOG_KV("txs", block->transactionsHashSize())
                                 << LOG_KV("timeCost", (utcTime() - startT))
                                 << LOG_KV("execPerTx", execT);
-            if (_blockHeader->number() != block->blockHeader()->number())
+            if (_blockHeader->number() != blockHeader->number())
             {
                 CONSENSUS_LOG(WARNING) << LOG_DESC("asyncExecuteBlock exception")
-                                       << LOG_KV("expectedNumber", block->blockHeader()->number())
+                                       << LOG_KV("expectedNumber", blockHeader->number())
                                        << LOG_KV("number", _blockHeader->number())
                                        << LOG_KV("timeCost", (utcTime() - startT));
                 return;

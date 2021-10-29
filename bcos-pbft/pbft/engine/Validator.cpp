@@ -27,16 +27,17 @@ using namespace bcos::protocol;
 void TxsValidator::asyncResetTxsFlag(bytesConstRef _data, bool _flag)
 {
     auto block = m_blockFactory->createBlock(_data);
+    auto blockHeader = block->blockHeader();
     if (_flag)
     {
         // already has the reset request
-        if (!insertResettingProposal(block->blockHeader()->hash()))
+        if (!insertResettingProposal(blockHeader->hash()))
         {
             return;
         }
     }
     auto self = std::weak_ptr<TxsValidator>(shared_from_this());
-    m_worker->enqueue([self, block, _flag]() {
+    m_worker->enqueue([self, blockHeader, block, _flag]() {
         try
         {
             auto validator = self.lock();
@@ -55,8 +56,8 @@ void TxsValidator::asyncResetTxsFlag(bytesConstRef _data, bool _flag)
                 return;
             }
             PBFT_LOG(INFO) << LOG_DESC("asyncResetTxsFlag")
-                           << LOG_KV("index", block->blockHeader()->number())
-                           << LOG_KV("hash", block->blockHeader()->hash().abridged())
+                           << LOG_KV("index", blockHeader->number())
+                           << LOG_KV("hash", blockHeader->hash().abridged())
                            << LOG_KV("flag", _flag);
             validator->asyncResetTxsFlag(block, txsHash, _flag);
         }
@@ -71,19 +72,19 @@ void TxsValidator::asyncResetTxsFlag(bytesConstRef _data, bool _flag)
 void TxsValidator::asyncResetTxsFlag(
     bcos::protocol::Block::Ptr _block, HashListPtr _txsHashList, bool _flag, size_t _retryTime)
 {
-    m_txPool->asyncMarkTxs(_txsHashList, _flag, _block->blockHeader()->number(),
-        _block->blockHeader()->hash(),
-        [this, _block, _txsHashList, _flag, _retryTime](Error::Ptr _error) {
+    auto blockHeader = _block->blockHeader();
+    m_txPool->asyncMarkTxs(_txsHashList, _flag, blockHeader->number(), blockHeader->hash(),
+        [this, _block, blockHeader, _txsHashList, _flag, _retryTime](Error::Ptr _error) {
             // must ensure asyncResetTxsFlag success before seal new next blocks
             if (_flag)
             {
-                eraseResettingProposal(_block->blockHeader()->hash());
+                eraseResettingProposal(blockHeader->hash());
             }
             if (_error == nullptr)
             {
                 PBFT_LOG(INFO) << LOG_DESC("asyncMarkTxs success")
-                               << LOG_KV("index", _block->blockHeader()->number())
-                               << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                               << LOG_KV("index", blockHeader->number())
+                               << LOG_KV("hash", blockHeader->hash().abridged())
                                << LOG_KV("flag", _flag);
                 return;
             }
@@ -96,7 +97,7 @@ void TxsValidator::asyncResetTxsFlag(
             }
             if (_flag)
             {
-                insertResettingProposal(_block->blockHeader()->hash());
+                insertResettingProposal(blockHeader->hash());
             }
             this->asyncResetTxsFlag(_block, _txsHashList, _flag, _retryTime + 1);
         });
