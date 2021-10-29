@@ -72,12 +72,14 @@ BOOST_AUTO_TEST_CASE(testViewChangeWithPrecommitProposals)
     auto futureBlockData = std::make_shared<bytes>();
     futureBlock->encode(*futureBlockData);
 
+    auto blockHeader = block->blockHeader();
     // the leader submit proposal
-    leaderFaker->pbftEngine()->asyncSubmitProposal(false, ref(*blockData),
-        block->blockHeader()->number(), block->blockHeader()->hash(), nullptr);
+    leaderFaker->pbftEngine()->asyncSubmitProposal(
+        false, ref(*blockData), blockHeader->number(), blockHeader->hash(), nullptr);
     // the future leader submit the proposal
+    auto futureBlockHeader = futureBlock->blockHeader();
     futureLeader->pbftEngine()->asyncSubmitProposal(false, ref(*futureBlockData),
-        futureBlock->blockHeader()->number(), futureBlock->blockHeader()->hash(), nullptr);
+        futureBlockHeader->number(), futureBlockHeader->hash(), nullptr);
 
     auto cacheProcessor =
         std::dynamic_pointer_cast<FakeCacheProcessor>(leaderFaker->pbftEngine()->cacheProcessor());

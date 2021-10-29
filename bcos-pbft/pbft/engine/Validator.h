@@ -113,7 +113,7 @@ public:
         block->setBlockHeader(blockHeader);
         auto encodedData = std::make_shared<bytes>();
         block->encode(*encodedData);
-        proposal->setHash(block->blockHeader()->hash());
+        proposal->setHash(blockHeader->hash());
         proposal->setData(std::move(*encodedData));
         return proposal;
     }
@@ -124,8 +124,11 @@ public:
         auto results = std::make_shared<bcos::protocol::TransactionSubmitResults>();
         for (size_t i = 0; i < _block->transactionsHashSize(); i++)
         {
-            auto const& hash = _block->transactionHash(i);
-            results->push_back(m_txResultFactory->createTxSubmitResult(_header, hash));
+            auto txHash = _block->transactionHash(i);
+            auto txResult = m_txResultFactory->createTxSubmitResult();
+            txResult->setBlockHash(_header->hash());
+            txResult->setTxHash(txHash);
+            results->emplace_back(std::move(txResult));
         }
         m_txPool->asyncNotifyBlockResult(
             _header->number(), results, [_block, _header](Error::Ptr _error) {
