@@ -47,9 +47,6 @@ public:
         std::function<void(PBFTProposalListPtr)> _onSuccess) = 0;
     virtual void registerFinalizeHandler(
         std::function<void(bcos::ledger::LedgerConfig::Ptr, bool)> _finalizeHandler) = 0;
-    virtual void registerNotifyHandler(
-        std::function<void(bcos::protocol::Block::Ptr, bcos::protocol::BlockHeader::Ptr)>
-            _notifyHandler) = 0;
 };
 }  // namespace consensus
 }  // namespace bcos

@@ -54,11 +54,6 @@ public:
         m_frontService = _frontService;
         m_stateMachine = _stateMachine;
         m_storage = _storage;
-        // for notify the transaction result
-        m_storage->registerNotifyHandler(
-            [this](bcos::protocol::Block::Ptr _block, bcos::protocol::BlockHeader::Ptr _header) {
-                m_validator->notifyTransactionsResult(_block, _header);
-            });
         m_timer = std::make_shared<PBFTTimer>(consensusTimeout());
     }
 

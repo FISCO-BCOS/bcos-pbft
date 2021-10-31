@@ -57,14 +57,6 @@ public:
     {
         m_finalizeHandler = _finalizeHandler;
     }
-
-    void registerNotifyHandler(
-        std::function<void(bcos::protocol::Block::Ptr, bcos::protocol::BlockHeader::Ptr)>
-            _notifyHandler) override
-    {
-        m_notifyHandler = _notifyHandler;
-    }
-
     void asyncGetCommittedProposals(bcos::protocol::BlockNumber _start, size_t _offset,
         std::function<void(PBFTProposalListPtr)> _onSuccess) override;
 
@@ -104,9 +96,6 @@ protected:
     boost::condition_variable m_signalled;
     boost::mutex x_signalled;
     std::function<void(bcos::ledger::LedgerConfig::Ptr, bool _syncBlock)> m_finalizeHandler;
-
-    std::function<void(bcos::protocol::Block::Ptr, bcos::protocol::BlockHeader::Ptr)>
-        m_notifyHandler;
 };
 }  // namespace consensus
 }  // namespace bcos

@@ -310,10 +310,12 @@ void LedgerStorage::asyncCommmitStableCheckPoint(PBFTProposalInterface::Ptr _sta
     auto blockHeader =
         m_blockFactory->blockHeaderFactory()->createBlockHeader(_stableProposal->data());
     blockHeader->setSignatureList(*signatureList);
+    auto blockSignatureList = blockHeader->signatureList();
     PBFT_LOG(INFO) << LOG_DESC("asyncCommmitStableCheckPoint: set signatureList")
                    << LOG_KV("index", blockHeader->number())
                    << LOG_KV("hash", blockHeader->hash().abridged())
-                   << LOG_KV("proofSize", signatureList->size());
+                   << LOG_KV("proofSize", signatureList->size())
+                   << LOG_KV("blockProofSize", blockSignatureList.size());
     // get the transactions list
     auto txsInfo = m_blockFactory->createBlock(_stableProposal->extraData());
     asyncCommitStableCheckPoint(blockHeader, txsInfo);
@@ -354,11 +356,6 @@ void LedgerStorage::asyncCommitStableCheckPoint(
                 if (ledgerStorage->m_finalizeHandler)
                 {
                     ledgerStorage->m_finalizeHandler(_ledgerConfig, false);
-                }
-                // notify txpool the result
-                if (ledgerStorage->m_notifyHandler)
-                {
-                    ledgerStorage->m_notifyHandler(_blockInfo, _blockHeader);
                 }
                 // remove the proposal committed into the ledger
                 // don't remove the latest stabled checkpoint to response checkpoint msg to the
