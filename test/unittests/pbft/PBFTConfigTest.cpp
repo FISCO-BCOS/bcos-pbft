@@ -106,6 +106,7 @@ BOOST_AUTO_TEST_CASE(testPBFTInit)
 
     // check params
     BOOST_CHECK(pbftConfig->isConsensusNode());
+    pbftConfig->setConsensusTimeout(consensusTimeout);
     BOOST_CHECK(pbftConfig->consensusTimeout() == consensusTimeout);
     BOOST_CHECK(pbftConfig->blockTxCountLimit() == txCountLimit);
     // Note: should update this check if consensusNodesSize has been changed

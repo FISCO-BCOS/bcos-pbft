@@ -39,16 +39,15 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
     PBFT_LOG(INFO) << LOG_DESC("resetConfig")
                    << LOG_KV("committedIndex", _ledgerConfig->blockNumber())
                    << LOG_KV("propHash", _ledgerConfig->hash().abridged())
-                   << LOG_KV("consensusTimeout", _ledgerConfig->consensusTimeout())
                    << LOG_KV("blockCountLimit", _ledgerConfig->blockTxCountLimit())
-                   << LOG_KV("leaderPeriod", _ledgerConfig->leaderSwitchPeriod());
+                   << LOG_KV("leaderPeriod", _ledgerConfig->leaderSwitchPeriod())
+                   << LOG_KV(
+                          "consensusNodesSize", _ledgerConfig->mutableConsensusNodeList().size());
     // set committed proposal
     auto committedProposal = m_pbftMessageFactory->createPBFTProposal();
     committedProposal->setIndex(_ledgerConfig->blockNumber());
     committedProposal->setHash(_ledgerConfig->hash());
     setCommittedProposal(committedProposal);
-    // set consensusTimeout
-    setConsensusTimeout(_ledgerConfig->consensusTimeout());
     // set blockTxCountLimit
     setBlockTxCountLimit(_ledgerConfig->blockTxCountLimit());
     // set ConsensusNodeList
