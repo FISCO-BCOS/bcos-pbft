@@ -205,8 +205,27 @@ bool PBFTConfig::tryTriggerFastViewChange(IndexType _leaderIndex)
     {
         return false;
     }
-    auto leaderNodeInfo = getConsensusNodeByIndex(_leaderIndex);
     auto nodeList = connectedNodeList();
+    // empty connection
+    if (nodeList.size() == 0)
+    {
+        return false;
+    }
+    // the non-consensus node should not trigger fast viewchange
+    if (!isConsensusNode())
+    {
+        return false;
+    }
+    // the leader is the current node
+    if (_leaderIndex == nodeIndex())
+    {
+        return false;
+    }
+    auto leaderNodeInfo = getConsensusNodeByIndex(_leaderIndex);
+    if (!leaderNodeInfo)
+    {
+        return false;
+    }
     if (nodeList.count(leaderNodeInfo->nodeID()))
     {
         return false;
@@ -215,16 +234,14 @@ bool PBFTConfig::tryTriggerFastViewChange(IndexType _leaderIndex)
                    << LOG_KV("leaderIndex", _leaderIndex)
                    << LOG_KV("leader", leaderNodeInfo->nodeID()->shortHex()) << printCurrentState();
     m_fastViewChangeHandler();
-    return true;
+    // check the newLeader connection
+    auto newLeader = leaderIndexInNewViewPeriod(m_toView);
+    return tryTriggerFastViewChange(newLeader);
 }
 
 void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
 {
     auto currentLeader = leaderIndex(_progressedIndex);
-    if (tryTriggerFastViewChange(currentLeader))
-    {
-        return;
-    }
     if (currentLeader != nodeIndex())
     {
         return;
@@ -364,7 +381,13 @@ bool PBFTConfig::leaderAfterViewChange()
 
 IndexType PBFTConfig::leaderIndexInNewViewPeriod(ViewType _view)
 {
-    return (m_progressedIndex / m_leaderSwitchPeriod + _view) % m_consensusNodeNum;
+    return leaderIndexInNewViewPeriod(m_progressedIndex, _view);
+}
+
+IndexType PBFTConfig::leaderIndexInNewViewPeriod(
+    bcos::protocol::BlockNumber _proposalIndex, ViewType _view)
+{
+    return (_proposalIndex / m_leaderSwitchPeriod + _view) % m_consensusNodeNum;
 }
 
 PBFTProposalInterface::Ptr PBFTConfig::populateCommittedProposal()

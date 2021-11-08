@@ -87,6 +87,8 @@ public:
     virtual IndexType leaderIndex(bcos::protocol::BlockNumber _proposalIndex);
     virtual bool leaderAfterViewChange();
     IndexType leaderIndexInNewViewPeriod(ViewType _view);
+    IndexType leaderIndexInNewViewPeriod(
+        bcos::protocol::BlockNumber _proposalIndex, ViewType _view);
     virtual uint64_t leaderSwitchPeriod() const { return m_leaderSwitchPeriod; }
     virtual void setLeaderSwitchPeriod(uint64_t _leaderSwitchPeriod)
     {
@@ -316,6 +318,11 @@ public:
         WriteGuard l(x_connectedNodeList);
         *m_connectedNodeList = std::move(_connectedNodeList);
     }
+    virtual void setConnectedNodeList(bcos::crypto::NodeIDSet const& _connectedNodeList)
+    {
+        WriteGuard l(x_connectedNodeList);
+        *m_connectedNodeList = _connectedNodeList;
+    }
 
     virtual bcos::crypto::NodeIDSet connectedNodeList()
     {
@@ -323,12 +330,14 @@ public:
         return *m_connectedNodeList;
     }
 
+    IndexType getLeader() { return leaderIndex(sealStartIndex()); }
+
+    virtual bool tryTriggerFastViewChange(IndexType _leaderIndex);
+
 protected:
     void updateQuorum() override;
     virtual void asyncNotifySealProposal(size_t _proposalIndex, size_t _proposalEndIndex,
         size_t _maxTxsToSeal, size_t _retryTime = 0);
-
-    virtual bool tryTriggerFastViewChange(IndexType _leaderIndex);
 
 protected:
     bcos::crypto::CryptoSuite::Ptr m_cryptoSuite;

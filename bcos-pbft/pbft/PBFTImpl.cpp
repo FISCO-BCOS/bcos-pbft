@@ -19,7 +19,7 @@
  * @date 2021-05-17
  */
 #include "PBFTImpl.h"
-
+#include <json/json.h>
 using namespace bcos;
 using namespace bcos::consensus;
 
@@ -143,4 +143,42 @@ void PBFTImpl::init()
     }
     config->timer()->start();
     PBFT_LOG(INFO) << LOG_DESC("init PBFT success");
+}
+
+void PBFTImpl::asyncGetConsensusStatus(
+    std::function<void(Error::Ptr, std::string)> _onGetConsensusStatus)
+{
+    auto config = m_pbftEngine->pbftConfig();
+    Json::Value consensusStatus;
+    consensusStatus["nodeID"] = *toHexString(config->nodeID()->data());
+    consensusStatus["index"] = config->nodeIndex();
+    consensusStatus["leaderIndex"] = config->getLeader();
+    consensusStatus["consensusNodesNum"] = config->consensusNodesNum();
+    consensusStatus["maxFaultyQuorum"] = config->maxFaultyQuorum();
+    consensusStatus["minRequiredQuorum"] = config->minRequiredQuorum();
+    consensusStatus["isConsensusNode"] = config->isConsensusNode();
+    consensusStatus["blockNumber"] = config->committedProposal()->index();
+    consensusStatus["hash"] = *toHexString(config->committedProposal()->hash());
+    consensusStatus["timeout"] = config->timeout();
+    consensusStatus["changeCycle"] = config->timer()->changeCycle();
+    consensusStatus["view"] = config->view();
+    consensusStatus["connectedNodeList"] = (int64_t)((config->connectedNodeList()).size());
+
+    // print the nodeIndex of all other nodes
+    auto nodeList = config->consensusNodeList();
+    Json::Value consensusNodeInfo(Json::arrayValue);
+    size_t i = 0;
+    for (auto const& node : nodeList)
+    {
+        Json::Value info;
+        info["nodeID"] = *toHexString(node->nodeID()->data());
+        info["weight"] = node->weight();
+        info["index"] = (int64_t)(i);
+        consensusNodeInfo.append(info);
+        i++;
+    }
+    consensusStatus["consensusNodeList"] = consensusNodeInfo;
+    Json::FastWriter fastWriter;
+    std::string statusStr = fastWriter.write(consensusStatus);
+    _onGetConsensusStatus(nullptr, statusStr);
 }

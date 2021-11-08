@@ -45,8 +45,7 @@ BOOST_AUTO_TEST_CASE(testPBFTInit)
 
     size_t consensusTimeout = 4;
     size_t txCountLimit = 2000;
-    auto faker = std::make_shared<PBFTFixture>(
-        cryptoSuite, keyPair, nullptr, consensusTimeout, txCountLimit);
+    auto faker = std::make_shared<PBFTFixture>(cryptoSuite, keyPair, nullptr, txCountLimit);
     faker->frontService()->setGateWay(gateWay);
 
     // case1: with zero consensus node

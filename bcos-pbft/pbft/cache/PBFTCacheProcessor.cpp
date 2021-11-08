@@ -227,6 +227,7 @@ void PBFTCacheProcessor::resetTimer()
     }
     // reset the timer when has no proposals in consensus
     m_config->timer()->stop();
+    m_config->tryTriggerFastViewChange(m_config->getLeader());
 }
 
 void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal)

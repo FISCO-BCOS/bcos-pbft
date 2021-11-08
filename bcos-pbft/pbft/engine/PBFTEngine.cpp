@@ -1095,7 +1095,8 @@ bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
 bool PBFTEngine::isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newViewMsg)
 {
     // check the newViewMsg
-    auto expectedLeader = m_config->leaderIndexInNewViewPeriod(_newViewMsg->view());
+    auto progressedIndex = _newViewMsg->index() + 1;
+    auto expectedLeader = m_config->leaderIndexInNewViewPeriod(progressedIndex, _newViewMsg->view());
     if (expectedLeader != _newViewMsg->generatedFrom())
     {
         PBFT_LOG(WARNING) << LOG_DESC("InvalidNewViewMsg for invalid nextLeader")
