@@ -45,6 +45,8 @@ PBFTEngine::PBFTEngine(PBFTConfig::Ptr _config)
     m_config->timer()->registerTimeoutHandler(boost::bind(&PBFTEngine::onTimeout, this));
     m_config->storage()->registerFinalizeHandler(boost::bind(
         &PBFTEngine::finalizeConsensus, this, boost::placeholders::_1, boost::placeholders::_2));
+
+    m_config->registerFastViewChangeHandler([this]() { triggerTimeout(false); });
     m_cacheProcessor->registerProposalAppliedHandler(boost::bind(&PBFTEngine::onProposalApplied,
         this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
 
@@ -901,13 +903,13 @@ void PBFTEngine::onTimeout()
         m_config->timer()->restart();
         return;
     }
-    triggerTimeout();
+    triggerTimeout(true);
     PBFT_LOG(WARNING) << LOG_DESC("onTimeout") << m_config->printCurrentState();
 }
 
-void PBFTEngine::triggerTimeout()
+void PBFTEngine::triggerTimeout(bool _incTimeout)
 {
-    m_config->resetTimeoutState();
+    m_config->resetTimeoutState(_incTimeout);
     // clear the viewchange cache
     m_cacheProcessor->removeInvalidViewChange(
         m_config->view(), m_config->committedProposal()->index());
@@ -1003,7 +1005,6 @@ bool PBFTEngine::isValidViewChangeMsg(bcos::crypto::NodeIDPtr _fromNode,
     }
 
     // check the view
-
     if ((_viewChangeMsg->view() < m_config->view()) ||
         (_viewChangeMsg->view() + 1 < m_config->toView()))
     {

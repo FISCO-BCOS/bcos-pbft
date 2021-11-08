@@ -275,6 +275,12 @@ public:
     {
         m_ledger->ledgerConfig()->mutableConsensusNodeList().push_back(_node);
         pbftConfig()->setConsensusNodeList(m_ledger->ledgerConfig()->mutableConsensusNodeList());
+        bcos::crypto::NodeIDSet connectedNodeList;
+        for (auto const& node : m_ledger->ledgerConfig()->mutableConsensusNodeList())
+        {
+            connectedNodeList.insert(node->nodeID());
+        }
+        pbftConfig()->setConnectedNodeList(std::move(connectedNodeList));
     }
 
     void appendConsensusNode(PublicPtr _nodeId)

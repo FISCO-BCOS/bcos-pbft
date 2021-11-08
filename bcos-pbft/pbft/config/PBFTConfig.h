@@ -45,7 +45,7 @@ public:
         std::shared_ptr<PBFTCodecInterface> _codec, std::shared_ptr<ValidatorInterface> _validator,
         std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
         StateMachineInterface::Ptr _stateMachine, PBFTStorage::Ptr _storage)
-      : ConsensusConfig(_keyPair)
+      : ConsensusConfig(_keyPair), m_connectedNodeList(std::make_shared<bcos::crypto::NodeIDSet>())
     {
         m_cryptoSuite = _cryptoSuite;
         m_pbftMessageFactory = _pbftMessageFactory;
@@ -185,13 +185,16 @@ public:
     virtual void setTimeoutState(bool _timeoutState) { m_timeoutState = _timeoutState; }
     virtual bool timeout() { return m_timeoutState; }
 
-    virtual void resetTimeoutState()
+    virtual void resetTimeoutState(bool _incTimeout = true)
     {
         m_timeoutState.store(true);
         // update toView
         incToView(1);
-        // increase the changeCycle
-        timer()->incChangeCycle(1);
+        if (_incTimeout)
+        {
+            // increase the changeCycle
+            timer()->incChangeCycle(1);
+        }
         // start the timer again(the timer here must be restarted)
         timer()->restart();
     }
@@ -303,10 +306,29 @@ public:
     bool canHandleNewProposal();
     bool canHandleNewProposal(PBFTBaseMessageInterface::Ptr _msg);
 
+    void registerFastViewChangeHandler(std::function<void()> _fastViewChangeHandler)
+    {
+        m_fastViewChangeHandler = _fastViewChangeHandler;
+    }
+
+    virtual void setConnectedNodeList(bcos::crypto::NodeIDSet&& _connectedNodeList)
+    {
+        WriteGuard l(x_connectedNodeList);
+        *m_connectedNodeList = std::move(_connectedNodeList);
+    }
+
+    virtual bcos::crypto::NodeIDSet connectedNodeList()
+    {
+        ReadGuard l(x_connectedNodeList);
+        return *m_connectedNodeList;
+    }
+
 protected:
     void updateQuorum() override;
     virtual void asyncNotifySealProposal(size_t _proposalIndex, size_t _proposalEndIndex,
         size_t _maxTxsToSeal, size_t _retryTime = 0);
+
+    virtual bool tryTriggerFastViewChange(IndexType _leaderIndex);
 
 protected:
     bcos::crypto::CryptoSuite::Ptr m_cryptoSuite;
@@ -359,6 +381,11 @@ protected:
     std::atomic<bcos::protocol::BlockNumber> m_waitResealUntil = {0};
     // notify the ealer to seal new block until m_waitSealUntil committed
     std::atomic<bcos::protocol::BlockNumber> m_waitSealUntil = {0};
+
+    bcos::crypto::NodeIDSetPtr m_connectedNodeList;
+    SharedMutex x_connectedNodeList;
+
+    std::function<void()> m_fastViewChangeHandler;
 };
 }  // namespace consensus
 }  // namespace bcos

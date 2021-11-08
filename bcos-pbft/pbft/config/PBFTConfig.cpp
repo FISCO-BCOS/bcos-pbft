@@ -199,9 +199,32 @@ bool PBFTConfig::canHandleNewProposal(PBFTBaseMessageInterface::Ptr _msg)
     return false;
 }
 
+bool PBFTConfig::tryTriggerFastViewChange(IndexType _leaderIndex)
+{
+    if (!m_fastViewChangeHandler)
+    {
+        return false;
+    }
+    auto leaderNodeInfo = getConsensusNodeByIndex(_leaderIndex);
+    auto nodeList = connectedNodeList();
+    if (nodeList.count(leaderNodeInfo->nodeID()))
+    {
+        return false;
+    }
+    PBFT_LOG(INFO) << LOG_DESC("tryTriggerFastViewChange for the leader disconnect")
+                   << LOG_KV("leaderIndex", _leaderIndex)
+                   << LOG_KV("leader", leaderNodeInfo->nodeID()->shortHex()) << printCurrentState();
+    m_fastViewChangeHandler();
+    return true;
+}
+
 void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
 {
     auto currentLeader = leaderIndex(_progressedIndex);
+    if (tryTriggerFastViewChange(currentLeader))
+    {
+        return;
+    }
     if (currentLeader != nodeIndex())
     {
         return;
