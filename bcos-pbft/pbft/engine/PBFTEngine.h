@@ -150,7 +150,7 @@ protected:
         PBFTProposalInterface::Ptr _proposal, PBFTProposalInterface::Ptr _executedProposal);
     virtual void onProposalApplyFailed(PBFTProposalInterface::Ptr _proposal);
     virtual void onLoadAndVerifyProposalSucc(PBFTProposalInterface::Ptr _proposal);
-    virtual void triggerTimeout();
+    virtual void triggerTimeout(bool _incTimeout = true);
 
     void handleRecoverResponse(PBFTMessageInterface::Ptr _recoverResponse);
     void handleRecoverRequest(PBFTMessageInterface::Ptr _request);

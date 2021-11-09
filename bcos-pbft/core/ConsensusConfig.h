@@ -104,6 +104,9 @@ public:
         m_syncingHighestNumber = _number;
     }
 
+    IndexType consensusNodesNum() const { return m_consensusNodeNum.load(); }
+
+
 private:
     bool compareConsensusNode(ConsensusNodeList const& _left, ConsensusNodeList const& _right);
 

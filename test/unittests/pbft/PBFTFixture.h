@@ -226,8 +226,7 @@ class PBFTFixture
 public:
     using Ptr = std::shared_ptr<PBFTFixture>;
     PBFTFixture(CryptoSuite::Ptr _cryptoSuite, KeyPairInterface::Ptr _keyPair,
-        FakeLedger::Ptr _ledger = nullptr, size_t _consensusTimeout = 3000,
-        size_t _txCountLimit = 1000)
+        FakeLedger::Ptr _ledger = nullptr, size_t _txCountLimit = 1000)
       : m_cryptoSuite(_cryptoSuite), m_keyPair(_keyPair), m_nodeId(_keyPair->publicKey())
     {
         // create block factory
@@ -243,11 +242,9 @@ public:
         if (_ledger == nullptr)
         {
             m_ledger = std::make_shared<FakeLedger>(m_blockFactory, 20, 10, 10);
-            m_ledger->setSystemConfig(
-                SYSTEM_KEY_CONSENSUS_TIMEOUT, std::to_string(_consensusTimeout));
             m_ledger->setSystemConfig(SYSTEM_KEY_TX_COUNT_LIMIT, std::to_string(_txCountLimit));
             m_ledger->setSystemConfig(SYSTEM_KEY_CONSENSUS_LEADER_PERIOD, std::to_string(1));
-            m_ledger->ledgerConfig()->setConsensusTimeout(_consensusTimeout * 20);
+            // m_ledger->ledgerConfig()->setConsensusTimeout(_consensusTimeout * 20);
             m_ledger->ledgerConfig()->setBlockTxCountLimit(_txCountLimit);
         }
         else
@@ -275,6 +272,12 @@ public:
     {
         m_ledger->ledgerConfig()->mutableConsensusNodeList().push_back(_node);
         pbftConfig()->setConsensusNodeList(m_ledger->ledgerConfig()->mutableConsensusNodeList());
+        bcos::crypto::NodeIDSet connectedNodeList;
+        for (auto const& node : m_ledger->ledgerConfig()->mutableConsensusNodeList())
+        {
+            connectedNodeList.insert(node->nodeID());
+        }
+        pbftConfig()->setConnectedNodeList(std::move(connectedNodeList));
     }
 
     void appendConsensusNode(PublicPtr _nodeId)
@@ -322,17 +325,16 @@ private:
 };
 using PBFTFixtureList = std::vector<PBFTFixture::Ptr>;
 
-inline PBFTFixture::Ptr createPBFTFixture(CryptoSuite::Ptr _cryptoSuite,
-    FakeLedger::Ptr _ledger = nullptr, size_t _consensusTimeout = 3000, size_t _txCountLimit = 1000)
+inline PBFTFixture::Ptr createPBFTFixture(
+    CryptoSuite::Ptr _cryptoSuite, FakeLedger::Ptr _ledger = nullptr, size_t _txCountLimit = 1000)
 {
     auto keyPair = _cryptoSuite->signatureImpl()->generateKeyPair();
-    return std::make_shared<PBFTFixture>(
-        _cryptoSuite, keyPair, _ledger, _consensusTimeout, _txCountLimit);
+    return std::make_shared<PBFTFixture>(_cryptoSuite, keyPair, _ledger, _txCountLimit);
 }
 
 inline std::map<IndexType, PBFTFixture::Ptr> createFakers(CryptoSuite::Ptr _cryptoSuite,
     size_t _consensusNodeSize, size_t _currentBlockNumber, size_t _connectedNodes,
-    size_t _consensusTimeout = 3000, size_t _txCountLimit = 1000)
+    size_t _txCountLimit = 1000)
 {
     PBFTFixtureList fakerList;
     // create block factory
@@ -344,14 +346,11 @@ inline std::map<IndexType, PBFTFixture::Ptr> createFakers(CryptoSuite::Ptr _cryp
         // ensure all the block are consistent
         auto fakedLedger = std::make_shared<FakeLedger>(
             blockFactory, _currentBlockNumber + 1, 10, 0, ledger->sealerList());
-        fakedLedger->setSystemConfig(
-            SYSTEM_KEY_CONSENSUS_TIMEOUT, std::to_string(_consensusTimeout));
         fakedLedger->setSystemConfig(SYSTEM_KEY_TX_COUNT_LIMIT, std::to_string(_txCountLimit));
         fakedLedger->setSystemConfig(SYSTEM_KEY_CONSENSUS_LEADER_PERIOD, std::to_string(1));
-        fakedLedger->ledgerConfig()->setConsensusTimeout(_consensusTimeout * 1000);
+        // fakedLedger->ledgerConfig()->setConsensusTimeout(_consensusTimeout * 1000);
         fakedLedger->ledgerConfig()->setBlockTxCountLimit(_txCountLimit);
-        auto peerFaker =
-            createPBFTFixture(_cryptoSuite, fakedLedger, _consensusTimeout, _txCountLimit);
+        auto peerFaker = createPBFTFixture(_cryptoSuite, fakedLedger, _txCountLimit);
         fakerList.push_back(peerFaker);
     }
 

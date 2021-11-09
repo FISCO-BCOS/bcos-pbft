@@ -39,16 +39,15 @@ void PBFTConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig, bool _syncedBlock)
     PBFT_LOG(INFO) << LOG_DESC("resetConfig")
                    << LOG_KV("committedIndex", _ledgerConfig->blockNumber())
                    << LOG_KV("propHash", _ledgerConfig->hash().abridged())
-                   << LOG_KV("consensusTimeout", _ledgerConfig->consensusTimeout())
                    << LOG_KV("blockCountLimit", _ledgerConfig->blockTxCountLimit())
-                   << LOG_KV("leaderPeriod", _ledgerConfig->leaderSwitchPeriod());
+                   << LOG_KV("leaderPeriod", _ledgerConfig->leaderSwitchPeriod())
+                   << LOG_KV(
+                          "consensusNodesSize", _ledgerConfig->mutableConsensusNodeList().size());
     // set committed proposal
     auto committedProposal = m_pbftMessageFactory->createPBFTProposal();
     committedProposal->setIndex(_ledgerConfig->blockNumber());
     committedProposal->setHash(_ledgerConfig->hash());
     setCommittedProposal(committedProposal);
-    // set consensusTimeout
-    setConsensusTimeout(_ledgerConfig->consensusTimeout());
     // set blockTxCountLimit
     setBlockTxCountLimit(_ledgerConfig->blockTxCountLimit());
     // set ConsensusNodeList
@@ -200,6 +199,46 @@ bool PBFTConfig::canHandleNewProposal(PBFTBaseMessageInterface::Ptr _msg)
     return false;
 }
 
+bool PBFTConfig::tryTriggerFastViewChange(IndexType _leaderIndex)
+{
+    if (!m_fastViewChangeHandler)
+    {
+        return false;
+    }
+    auto nodeList = connectedNodeList();
+    // empty connection
+    if (nodeList.size() == 0)
+    {
+        return false;
+    }
+    // the non-consensus node should not trigger fast viewchange
+    if (!isConsensusNode())
+    {
+        return false;
+    }
+    // the leader is the current node
+    if (_leaderIndex == nodeIndex())
+    {
+        return false;
+    }
+    auto leaderNodeInfo = getConsensusNodeByIndex(_leaderIndex);
+    if (!leaderNodeInfo)
+    {
+        return false;
+    }
+    if (nodeList.count(leaderNodeInfo->nodeID()))
+    {
+        return false;
+    }
+    PBFT_LOG(INFO) << LOG_DESC("tryTriggerFastViewChange for the leader disconnect")
+                   << LOG_KV("leaderIndex", _leaderIndex)
+                   << LOG_KV("leader", leaderNodeInfo->nodeID()->shortHex()) << printCurrentState();
+    m_fastViewChangeHandler();
+    // check the newLeader connection
+    auto newLeader = leaderIndexInNewViewPeriod(m_toView);
+    return tryTriggerFastViewChange(newLeader);
+}
+
 void PBFTConfig::notifySealer(BlockNumber _progressedIndex, bool _enforce)
 {
     auto currentLeader = leaderIndex(_progressedIndex);
@@ -342,7 +381,13 @@ bool PBFTConfig::leaderAfterViewChange()
 
 IndexType PBFTConfig::leaderIndexInNewViewPeriod(ViewType _view)
 {
-    return (m_progressedIndex / m_leaderSwitchPeriod + _view) % m_consensusNodeNum;
+    return leaderIndexInNewViewPeriod(m_progressedIndex, _view);
+}
+
+IndexType PBFTConfig::leaderIndexInNewViewPeriod(
+    bcos::protocol::BlockNumber _proposalIndex, ViewType _view)
+{
+    return (_proposalIndex / m_leaderSwitchPeriod + _view) % m_consensusNodeNum;
 }
 
 PBFTProposalInterface::Ptr PBFTConfig::populateCommittedProposal()

@@ -110,6 +110,19 @@ public:
         return m_pbftEngine->pbftConfig()->consensusNodeList();
     }
 
+    void asyncGetConsensusStatus(
+        std::function<void(Error::Ptr, std::string)> _onGetConsensusStatus) override;
+
+    void notifyConnectedNodes(bcos::crypto::NodeIDSet const& _connectedNodes,
+        std::function<void(Error::Ptr)> _onResponse) override
+    {
+        m_pbftEngine->pbftConfig()->setConnectedNodeList(_connectedNodes);
+        if (_onResponse)
+        {
+            _onResponse(nullptr);
+        }
+    }
+
 protected:
     PBFTEngine::Ptr m_pbftEngine;
     BlockValidator::Ptr m_blockValidator;
