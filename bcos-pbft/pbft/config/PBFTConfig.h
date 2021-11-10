@@ -227,6 +227,11 @@ public:
     {
         // reset the timeout state to false
         m_timeoutState.store(false);
+        freshTimer();
+    }
+
+    virtual void freshTimer()
+    {
         if (m_unsealedTxsSize > 0)
         {
             m_timer->restart();
