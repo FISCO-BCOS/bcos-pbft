@@ -207,11 +207,16 @@ public:
         {
             return;
         }
+        if (m_startRecovered.load() == false)
+        {
+            m_startRecovered.store(true);
+        }
         // reset the timer when reach a new-view
         resetTimer();
         // update the changeCycle
         timer()->resetChangeCycle();
         setView(_view);
+        setToView(_view);
         m_timeoutState.store(false);
     }
     virtual void setUnSealedTxsSize(size_t _unsealedTxsSize)
@@ -339,6 +344,8 @@ public:
 
     virtual bool tryTriggerFastViewChange(IndexType _leaderIndex);
 
+    virtual bool startRecovered() const { return m_startRecovered; }
+
 protected:
     void updateQuorum() override;
     virtual void asyncNotifySealProposal(size_t _proposalIndex, size_t _proposalEndIndex,
@@ -400,6 +407,8 @@ protected:
     SharedMutex x_connectedNodeList;
 
     std::function<void()> m_fastViewChangeHandler;
+
+    std::atomic_bool m_startRecovered = {false};
 };
 }  // namespace consensus
 }  // namespace bcos

@@ -606,11 +606,11 @@ ViewType PBFTCacheProcessor::tryToTriggerFastViewChange()
     ViewType viewToReach = 0;
     for (auto const& it : m_viewChangeCache)
     {
-        if (it.first <= m_config->toView())
+        auto view = it.first;
+        if (view <= m_config->toView())
         {
             continue;
         }
-        auto view = it.first;
         if (viewToReach == 0)
         {
             viewToReach = view;
@@ -653,8 +653,8 @@ ViewType PBFTCacheProcessor::tryToTriggerFastViewChange()
 
 bool PBFTCacheProcessor::checkPrecommitMsg(PBFTMessageInterface::Ptr _precommitMsg)
 {
-    // check the view
-    if (_precommitMsg->view() > m_config->view())
+    // check the view(the first started node no need to check the view)
+    if (m_config->startRecovered() && (_precommitMsg->view() > m_config->view()))
     {
         return false;
     }
