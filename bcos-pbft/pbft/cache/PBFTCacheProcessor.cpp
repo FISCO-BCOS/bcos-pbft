@@ -887,17 +887,29 @@ bool PBFTCacheProcessor::shouldRequestCheckPoint(PBFTMessageInterface::Ptr _chec
     {
         return false;
     }
-    // has not receive any checkPoint message before
+    // the local cache already has the checkPointProposal
+    if (m_caches.count(checkPointIndex) && m_caches[checkPointIndex]->checkPointProposal())
+    {
+        return false;
+    }
+    // request the checkpoint proposal when timeout
+    if (m_config->timeout())
+    {
+        return true;
+    }
+    // no-timeout
+    // has not receive any checkPoint message before, wait for generating local checkPoint
     if (!m_caches.count(checkPointIndex))
     {
         return false;
     }
     auto cache = m_caches[checkPointIndex];
-    // precommitted in the local cache
+    // precommitted in the local cache, wait for generating local checkPoint
     if (cache->precommitted())
     {
         return false;
     }
+    // receive at least (f+1) checkPoint proposal, wait for generating local checkPoint
     auto checkPointWeight = cache->getCollectedCheckPointWeight(_checkPointMsg->hash());
     auto minRequiredCheckPointWeight = m_config->maxFaultyQuorum() + 1;
     if (checkPointWeight < minRequiredCheckPointWeight)
