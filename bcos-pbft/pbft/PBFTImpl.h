@@ -109,7 +109,7 @@ public:
     {
         return m_pbftEngine->pbftConfig()->consensusNodeList();
     }
-
+    uint64_t nodeIndex() const override { return m_pbftEngine->pbftConfig()->nodeIndex(); }
     void asyncGetConsensusStatus(
         std::function<void(Error::Ptr, std::string)> _onGetConsensusStatus) override;
 
