@@ -70,8 +70,6 @@ void StateMachine::asyncApply(ssize_t, ProposalInterface::ConstPtr _lastAppliedP
                              << LOG_KV("lastAppliedIndex", _lastAppliedProposal->index())
                              << LOG_KV("proposal", _proposal->index());
     }
-    // supplement the header info
-    blockHeader->setSealer(_proposal->sealerId());
     // calls dispatcher to execute the block
     auto startT = utcTime();
     m_scheduler->executeBlock(block, false,
