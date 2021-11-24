@@ -102,6 +102,12 @@ void PBFTEngine::start()
 
 void PBFTEngine::stop()
 {
+    if (m_stopped.load())
+    {
+        PBFT_LOG(WARNING) << LOG_DESC("The PBFTEngine already been stopped!");
+        return;
+    }
+    m_stopped.store(true);
     ConsensusEngine::stop();
     if (m_worker)
     {
@@ -115,7 +121,7 @@ void PBFTEngine::stop()
     {
         m_config->stop();
     }
-    m_cacheProcessor->clearAll();
+    PBFT_LOG(INFO) << LOG_DESC("stop the PBFTEngine");
 }
 
 void PBFTEngine::onLoadAndVerifyProposalSucc(PBFTProposalInterface::Ptr _proposal)
@@ -1096,7 +1102,8 @@ bool PBFTEngine::isValidNewViewMsg(std::shared_ptr<NewViewMsgInterface> _newView
 {
     // check the newViewMsg
     auto progressedIndex = _newViewMsg->index() + 1;
-    auto expectedLeader = m_config->leaderIndexInNewViewPeriod(progressedIndex, _newViewMsg->view());
+    auto expectedLeader =
+        m_config->leaderIndexInNewViewPeriod(progressedIndex, _newViewMsg->view());
     if (expectedLeader != _newViewMsg->generatedFrom())
     {
         PBFT_LOG(WARNING) << LOG_DESC("InvalidNewViewMsg for invalid nextLeader")

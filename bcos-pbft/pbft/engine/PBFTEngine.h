@@ -214,6 +214,8 @@ protected:
         PreparedProposalResponse, CheckPoint, RecoverRequest, RecoverResponse};
 
     const std::set<PacketType> c_consensusPacket = {PrePreparePacket, PreparePacket, CommitPacket};
+
+    std::atomic_bool m_stopped = {false};
 };
 }  // namespace consensus
 }  // namespace bcos

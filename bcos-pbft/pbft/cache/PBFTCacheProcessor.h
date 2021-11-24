@@ -152,9 +152,6 @@ public:
 
     virtual void updateCommitQueue(PBFTProposalInterface::Ptr _committedProposal);
 
-    // to release the timer
-    virtual void clearAll() { m_caches.clear(); }
-
     // TODO: ensure thread-safe here
     virtual void eraseCommittedProposalList(bcos::protocol::BlockNumber _index);
 
