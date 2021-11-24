@@ -135,7 +135,7 @@ void PBFTImpl::init()
         m_pbftEngine->initState(*stateProposals, config->keyPair()->publicKey());
         auto lowWaterMarkIndex = stateProposals->size() - 1;
         auto lowWaterMark = ((*stateProposals)[lowWaterMarkIndex])->index();
-        config->setLowWaterMark(lowWaterMark);
+        config->setLowWaterMark(lowWaterMark + 1);
         PBFT_LOG(INFO) << LOG_DESC("init PBFT state")
                        << LOG_KV("stateProposals", stateProposals->size())
                        << LOG_KV("lowWaterMark", lowWaterMark)
