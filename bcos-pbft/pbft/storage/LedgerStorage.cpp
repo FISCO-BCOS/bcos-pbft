@@ -256,6 +256,8 @@ void LedgerStorage::asyncPutProposal(std::string const& _dbName, std::string con
     auto startT = utcTime();
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
     // TODO: optimize here to decrease copy overhead
+    // Note: asyncPut now is a sync implementation, but no need to async here since this
+    // timeout-head is only between 5-10ms
     m_storage->asyncPut(_dbName, _key,
         std::string((const char*)_committedData->data(), _committedData->size()),
         [startT, _dbName, _committedData, _key, _proposalIndex, _retryTime, self](
@@ -295,7 +297,7 @@ void LedgerStorage::asyncPutProposal(std::string const& _dbName, std::string con
         });
 }
 
-void LedgerStorage::asyncCommmitStableCheckPoint(PBFTProposalInterface::Ptr _stableProposal)
+void LedgerStorage::asyncCommitStableCheckPoint(PBFTProposalInterface::Ptr _stableProposal)
 {
     std::shared_ptr<std::vector<protocol::Signature>> signatureList =
         std::make_shared<std::vector<protocol::Signature>>();
@@ -311,18 +313,20 @@ void LedgerStorage::asyncCommmitStableCheckPoint(PBFTProposalInterface::Ptr _sta
         m_blockFactory->blockHeaderFactory()->createBlockHeader(_stableProposal->data());
     blockHeader->setSignatureList(*signatureList);
     auto blockSignatureList = blockHeader->signatureList();
-    PBFT_LOG(INFO) << LOG_DESC("asyncCommmitStableCheckPoint: set signatureList")
+    PBFT_LOG(INFO) << LOG_DESC("asyncCommitStableCheckPoint: set signatureList")
                    << LOG_KV("index", blockHeader->number())
                    << LOG_KV("hash", blockHeader->hash().abridged())
                    << LOG_KV("proofSize", signatureList->size())
                    << LOG_KV("blockProofSize", blockSignatureList.size());
-    // get the transactions list
-    auto txsInfo = m_blockFactory->createBlock(_stableProposal->extraData());
-    asyncCommitStableCheckPoint(blockHeader, txsInfo);
+    // Note: enqueue here to increase the performance since commitBlock is a sync implementation
+    m_commitBlockWorker->enqueue([this, blockHeader, _stableProposal]() {
+        // get the transactions list
+        auto txsInfo = m_blockFactory->createBlock(_stableProposal->extraData());
+        this->commitStableCheckPoint(blockHeader, txsInfo);
+    });
 }
 
-void LedgerStorage::asyncCommitStableCheckPoint(
-    BlockHeader::Ptr _blockHeader, Block::Ptr _blockInfo)
+void LedgerStorage::commitStableCheckPoint(BlockHeader::Ptr _blockHeader, Block::Ptr _blockInfo)
 {
     auto self = std::weak_ptr<LedgerStorage>(shared_from_this());
     auto startT = utcTime();
@@ -338,14 +342,14 @@ void LedgerStorage::asyncCommitStableCheckPoint(
                 }
                 if (_error != nullptr)
                 {
-                    PBFT_STORAGE_LOG(ERROR) << LOG_DESC("asyncCommitStableCheckPoint failed")
+                    PBFT_STORAGE_LOG(ERROR) << LOG_DESC("commitStableCheckPoint failed")
                                             << LOG_KV("errorCode", _error->errorCode())
                                             << LOG_KV("errorInfo", _error->errorMessage())
                                             << LOG_KV("proposalIndex", _blockHeader->number())
                                             << LOG_KV("timecost", utcTime() - startT);
                     return;
                 }
-                PBFT_STORAGE_LOG(INFO) << LOG_DESC("asyncCommitStableCheckPoint success")
+                PBFT_STORAGE_LOG(INFO) << LOG_DESC("commitStableCheckPoint success")
                                        << LOG_KV("index", _blockHeader->number())
                                        << LOG_KV("hash", _ledgerConfig->hash().abridged())
                                        << LOG_KV("txs", _blockInfo->transactionsHashSize())
@@ -368,7 +372,7 @@ void LedgerStorage::asyncCommitStableCheckPoint(
             }
             catch (std::exception const& e)
             {
-                PBFT_STORAGE_LOG(WARNING) << LOG_DESC("asyncCommitStableCheckPoint exception")
+                PBFT_STORAGE_LOG(WARNING) << LOG_DESC("commitStableCheckPoint exception")
                                           << LOG_KV("error", boost::diagnostic_information(e));
             }
         });

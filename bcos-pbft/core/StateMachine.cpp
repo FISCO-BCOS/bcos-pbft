@@ -26,7 +26,19 @@ using namespace bcos::consensus;
 using namespace bcos::protocol;
 using namespace bcos::crypto;
 
-void StateMachine::asyncApply(ssize_t, ProposalInterface::ConstPtr _lastAppliedProposal,
+void StateMachine::asyncApply(ssize_t _timeout, ProposalInterface::ConstPtr _lastAppliedProposal,
+    ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
+    std::function<void(bool)> _onExecuteFinished)
+{
+    // Note: async here to increase performance
+    m_worker->enqueue(
+        [this, _timeout, _lastAppliedProposal, _proposal, _executedProposal, _onExecuteFinished]() {
+            this->apply(
+                _timeout, _lastAppliedProposal, _proposal, _executedProposal, _onExecuteFinished);
+        });
+}
+
+void StateMachine::apply(ssize_t, ProposalInterface::ConstPtr _lastAppliedProposal,
     ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
     std::function<void(bool)> _onExecuteFinished)
 {

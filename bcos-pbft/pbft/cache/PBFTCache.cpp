@@ -43,7 +43,7 @@ void PBFTCache::onCheckPointTimeout()
                           << m_config->printCurrentState();
         return;
     }
-    if (m_committedIndexNotifier)
+    if (m_committedIndexNotifier && m_config->timer()->running() == false)
     {
         m_committedIndexNotifier(m_config->committedProposal()->index());
     }
