@@ -107,9 +107,15 @@ void PBFTCacheProcessor::addPrePrepareCache(PBFTMessageInterface::Ptr _prePrepar
             _pbftCache->addPrePrepareCache(proposal);
         });
     // notify the consensusing proposal index to the sync module
-    if (m_maxNotifyIndex < _prePrepareMsg->index())
+    notifyMaxProposalIndex(_prePrepareMsg->index());
+}
+
+void PBFTCacheProcessor::notifyMaxProposalIndex(bcos::protocol::BlockNumber _proposalIndex)
+{
+    // notify the consensusing proposal index to the sync module
+    if (m_maxNotifyIndex < _proposalIndex)
     {
-        m_maxNotifyIndex = _prePrepareMsg->index();
+        m_maxNotifyIndex = _proposalIndex;
         notifyCommittedProposalIndex(m_maxNotifyIndex);
     }
 }
@@ -237,6 +243,7 @@ void PBFTCacheProcessor::updateCommitQueue(PBFTProposalInterface::Ptr _committed
     {
         return;
     }
+    notifyMaxProposalIndex(_committedProposal->index());
     m_committedQueue.push(_committedProposal);
     m_committedProposalList.insert(_committedProposal->index());
     PBFT_LOG(INFO) << LOG_DESC("######## CommitProposal") << printPBFTProposal(_committedProposal)
@@ -869,7 +876,7 @@ void PBFTCacheProcessor::tryToCommitStableCheckPoint()
         auto stableCheckPoint = m_stableCheckPointQueue.top();
         m_committedProposalList.erase(stableCheckPoint->index());
         m_stableCheckPointQueue.pop();
-        m_config->storage()->asyncCommmitStableCheckPoint(stableCheckPoint);
+        m_config->storage()->asyncCommitStableCheckPoint(stableCheckPoint);
     }
 }
 

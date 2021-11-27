@@ -24,6 +24,7 @@
 #include <bcos-framework/interfaces/dispatcher/SchedulerInterface.h>
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
 #include <bcos-framework/libutilities/KVStorageHelper.h>
+#include <bcos-framework/libutilities/ThreadPool.h>
 
 namespace bcos
 {
@@ -42,6 +43,7 @@ public:
         m_messageFactory(_messageFactory)
     {
         createKVTable(m_pbftCommitDB);
+        m_commitBlockWorker = std::make_shared<ThreadPool>("blockSubmit", 1);
     }
 
     void createKVTable(std::string const& _dbName);
@@ -50,7 +52,7 @@ public:
     // commit the committed proposal into the kv-storage
     void asyncCommitProposal(PBFTProposalInterface::Ptr _proposal) override;
     // commit the executed-block into the blockchain
-    void asyncCommmitStableCheckPoint(PBFTProposalInterface::Ptr _stableProposal) override;
+    void asyncCommitStableCheckPoint(PBFTProposalInterface::Ptr _stableProposal) override;
     void registerFinalizeHandler(
         std::function<void(bcos::ledger::LedgerConfig::Ptr, bool _syncBlock)> _finalizeHandler)
         override
@@ -71,7 +73,7 @@ protected:
 
     virtual void asyncRemove(std::string const& _dbName, std::string const& _key);
 
-    virtual void asyncCommitStableCheckPoint(
+    virtual void commitStableCheckPoint(
         bcos::protocol::BlockHeader::Ptr _blockHeader, bcos::protocol::Block::Ptr _blockInfo);
     virtual void asyncGetLatestCommittedProposalIndex();
 
@@ -96,6 +98,8 @@ protected:
     boost::condition_variable m_signalled;
     boost::mutex x_signalled;
     std::function<void(bcos::ledger::LedgerConfig::Ptr, bool _syncBlock)> m_finalizeHandler;
+
+    std::shared_ptr<ThreadPool> m_commitBlockWorker;
 };
 }  // namespace consensus
 }  // namespace bcos

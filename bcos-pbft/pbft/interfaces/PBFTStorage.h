@@ -39,7 +39,7 @@ public:
     virtual PBFTProposalListPtr loadState(bcos::protocol::BlockNumber _stabledIndex) = 0;
     virtual int64_t maxCommittedProposalIndex() = 0;
     virtual void asyncCommitProposal(PBFTProposalInterface::Ptr _commitProposal) = 0;
-    virtual void asyncCommmitStableCheckPoint(PBFTProposalInterface::Ptr _stableProposal) = 0;
+    virtual void asyncCommitStableCheckPoint(PBFTProposalInterface::Ptr _stableProposal) = 0;
     virtual void asyncRemoveStabledCheckPoint(size_t _stabledCheckPointIndex) = 0;
 
     // get the latest committed proposal from the storage

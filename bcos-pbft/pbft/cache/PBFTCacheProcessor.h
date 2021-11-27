@@ -206,6 +206,8 @@ protected:
 
     virtual void notifyToSealNextBlock(PBFTProposalInterface::Ptr _checkpointProposal);
 
+    void notifyMaxProposalIndex(bcos::protocol::BlockNumber _proposalIndex);
+
 protected:
     PBFTCacheFactory::Ptr m_cacheFactory;
     PBFTConfig::Ptr m_config;

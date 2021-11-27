@@ -22,6 +22,7 @@
 #include "../framework/StateMachineInterface.h"
 #include <bcos-framework/interfaces/dispatcher/SchedulerInterface.h>
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
+#include <bcos-framework/libutilities/ThreadPool.h>
 
 namespace bcos
 {
@@ -33,16 +34,24 @@ public:
     StateMachine(bcos::scheduler::SchedulerInterface::Ptr _scheduler,
         bcos::protocol::BlockFactory::Ptr _blockFactory)
       : m_scheduler(_scheduler), m_blockFactory(_blockFactory)
-    {}
+    {
+        m_worker = std::make_shared<ThreadPool>("stateMachine", 1);
+    }
     ~StateMachine() override {}
 
     void asyncApply(ssize_t _execTimeout, ProposalInterface::ConstPtr _lastAppliedProposal,
         ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
         std::function<void(bool)> _onExecuteFinished) override;
 
+private:
+    void apply(ssize_t _execTimeout, ProposalInterface::ConstPtr _lastAppliedProposal,
+        ProposalInterface::Ptr _proposal, ProposalInterface::Ptr _executedProposal,
+        std::function<void(bool)> _onExecuteFinished);
+
 protected:
     bcos::scheduler::SchedulerInterface::Ptr m_scheduler;
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
+    bcos::ThreadPool::Ptr m_worker;
 };
 }  // namespace consensus
 }  // namespace bcos
