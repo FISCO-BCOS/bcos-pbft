@@ -37,6 +37,7 @@ public:
     {
         auto cache = std::make_shared<PBFTCache>(_config, _index);
         cache->registerCommittedIndexNotify(_committedIndexNotifier);
+        cache->init();
         return cache;
     }
 };

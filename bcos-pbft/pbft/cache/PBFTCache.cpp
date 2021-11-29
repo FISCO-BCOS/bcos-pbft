@@ -30,10 +30,28 @@ PBFTCache::PBFTCache(PBFTConfig::Ptr _config, BlockNumber _index)
 {
     // Timer is used to manage checkpoint timeout
     m_timer = std::make_shared<PBFTTimer>(m_config->checkPointTimeoutInterval());
-    // register the timeout function
-    m_timer->registerTimeoutHandler(boost::bind(&PBFTCache::onCheckPointTimeout, this));
 }
-
+void PBFTCache::init()
+{
+    // register timeout handler
+    auto self = std::weak_ptr<PBFTCache>(shared_from_this());
+    m_timer->registerTimeoutHandler([self]() {
+        try
+        {
+            auto cache = self.lock();
+            if (!cache)
+            {
+                return;
+            }
+            cache->onCheckPointTimeout();
+        }
+        catch (std::exception const& e)
+        {
+            PBFT_LOG(WARNING) << LOG_DESC("onCheckPointTimeout error")
+                              << LOG_KV("errorInfo", boost::diagnostic_information(e));
+        }
+    });
+}
 void PBFTCache::onCheckPointTimeout()
 {
     // Note: this logic is unreachable

@@ -404,9 +404,27 @@ void PBFTCacheProcessor::setCheckPointProposal(PBFTProposalInterface::Ptr _propo
     auto index = _proposal->index();
     if (!(m_caches.count(index)))
     {
-        m_caches[index] = m_cacheFactory->createPBFTCache(m_config, index,
-            boost::bind(
-                &PBFTCacheProcessor::notifyCommittedProposalIndex, this, boost::placeholders::_1));
+        // Note: since cache is created and freed frequently, it should be safer to use weak_ptr in
+        // the callback
+        auto self = std::weak_ptr<PBFTCacheProcessor>(shared_from_this());
+        m_caches[index] = m_cacheFactory->createPBFTCache(
+            m_config, index, [self](bcos::protocol::BlockNumber _proposalIndex) {
+                try
+                {
+                    auto cache = self.lock();
+                    if (!cache)
+                    {
+                        return;
+                    }
+                    cache->notifyCommittedProposalIndex(_proposalIndex);
+                }
+                catch (std::exception const& e)
+                {
+                    PBFT_LOG(WARNING) << LOG_DESC("notifyCommittedProposalIndex error")
+                                      << LOG_KV("index", _proposalIndex)
+                                      << LOG_KV("errorInfo", boost::diagnostic_information(e));
+                }
+            });
     }
     (m_caches[index])->setCheckPointProposal(_proposal);
 }
