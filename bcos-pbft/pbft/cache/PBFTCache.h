@@ -26,7 +26,7 @@ namespace bcos
 {
 namespace consensus
 {
-class PBFTCache
+class PBFTCache : public std::enable_shared_from_this<PBFTCache>
 {
 public:
     using Ptr = std::shared_ptr<PBFTCache>;
@@ -111,6 +111,7 @@ public:
         }
         return 0;
     }
+    void init();
 
 protected:
     bool checkPrePrepareProposalStatus();
