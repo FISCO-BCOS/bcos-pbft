@@ -1083,11 +1083,14 @@ bool PBFTEngine::handleViewChangeMsg(ViewChangeMsgInterface::Ptr _viewChangeMsg)
     // view is greater than the current view:
     // sends a view-change message for the smallest view in the set, even if its timer has not
     // expired
-    auto view = m_cacheProcessor->tryToTriggerFastViewChange();
-    if (view > 0)
+    if (_viewChangeMsg->generatedFrom() == m_config->getLeader())
     {
-        // trigger timeout to reach fast view change
-        triggerTimeout();
+        auto view = m_cacheProcessor->tryToTriggerFastViewChange();
+        if (view > 0)
+        {
+            // trigger timeout to reach fast view change
+            triggerTimeout();
+        }
     }
     auto newViewMsg = m_cacheProcessor->checkAndTryIntoNewView();
     if (newViewMsg)
