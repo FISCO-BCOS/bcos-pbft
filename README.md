@@ -10,12 +10,11 @@ English / [中文](doc/README_CN.md)
 [![Code Lines](https://tokei.rs/b1/github/FISCO-BCOS/bcos-pbft?category=code)](https://github.com/FISCO-BCOS/bcos-pbft)
 [![version](https://img.shields.io/github/tag/FISCO-BCOS/bcos-pbft.svg)](https://github.com/FISCO-BCOS/bcos-pbft/releases/latest)
 
-bcos-pbft is the implementation of the PBFT consensus algorithm of [FISCO BCOS 3.0](https://github.com/FISCO-BCOS/bcos-tars-services). bcos-pbft designed a two-stage parallel Byzantine consensus, dividing the consensus of the blockchain system into two stages: block batch parallel ordering consensus and block execution result pipeline consensus. The two stages can be carried out in parallel, aiming to improve the blockchain system Consensus performance.
+bcos-pbft is the implementation of the PBFT consensus algorithm of [FISCO BCOS 3.0](https://github.com/FISCO-BCOS/FISCO-BCOS). bcos-pbft designed a two-stage parallel Byzantine consensus, dividing the consensus of the blockchain system into two stages: block batch parallel ordering consensus and block execution result pipeline consensus. The two stages can be carried out in parallel, aiming to improve the blockchain system Consensus performance.
 
 ## Documentation
 
-- [FISCO BCOS 3.0 quick start](https://fisco-bcos-documentation.readthedocs.io/zh_CN/latest/docs/installation.html)
-- [FISCO BCOS 3.0 system design](https://TODO.html)
+- [FISCO BCOS 3.0 documentation](https://fisco-bcos-documentation-3x.readthedocs.io/zh/latest/index.html)
 
 ## Code contribution
 

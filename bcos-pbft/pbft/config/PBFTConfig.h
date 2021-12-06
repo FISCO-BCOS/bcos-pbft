@@ -66,7 +66,7 @@ public:
         {
             m_validator->stop();
         }
-        // destory the timer
+        // destroy the timer
         if (m_timer)
         {
             m_timer->destroy();

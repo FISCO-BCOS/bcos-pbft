@@ -11,13 +11,12 @@
 [![Code Lines](https://tokei.rs/b1/github/FISCO-BCOS/bcos-pbft?category=code)](https://github.com/FISCO-BCOS/bcos-pbft)
 [![version](https://img.shields.io/github/tag/FISCO-BCOS/bcos-pbft.svg)](https://github.com/FISCO-BCOS/bcos-pbft/releases/latest)
 
-bcos-pbft是[FISCO BCOS 3.0](https://github.com/FISCO-BCOS/bcos-tars-services)的PBFT共识算法实现，bcos-pbft设计了两阶段并行拜占庭共识，将区块链系统的共识划分成区块批量并行排序共识和区块执行结果流水线共识两个阶段，两阶段可并行进行，旨在提升区块链系统共识性能。
+bcos-pbft是[FISCO BCOS 3.0](https://github.com/FISCO-BCOS/FISCO-BCOS)的PBFT共识算法实现，bcos-pbft设计了两阶段并行拜占庭共识，将区块链系统的共识划分成区块批量并行排序共识和区块执行结果流水线共识两个阶段，两阶段可并行进行，旨在提升区块链系统共识性能。
 
 
 ## 文档
 
-- [FISCO BCOS 3.0快速开始](https://fisco-bcos-documentation.readthedocs.io/zh_CN/latest/docs/installation.html)
-- [FISCO BCOS 3.0系统设计](https://TODO.html)
+- [FISCO BCOS 3.0文档](https://fisco-bcos-documentation-3x.readthedocs.io/zh/latest/index.html)
 
 ## 加入社区
 

@@ -28,7 +28,7 @@ include(FetchContent)
 set(BCOS_CMAKE_SCRIPTS_DIR ${CMAKE_CURRENT_BINARY_DIR}/bcos-cmake-scripts)
 FetchContent_Declare(bcos-cmake-scripts
     GIT_REPOSITORY https://${URL_BASE}/FISCO-BCOS/bcos-cmake-scripts.git
-    GIT_TAG dev
+    GIT_TAG 9b2ac5b979cbc97f640b2285feb2c74a18cfb935
     SOURCE_DIR ${BCOS_CMAKE_SCRIPTS_DIR}
 )
 FetchContent_MakeAvailable(bcos-cmake-scripts)
@@ -39,12 +39,12 @@ list(APPEND CMAKE_MODULE_PATH ${BCOS_PBFT_CMAKE_DIR})
 #init hunter
 include(HunterGate)
 HunterGate(
-    URL "https://${URL_BASE}/FISCO-BCOS/hunter/archive/60389000be6e74983b8790e695ba1bd10e88fab7.tar.gz"
-    SHA1 "8477caf1a595856cdc2c3b09568bbf9bf15f1f35"
+    URL "https://${URL_BASE}/FISCO-BCOS/hunter/archive/203039fdd0826330facd9c3841082dbf35d0c808.tar.gz"
+    SHA1 "26ca1840eb26da410913469f2f278569c8d383ae"
     FILEPATH "${BCOS_PBFT_CMAKE_DIR}/config.cmake"
 )
 project(bcos-pbft VERSION "3.0.0")
-set(VERSION_SUFFIX "")
+set(VERSION_SUFFIX "-rc1")
 
 # basic settings
 include(Options)
