@@ -122,7 +122,10 @@ void StateMachine::apply(ssize_t, ProposalInterface::ConstPtr _lastAppliedPropos
             }
             _executedProposal->setIndex(_blockHeader->number());
             _executedProposal->setHash(_blockHeader->hash());
-            _executedProposal->setData(_blockHeader->encode(false));
+
+            bcos::bytes blockHeaderBuffer;
+            _blockHeader->encode(blockHeaderBuffer);
+            _executedProposal->setData(std::move(blockHeaderBuffer));
             // the transactions hash list
             _executedProposal->setExtraData(_proposal->data());
             _onExecuteFinished(true);
