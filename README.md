@@ -5,16 +5,15 @@ English / [中文](doc/README_CN.md)
 
 [![codecov](https://codecov.io/gh/FISCO-BCOS/bcos-pbft/branch/master/graph/badge.svg)](https://codecov.io/gh/FISCO-BCOS/bcos-pbft)
 [![CodeFactor](https://www.codefactor.io/repository/github/fisco-bcos/bcos-pbft/badge)](https://www.codefactor.io/repository/github/fisco-bcos/bcos-pbft)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/08552871ee104fe299b00bc79f8a12b9)](https://www.codacy.com/app/fisco-dev/FISCO-BCOS?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=FISCO-BCOS/bcos-pbft&amp;utm_campaign=Badge_Grade)
 [![GitHub All Releases](https://img.shields.io/github/downloads/FISCO-BCOS/bcos-pbft/total.svg)](https://github.com/FISCO-BCOS/bcos-pbft)
 [![Code Lines](https://tokei.rs/b1/github/FISCO-BCOS/bcos-pbft?category=code)](https://github.com/FISCO-BCOS/bcos-pbft)
 [![version](https://img.shields.io/github/tag/FISCO-BCOS/bcos-pbft.svg)](https://github.com/FISCO-BCOS/bcos-pbft/releases/latest)
 
-bcos-pbft is the implementation of the PBFT consensus algorithm of [FISCO BCOS 3.0](https://github.com/FISCO-BCOS/FISCO-BCOS). bcos-pbft designed a two-stage parallel Byzantine consensus, dividing the consensus of the blockchain system into two stages: block batch parallel ordering consensus and block execution result pipeline consensus. The two stages can be carried out in parallel, aiming to improve the blockchain system Consensus performance.
+bcos-pbft is the implementation of the PBFT consensus algorithm of [FISCO BCOS 3.x](https://github.com/FISCO-BCOS/FISCO-BCOS). bcos-pbft designed a two-stage parallel Byzantine consensus, dividing the consensus of the blockchain system into two stages: block batch parallel ordering consensus and block execution result pipeline consensus. The two stages can be carried out in parallel, aiming to improve the blockchain system Consensus performance.
 
 ## Documentation
 
-- [FISCO BCOS 3.0 documentation](https://fisco-bcos-documentation-3x.readthedocs.io/zh/latest/index.html)
+- [FISCO BCOS 3.x documentation](https://fisco-bcos-doc.readthedocs.io/)
 
 ## Code contribution
 
